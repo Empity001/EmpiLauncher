@@ -55,6 +55,134 @@
   padding: 54px 0;
 }
 
+.launcher-picker {
+  width: min(860px, calc(100% - 48px));
+  margin: auto;
+  padding: 54px 0;
+}
+
+.picker-intro {
+  max-width: 660px;
+}
+
+.launcher-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 34px;
+}
+
+.launcher-option {
+  min-width: 0;
+  min-height: 150px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 22px;
+  border: 1px solid #373c37;
+  border-radius: 7px;
+  background: #151815;
+  color: #e7eae5;
+  text-align: left;
+  cursor: pointer;
+}
+
+.launcher-option:hover {
+  border-color: #626a62;
+  background: #191d19;
+}
+
+.launcher-option:focus-visible,
+.back-button:focus-visible,
+.text-button:focus-visible {
+  outline: 3px solid rgba(215, 255, 82, 0.35);
+  outline-offset: 3px;
+}
+
+.launcher-monogram {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: #292d29;
+  color: #f3f5f1;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.curseforge-option .launcher-monogram {
+  background: #f16436;
+  color: #fff;
+}
+
+.modrinth-option .launcher-monogram {
+  background: #1cce73;
+  color: #0f2418;
+}
+
+.launcher-option-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.launcher-option-copy strong {
+  font-size: 18px;
+}
+
+.launcher-option-copy small,
+.launcher-option-copy span {
+  overflow: hidden;
+  color: #8e968e;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.launcher-option-copy small {
+  color: #b8beb8;
+  font-size: 13px;
+}
+
+.option-arrow {
+  color: #747b74;
+  font-size: 27px;
+}
+
+.back-button,
+.text-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #aeb5ae;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.back-button {
+  margin-bottom: 28px;
+}
+
+.back-button:hover:not(:disabled),
+.text-button:hover {
+  color: #e7eae5;
+}
+
+.back-button:disabled {
+  color: #5d635d;
+  cursor: not-allowed;
+}
+
+.text-button {
+  margin-top: 18px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .intro {
   max-width: 680px;
 }
@@ -121,7 +249,7 @@ h1 {
 
 .bridge-panel,
 .prepared-panel,
-.progress-panel {
+.handoff-panel {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -138,7 +266,7 @@ h1 {
 
 .bridge-status div,
 .prepared-copy,
-.progress-panel div {
+.handoff-panel .prepared-copy {
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -156,8 +284,8 @@ h1 {
 .bridge-status span,
 .prepared-copy span,
 .prepared-copy small,
-.progress-panel span,
-.progress-panel small {
+.handoff-panel span,
+.handoff-panel small {
   overflow: hidden;
   color: #8e968e;
   font-size: 12px;
@@ -171,24 +299,47 @@ h1 {
 }
 
 .progress-panel {
-  justify-content: flex-start;
+  margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid #2c302c;
 }
 
-.progress-pulse {
-  width: 9px;
-  height: 9px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: #d7ff52;
-  box-shadow: 0 0 0 0 rgba(215, 255, 82, 0.35);
-  animation: install-pulse 1.4s ease-out infinite;
+.progress-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-@keyframes install-pulse {
-  70% { box-shadow: 0 0 0 8px rgba(215, 255, 82, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(215, 255, 82, 0); }
+.progress-heading strong {
+  color: #d7ff52;
+  font-size: 13px;
+}
+
+.progress-track {
+  height: 7px;
+  margin-top: 11px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #292d29;
+}
+
+.progress-track span {
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: #d7ff52;
+  transition: width 180ms ease;
+}
+
+.progress-panel small {
+  display: block;
+  overflow: hidden;
+  margin-top: 8px;
+  color: #8e968e;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .status-dot {
@@ -244,6 +395,13 @@ h1 {
   border-top: 1px solid #2c302c;
 }
 
+.handoff-panel {
+  padding: 18px;
+  border: 1px solid #3d4537;
+  border-radius: 7px;
+  background: #171b15;
+}
+
 .prepared-actions {
   flex: 0 0 auto;
   display: flex;
@@ -287,6 +445,15 @@ h1 {
     padding: 42px 0;
   }
 
+  .launcher-picker {
+    width: min(100% - 36px, 860px);
+    padding: 42px 0;
+  }
+
+  .launcher-options {
+    grid-template-columns: 1fr;
+  }
+
   h1 {
     font-size: 36px;
   }
@@ -307,7 +474,7 @@ h1 {
 
   .bridge-panel,
   .prepared-panel,
-  .progress-panel {
+  .handoff-panel {
     align-items: stretch;
     flex-direction: column;
     gap: 16px;

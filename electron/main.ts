@@ -1,9 +1,13 @@
 import { spawn } from 'node:child_process'
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import type { InstallProgress } from '../src/types/bridge.js'
 import { detectCurseForge } from './curseforge/detection.js'
 import { CurseForgeInstanceService } from './curseforge/instanceService.js'
+import { detectModrinth } from './modrinth/detection.js'
+import { ModrinthInstanceService } from './modrinth/instanceService.js'
+import { LauncherSettingsStore } from './settings/launcherSettings.js'
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url))
 const rendererDirectory = path.join(currentDirectory, '../dist')
@@ -40,15 +44,19 @@ function createWindow() {
 
 const CURSEFORGE_DOWNLOAD_URL = 'https://www.curseforge.com/download/app'
 const CURSEFORGE_OVERWOLF_APP_ID = 'cfiahnpaolfnlgaihhmobmnjdafknjnjdpdabpcm'
+const MODRINTH_DOWNLOAD_URL = 'https://modrinth.com/app'
 
-function registerIpcHandlers(instanceService: CurseForgeInstanceService) {
+function registerIpcHandlers(
+  curseForgeService: CurseForgeInstanceService,
+  modrinthService: ModrinthInstanceService,
+) {
   ipcMain.handle('app:get-info', () => ({
     name: app.getName(),
     version: app.getVersion(),
     platform: process.platform,
   }))
 
-  ipcMain.handle('pack:get-info', () => instanceService.getPackInfo())
+  ipcMain.handle('pack:get-info', () => curseForgeService.getPackInfo())
 
   ipcMain.handle('curseforge:get-status', async () => {
     const detection = await detectCurseForge()
@@ -56,11 +64,11 @@ function registerIpcHandlers(instanceService: CurseForgeInstanceService) {
     return { state: detection.state, variant: detection.variant }
   })
 
-  ipcMain.handle('curseforge:get-instance-status', () => instanceService.getStatus())
-  ipcMain.handle('curseforge:install-instance', () => instanceService.installOrRepair())
+  ipcMain.handle('curseforge:get-instance-status', () => curseForgeService.getStatus())
+  ipcMain.handle('curseforge:install-instance', () => curseForgeService.installOrRepair())
 
   ipcMain.handle('curseforge:open-instance', async () => {
-    const status = await instanceService.getStatus()
+    const status = await curseForgeService.getStatus()
     if (status.state !== 'installed' && status.state !== 'update-available') {
       return { ok: false, message: 'Crea primero la instancia.' }
     }
@@ -108,22 +116,73 @@ function registerIpcHandlers(instanceService: CurseForgeInstanceService) {
     const error = await shell.openPath(detection.executablePath)
     return error ? { ok: false, message: error } : { ok: true }
   })
+
+  ipcMain.handle('modrinth:get-status', async () => {
+    const detection = await detectModrinth()
+    return { state: detection.state }
+  })
+  ipcMain.handle('modrinth:get-instance-status', () => modrinthService.getStatus())
+  ipcMain.handle('modrinth:install-instance', () => modrinthService.installOrRepair())
+
+  ipcMain.handle('modrinth:locate-instance', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Elige la instancia o la carpeta profiles de Modrinth',
+      properties: ['openDirectory'],
+    })
+    if (result.canceled || !result.filePaths[0]) return { ok: true }
+    const located = await modrinthService.locateInstance(result.filePaths[0])
+    return located
+      ? { ok: true }
+      : { ok: false, message: 'Esa carpeta no contiene la instancia de EmpiLauncher.' }
+  })
+
+  ipcMain.handle('modrinth:open-instance', async () => {
+    const status = await modrinthService.getStatus()
+    if (status.state !== 'installed' && status.state !== 'update-available') {
+      return { ok: false, message: 'Crea primero la instancia en Modrinth.' }
+    }
+    const error = await shell.openPath(status.path)
+    return error ? { ok: false, message: error } : { ok: true }
+  })
+
+  ipcMain.handle('modrinth:open', async () => {
+    const detection = await detectModrinth()
+    if (detection.state === 'unsupported') {
+      return { ok: false, message: 'Modrinth solo se busca en Windows por ahora.' }
+    }
+    if (detection.state === 'not-found' || !detection.executablePath) {
+      await shell.openExternal(MODRINTH_DOWNLOAD_URL)
+      return { ok: true }
+    }
+    const error = await shell.openPath(detection.executablePath)
+    return error ? { ok: false, message: error } : { ok: true }
+  })
 }
 
 app.whenReady().then(async () => {
   const resourcesDirectory = app.isPackaged
     ? process.resourcesPath
     : app.getAppPath()
-  const instanceService = new CurseForgeInstanceService(
+  const settings = new LauncherSettingsStore(app.getPath('userData'))
+  const reportProgress = (progress: InstallProgress) => {
+    for (const window of BrowserWindow.getAllWindows()) {
+      window.webContents.send('install:progress', progress)
+    }
+  }
+  const curseForgeService = new CurseForgeInstanceService(
     resourcesDirectory,
-    (progress) => {
-      for (const window of BrowserWindow.getAllWindows()) {
-        window.webContents.send('curseforge:install-progress', progress)
-      }
-    },
+    settings,
+    reportProgress,
+  )
+  const modrinthService = new ModrinthInstanceService(
+    resourcesDirectory,
+    path.join(app.getPath('userData'), 'installers'),
+    settings,
+    (packPath) => shell.openPath(packPath),
+    reportProgress,
   )
 
-  registerIpcHandlers(instanceService)
+  registerIpcHandlers(curseForgeService, modrinthService)
   createWindow()
 
   app.on('activate', () => {

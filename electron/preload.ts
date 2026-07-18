@@ -8,15 +8,23 @@ const bridge: EmpiBridge = {
     getStatus: () => ipcRenderer.invoke('curseforge:get-status'),
     getInstanceStatus: () => ipcRenderer.invoke('curseforge:get-instance-status'),
     installOrRepair: () => ipcRenderer.invoke('curseforge:install-instance'),
-    onInstallProgress: (listener) => {
-      const handler = (_event: Electron.IpcRendererEvent, progress: Parameters<typeof listener>[0]) => {
-        listener(progress)
-      }
-      ipcRenderer.on('curseforge:install-progress', handler)
-      return () => ipcRenderer.removeListener('curseforge:install-progress', handler)
-    },
     open: () => ipcRenderer.invoke('curseforge:open'),
     openInstance: () => ipcRenderer.invoke('curseforge:open-instance'),
+  },
+  modrinth: {
+    getStatus: () => ipcRenderer.invoke('modrinth:get-status'),
+    getInstanceStatus: () => ipcRenderer.invoke('modrinth:get-instance-status'),
+    installOrRepair: () => ipcRenderer.invoke('modrinth:install-instance'),
+    locateInstance: () => ipcRenderer.invoke('modrinth:locate-instance'),
+    open: () => ipcRenderer.invoke('modrinth:open'),
+    openInstance: () => ipcRenderer.invoke('modrinth:open-instance'),
+  },
+  onInstallProgress: (listener) => {
+    const handler = (_event: Electron.IpcRendererEvent, progress: Parameters<typeof listener>[0]) => {
+      listener(progress)
+    }
+    ipcRenderer.on('install:progress', handler)
+    return () => ipcRenderer.removeListener('install:progress', handler)
   },
 }
 

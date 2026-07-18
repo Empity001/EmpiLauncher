@@ -13,9 +13,17 @@ export interface PackInfo {
   loaderVersion: string
 }
 
+export type LauncherKind = 'curseforge' | 'modrinth'
+
 export type CurseForgeStatus =
   | { state: 'loading' }
   | { state: 'detected'; variant: 'standalone' | 'overwolf' }
+  | { state: 'not-found' }
+  | { state: 'unsupported' }
+
+export type ModrinthStatus =
+  | { state: 'loading' }
+  | { state: 'detected' }
   | { state: 'not-found' }
   | { state: 'unsupported' }
 
@@ -28,7 +36,14 @@ export type DirectInstanceStatus =
   | { state: 'unsupported' }
 
 export type DirectInstanceResult =
-  | { ok: true; path: string; created: boolean; forgeVersionId: string }
+  | {
+      ok: true
+      path: string
+      created: boolean
+      forgeVersionId?: string
+      requiresLauncher?: boolean
+      message?: string
+    }
   | {
       ok: false
       code: 'unsupported' | 'instance-conflict' | 'installation-failed'
@@ -36,8 +51,11 @@ export type DirectInstanceResult =
     }
 
 export interface InstallProgress {
-  stage: 'java' | 'minecraft' | 'forge' | 'instance' | 'done'
+  launcher: LauncherKind
+  stage: 'preparing' | 'java' | 'minecraft' | 'forge' | 'instance' | 'handoff' | 'done'
   message: string
+  percent: number
+  currentFile?: string
 }
 
 export type LauncherActionResult =
@@ -51,8 +69,16 @@ export interface EmpiBridge {
     getStatus(): Promise<CurseForgeStatus>
     getInstanceStatus(): Promise<DirectInstanceStatus>
     installOrRepair(): Promise<DirectInstanceResult>
-    onInstallProgress(listener: (progress: InstallProgress) => void): () => void
     open(): Promise<LauncherActionResult>
     openInstance(): Promise<LauncherActionResult>
   }
+  modrinth: {
+    getStatus(): Promise<ModrinthStatus>
+    getInstanceStatus(): Promise<DirectInstanceStatus>
+    installOrRepair(): Promise<DirectInstanceResult>
+    locateInstance(): Promise<LauncherActionResult>
+    open(): Promise<LauncherActionResult>
+    openInstance(): Promise<LauncherActionResult>
+  }
+  onInstallProgress(listener: (progress: InstallProgress) => void): () => void
 }
