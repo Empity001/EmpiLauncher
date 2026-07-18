@@ -1,12 +1,18 @@
 # EmpiLauncher
 
-Launcher personal de Minecraft para proyectos, series y versiones gestionadas.
+Gestor personal de proyectos, series e instancias de Minecraft. EmpiLauncher
+prepara y mantiene modpacks; la cuenta y el arranque del juego permanecen en el
+launcher que cada persona ya utiliza.
 
 ## Estado
 
-`launcher-microsoft-auth-01`: autenticacion de Microsoft mediante OAuth 2.0 con
-PKCE, verificacion de licencia y perfil de Minecraft Java, y sesion cifrada con
-el almacenamiento seguro del sistema operativo.
+`launcher-curseforge-bridge-01`: primer puente para CurseForge en Windows y
+paquete reproducible de Minecraft 1.20.1 con Forge 47.4.10.
+
+El hito detecta CurseForge Standalone u Overwolf, genera un ZIP compatible en la
+carpeta de Descargas y permite abrir CurseForge y localizar el archivo. La
+confirmacion final de importacion se realiza dentro de CurseForge, que no ofrece
+una interfaz publica para importar perfiles locales silenciosamente.
 
 ## Desarrollo
 
@@ -23,11 +29,9 @@ npm run dev
 Comprobaciones:
 
 ```bash
-npm run lint
-npm run build
+npm run check
 ```
 
 El instalador de Windows se genera con `npm run dist`. Consulta
-[`docs/microsoft-auth.md`](docs/microsoft-auth.md) para registrar la aplicacion y
-agregar el identificador publico a `launcher.config.json`. Los tokens nunca se
-exponen a la interfaz ni se guardan sin cifrar.
+[`docs/curseforge-bridge.md`](docs/curseforge-bridge.md) para probar el flujo y
+conocer la estructura del paquete.

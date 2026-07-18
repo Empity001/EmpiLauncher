@@ -3,10 +3,12 @@ import type { EmpiBridge } from '../src/types/bridge.js'
 
 const bridge: EmpiBridge = {
   getAppInfo: () => ipcRenderer.invoke('app:get-info'),
-  auth: {
-    getStatus: () => ipcRenderer.invoke('auth:get-status'),
-    startMicrosoftLogin: () => ipcRenderer.invoke('auth:start-microsoft'),
-    logout: () => ipcRenderer.invoke('auth:logout'),
+  getPackInfo: () => ipcRenderer.invoke('pack:get-info'),
+  curseForge: {
+    getStatus: () => ipcRenderer.invoke('curseforge:get-status'),
+    preparePack: () => ipcRenderer.invoke('curseforge:prepare-pack'),
+    open: () => ipcRenderer.invoke('curseforge:open'),
+    showPreparedPack: () => ipcRenderer.invoke('curseforge:show-pack'),
   },
 }
 

@@ -1,66 +1,90 @@
 import { useEffect, useState } from 'react'
-import type { AppInfo, AuthResult, AuthStatus } from './types/bridge'
+import type {
+  AppInfo,
+  CurseForgeStatus,
+  PackInfo,
+  PreparePackResult,
+} from './types/bridge'
 import './App.css'
 
-const INITIAL_AUTH_STATUS: AuthStatus = { state: 'loading' }
+const INITIAL_CURSEFORGE_STATUS: CurseForgeStatus = { state: 'loading' }
 
-function MicrosoftMark() {
-  return (
-    <span className="microsoft-mark" aria-hidden="true">
-      <span />
-      <span />
-      <span />
-      <span />
-    </span>
-  )
-}
-
-function statusLabel(status: AuthStatus) {
+function launcherLabel(status: CurseForgeStatus) {
   switch (status.state) {
-    case 'authenticated': return `Cuenta: ${status.profile.name}`
-    case 'signed-out': return 'Microsoft preparado'
-    case 'working': return 'Conectando con Microsoft'
-    case 'error': return 'La sesion necesita atencion'
-    default: return 'Configuracion inicial'
+    case 'detected':
+      return status.variant === 'standalone'
+        ? 'CurseForge detectado'
+        : 'CurseForge + Overwolf detectado'
+    case 'not-found': return 'CurseForge no detectado'
+    case 'unsupported': return 'Deteccion disponible en Windows'
+    default: return 'Buscando CurseForge'
   }
 }
 
 function App() {
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null)
-  const [authStatus, setAuthStatus] = useState<AuthStatus>(INITIAL_AUTH_STATUS)
-  const [authResult, setAuthResult] = useState<AuthResult | null>(null)
+  const [pack, setPack] = useState<PackInfo | null>(null)
+  const [curseForge, setCurseForge] = useState<CurseForgeStatus>(
+    INITIAL_CURSEFORGE_STATUS,
+  )
+  const [preparedPack, setPreparedPack] = useState<PreparePackResult | null>(null)
+  const [isPreparing, setIsPreparing] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
 
-    Promise.all([window.empi.getAppInfo(), window.empi.auth.getStatus()]).then(
-      ([info, status]) => {
-        if (!active) return
-        setAppInfo(info)
-        setAuthStatus(status)
-      },
-    )
+    Promise.all([
+      window.empi.getAppInfo(),
+      window.empi.getPackInfo(),
+      window.empi.curseForge.getStatus(),
+    ]).then(([info, packInfo, status]) => {
+      if (!active) return
+      setAppInfo(info)
+      setPack(packInfo)
+      setCurseForge(status)
+    }).catch((error: unknown) => {
+      if (!active) return
+      setActionError(
+        error instanceof Error ? error.message : 'No se pudo iniciar EmpiLauncher.',
+      )
+    })
 
     return () => {
       active = false
     }
   }, [])
 
-  const startMicrosoftLogin = async () => {
-    setAuthResult(null)
-    setAuthStatus({ state: 'working' })
-    const result = await window.empi.auth.startMicrosoftLogin()
-    setAuthResult(result)
-    setAuthStatus(await window.empi.auth.getStatus())
+  const preparePack = async () => {
+    setActionError(null)
+    setIsPreparing(true)
+    try {
+      const result = await window.empi.curseForge.preparePack()
+      setPreparedPack(result)
+      if (!result.ok) setActionError(result.message)
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : 'No se pudo preparar el paquete.',
+      )
+    } finally {
+      setIsPreparing(false)
+    }
   }
 
-  const logout = async () => {
-    setAuthResult(null)
-    setAuthStatus(await window.empi.auth.logout())
+  const runAction = async (action: () => Promise<{ ok: true } | { ok: false; message: string }>) => {
+    setActionError(null)
+    try {
+      const result = await action()
+      if (!result.ok) setActionError(result.message)
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : 'La accion no pudo completarse.',
+      )
+    }
   }
 
-  const isBusy = authStatus.state === 'loading' || authStatus.state === 'working'
-  const canLogin = authStatus.state === 'signed-out'
+  const isPackReady = preparedPack?.ok === true
+  const launcherDetected = curseForge.state === 'detected'
 
   return (
     <main className="launcher-shell">
@@ -69,77 +93,93 @@ function App() {
           <span className="brand-mark" aria-hidden="true">E</span>
           <span>EmpiLauncher</span>
         </div>
-        <span className="foundation-tag">Microsoft auth</span>
+        <span className="foundation-tag">CurseForge bridge</span>
       </header>
 
-      {authStatus.state === 'authenticated' ? (
-        <section className="login-view" aria-labelledby="account-title">
-          <div className="intro">
-            <p className="eyebrow">Cuenta premium conectada</p>
-            <h1 id="account-title">Hola, {authStatus.profile.name}.</h1>
-            <p className="lede">
-              EmpiLauncher comprobo tu licencia de Minecraft: Java Edition.
-            </p>
-          </div>
+      <section className="pack-view" aria-labelledby="pack-title">
+        <div className="intro">
+          <p className="eyebrow">Primera instancia</p>
+          <h1 id="pack-title">Forge 1.20.1, listo para importar.</h1>
+          <p className="lede">
+            EmpiLauncher prepara el perfil y CurseForge instala Minecraft y Forge.
+            Tu cuenta sigue viviendo en el launcher que ya utilizas.
+          </p>
+        </div>
 
-          <div className="account-row">
-            <span className="account-avatar" aria-hidden="true">
-              {authStatus.profile.name.slice(0, 1).toUpperCase()}
-            </span>
-            <div className="account-copy">
-              <strong>{authStatus.profile.name}</strong>
-              <span>{authStatus.profile.id}</span>
+        <dl className="pack-specs">
+          <div>
+            <dt>Minecraft</dt>
+            <dd>{pack?.minecraftVersion ?? '1.20.1'}</dd>
+          </div>
+          <div>
+            <dt>Modloader</dt>
+            <dd>{pack ? `${pack.loader} ${pack.loaderVersion}` : 'Forge 47.4.10'}</dd>
+          </div>
+          <div>
+            <dt>Paquete</dt>
+            <dd>{pack ? `v${pack.version}` : 'Cargando'}</dd>
+          </div>
+        </dl>
+
+        <div className="bridge-panel">
+          <div className="bridge-status">
+            <span
+              className={`status-dot ${launcherDetected ? 'detected' : ''}`}
+              aria-hidden="true"
+            />
+            <div>
+              <strong>{launcherLabel(curseForge)}</strong>
+              <span>
+                {launcherDetected
+                  ? 'La importacion se terminara dentro de CurseForge.'
+                  : 'Puedes preparar el ZIP aunque CurseForge no aparezca aqui.'}
+              </span>
             </div>
-            <button className="secondary-button" type="button" onClick={logout}>
-              Cerrar sesion
-            </button>
-          </div>
-        </section>
-      ) : (
-        <section className="login-view" aria-labelledby="login-title">
-          <div className="intro">
-            <p className="eyebrow">Tu biblioteca de Minecraft</p>
-            <h1 id="login-title">Todo listo para empezar.</h1>
-            <p className="lede">
-              Accede con tu cuenta de Microsoft para encontrar tus proyectos y
-              mantener cada version al dia.
-            </p>
           </div>
 
-          <div className="login-actions">
-            <button
-              className="microsoft-button"
-              type="button"
-              disabled={isBusy || !canLogin}
-              onClick={startMicrosoftLogin}
-            >
-              <MicrosoftMark />
-              {authStatus.state === 'working'
-                ? 'Esperando a Microsoft...'
-                : 'Continuar con Microsoft'}
-            </button>
+          <button
+            className="primary-button"
+            type="button"
+            disabled={isPreparing || !pack}
+            onClick={preparePack}
+          >
+            {isPreparing ? 'Preparando...' : 'Preparar para CurseForge'}
+          </button>
+        </div>
 
-            {authStatus.state === 'not-configured' && (
-              <p className="status-message" role="status">
-                Falta conectar la aplicacion de Microsoft.
-              </p>
-            )}
-            {authStatus.state === 'error' && (
-              <p className="status-message error" role="alert">
-                {authStatus.message}
-              </p>
-            )}
-            {authResult && !authResult.ok && (
-              <p className="status-message error" role="alert">
-                {authResult.message}
-              </p>
-            )}
+        {isPackReady && (
+          <div className="prepared-panel" role="status">
+            <div className="prepared-copy">
+              <p className="prepared-title">Paquete preparado</p>
+              <span title={preparedPack.path}>{preparedPack.fileName}</span>
+              <small>En CurseForge: Minecraft &gt; Import &gt; Choose .zip</small>
+            </div>
+            <div className="prepared-actions">
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => runAction(() => window.empi.curseForge.showPreparedPack())}
+              >
+                Mostrar ZIP
+              </button>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => runAction(() => window.empi.curseForge.open())}
+              >
+                {launcherDetected ? 'Abrir CurseForge' : 'Obtener CurseForge'}
+              </button>
+            </div>
           </div>
-        </section>
-      )}
+        )}
+
+        {actionError && (
+          <p className="status-message error" role="alert">{actionError}</p>
+        )}
+      </section>
 
       <footer className="statusbar">
-        <span>{statusLabel(authStatus)}</span>
+        <span>{launcherLabel(curseForge)}</span>
         <span>{appInfo ? `v${appInfo.version} - ${appInfo.platform}` : 'Cargando...'}</span>
       </footer>
     </main>
