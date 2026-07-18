@@ -3,7 +3,7 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { detectCurseForge } from './curseforge/detection.js'
-import { CurseForgePackService } from './curseforge/packService.js'
+import { CurseForgeInstanceService } from './curseforge/instanceService.js'
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url))
 const rendererDirectory = path.join(currentDirectory, '../dist')
@@ -41,14 +41,14 @@ function createWindow() {
 const CURSEFORGE_DOWNLOAD_URL = 'https://www.curseforge.com/download/app'
 const CURSEFORGE_OVERWOLF_APP_ID = 'cfiahnpaolfnlgaihhmobmnjdafknjnjdpdabpcm'
 
-function registerIpcHandlers(packService: CurseForgePackService) {
+function registerIpcHandlers(instanceService: CurseForgeInstanceService) {
   ipcMain.handle('app:get-info', () => ({
     name: app.getName(),
     version: app.getVersion(),
     platform: process.platform,
   }))
 
-  ipcMain.handle('pack:get-info', () => packService.getPackInfo())
+  ipcMain.handle('pack:get-info', () => instanceService.getPackInfo())
 
   ipcMain.handle('curseforge:get-status', async () => {
     const detection = await detectCurseForge()
@@ -56,16 +56,16 @@ function registerIpcHandlers(packService: CurseForgePackService) {
     return { state: detection.state, variant: detection.variant }
   })
 
-  ipcMain.handle('curseforge:prepare-pack', () => packService.preparePack())
+  ipcMain.handle('curseforge:get-instance-status', () => instanceService.getStatus())
+  ipcMain.handle('curseforge:install-instance', () => instanceService.installOrRepair())
 
-  ipcMain.handle('curseforge:show-pack', () => {
-    const preparedPath = packService.getPreparedPath()
-    if (!preparedPath) {
-      return { ok: false, message: 'Prepara primero el paquete.' }
+  ipcMain.handle('curseforge:open-instance', async () => {
+    const status = await instanceService.getStatus()
+    if (status.state !== 'installed' && status.state !== 'update-available') {
+      return { ok: false, message: 'Crea primero la instancia.' }
     }
-
-    shell.showItemInFolder(preparedPath)
-    return { ok: true }
+    const error = await shell.openPath(status.path)
+    return error ? { ok: false, message: error } : { ok: true }
   })
 
   ipcMain.handle('curseforge:open', async () => {
@@ -114,12 +114,16 @@ app.whenReady().then(async () => {
   const resourcesDirectory = app.isPackaged
     ? process.resourcesPath
     : app.getAppPath()
-  const packService = new CurseForgePackService(
+  const instanceService = new CurseForgeInstanceService(
     resourcesDirectory,
-    app.getPath('downloads'),
+    (progress) => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        window.webContents.send('curseforge:install-progress', progress)
+      }
+    },
   )
 
-  registerIpcHandlers(packService)
+  registerIpcHandlers(instanceService)
   createWindow()
 
   app.on('activate', () => {

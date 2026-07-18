@@ -6,13 +6,16 @@ launcher que cada persona ya utiliza.
 
 ## Estado
 
-`launcher-curseforge-bridge-01`: primer puente para CurseForge en Windows y
-paquete reproducible de Minecraft 1.20.1 con Forge 47.4.10.
+`launcher-curseforge-direct-instance-01`: primera instalacion directa para
+CurseForge en Windows, con Minecraft 1.20.1 y Forge 47.4.10.
 
-El hito detecta CurseForge Standalone u Overwolf, genera un ZIP compatible en la
-carpeta de Descargas y permite abrir CurseForge y localizar el archivo. La
-confirmacion final de importacion se realiza dentro de CurseForge, que no ofrece
-una interfaz publica para importar perfiles locales silenciosamente.
+EmpiLauncher crea la instancia en
+`%USERPROFILE%\curseforge\minecraft\Instances\EmpiLauncher Forge 1.20.1` e
+instala Java 17, Minecraft, Forge, librerias y recursos compartidos cuando
+hacen falta. No genera un ZIP ni requiere usar `Import`.
+
+La cuenta de Minecraft y el inicio del juego siguen perteneciendo a
+CurseForge/Minecraft Launcher. EmpiLauncher no guarda credenciales.
 
 ## Desarrollo
 
@@ -33,5 +36,5 @@ npm run check
 ```
 
 El instalador de Windows se genera con `npm run dist`. Consulta
-[`docs/curseforge-bridge.md`](docs/curseforge-bridge.md) para probar el flujo y
-conocer la estructura del paquete.
+[`docs/curseforge-direct-instance.md`](docs/curseforge-direct-instance.md) para
+probar el flujo y conocer sus limites.

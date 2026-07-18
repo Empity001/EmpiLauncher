@@ -19,9 +19,26 @@ export type CurseForgeStatus =
   | { state: 'not-found' }
   | { state: 'unsupported' }
 
-export type PreparePackResult =
-  | { ok: true; fileName: string; path: string; sha256: string }
-  | { ok: false; message: string }
+export type DirectInstanceStatus =
+  | { state: 'loading' }
+  | { state: 'absent'; path: string }
+  | { state: 'installed'; path: string; installedVersion: string }
+  | { state: 'update-available'; path: string; installedVersion: string }
+  | { state: 'conflict'; path: string }
+  | { state: 'unsupported' }
+
+export type DirectInstanceResult =
+  | { ok: true; path: string; created: boolean; forgeVersionId: string }
+  | {
+      ok: false
+      code: 'unsupported' | 'instance-conflict' | 'installation-failed'
+      message: string
+    }
+
+export interface InstallProgress {
+  stage: 'java' | 'minecraft' | 'forge' | 'instance' | 'done'
+  message: string
+}
 
 export type LauncherActionResult =
   | { ok: true }
@@ -32,8 +49,10 @@ export interface EmpiBridge {
   getPackInfo(): Promise<PackInfo>
   curseForge: {
     getStatus(): Promise<CurseForgeStatus>
-    preparePack(): Promise<PreparePackResult>
+    getInstanceStatus(): Promise<DirectInstanceStatus>
+    installOrRepair(): Promise<DirectInstanceResult>
+    onInstallProgress(listener: (progress: InstallProgress) => void): () => void
     open(): Promise<LauncherActionResult>
-    showPreparedPack(): Promise<LauncherActionResult>
+    openInstance(): Promise<LauncherActionResult>
   }
 }

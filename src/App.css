@@ -120,7 +120,8 @@ h1 {
 }
 
 .bridge-panel,
-.prepared-panel {
+.prepared-panel,
+.progress-panel {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -136,7 +137,8 @@ h1 {
 }
 
 .bridge-status div,
-.prepared-copy {
+.prepared-copy,
+.progress-panel div {
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -153,7 +155,9 @@ h1 {
 
 .bridge-status span,
 .prepared-copy span,
-.prepared-copy small {
+.prepared-copy small,
+.progress-panel span,
+.progress-panel small {
   overflow: hidden;
   color: #8e968e;
   font-size: 12px;
@@ -164,6 +168,27 @@ h1 {
 .prepared-copy small {
   margin-top: 4px;
   color: #b5bcb5;
+}
+
+.progress-panel {
+  justify-content: flex-start;
+  padding-top: 20px;
+  border-top: 1px solid #2c302c;
+}
+
+.progress-pulse {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #d7ff52;
+  box-shadow: 0 0 0 0 rgba(215, 255, 82, 0.35);
+  animation: install-pulse 1.4s ease-out infinite;
+}
+
+@keyframes install-pulse {
+  70% { box-shadow: 0 0 0 8px rgba(215, 255, 82, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(215, 255, 82, 0); }
 }
 
 .status-dot {
@@ -281,7 +306,8 @@ h1 {
   }
 
   .bridge-panel,
-  .prepared-panel {
+  .prepared-panel,
+  .progress-panel {
     align-items: stretch;
     flex-direction: column;
     gap: 16px;
