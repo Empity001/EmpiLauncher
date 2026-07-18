@@ -1,11 +1,11 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import type { AuthResult, AuthStatus } from '../src/types/bridge.js'
+import { MicrosoftAuthService } from './auth/microsoftAuth.js'
+import { loadMicrosoftClientId } from './config.js'
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url))
 const rendererDirectory = path.join(currentDirectory, '../dist')
-const microsoftClientId = process.env.EMPILAUNCHER_MICROSOFT_CLIENT_ID?.trim()
 
 app.setName('EmpiLauncher')
 
@@ -26,6 +26,8 @@ function createWindow() {
     },
   })
 
+  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  window.webContents.on('will-navigate', (event) => event.preventDefault())
   window.once('ready-to-show', () => window.show())
 
   if (process.env.VITE_DEV_SERVER_URL) {
@@ -35,36 +37,39 @@ function createWindow() {
   }
 }
 
-function registerIpcHandlers() {
+function registerIpcHandlers(authService: MicrosoftAuthService, authReady: Promise<void>) {
   ipcMain.handle('app:get-info', () => ({
     name: app.getName(),
     version: app.getVersion(),
     platform: process.platform,
   }))
 
-  ipcMain.handle('auth:get-status', (): AuthStatus => (
-    microsoftClientId ? { state: 'ready' } : { state: 'not-configured' }
-  ))
+  ipcMain.handle('auth:get-status', async () => {
+    await authReady
+    return authService.getStatus()
+  })
 
-  ipcMain.handle('auth:start-microsoft', (): AuthResult => {
-    if (!microsoftClientId) {
-      return {
-        ok: false,
-        code: 'not-configured',
-        message: 'Microsoft todavia no esta conectado a EmpiLauncher.',
-      }
-    }
+  ipcMain.handle('auth:start-microsoft', async () => {
+    await authReady
+    return authService.login()
+  })
 
-    return {
-      ok: false,
-      code: 'not-implemented',
-      message: 'La autenticacion se conectara en el siguiente paso.',
-    }
+  ipcMain.handle('auth:logout', async () => {
+    await authReady
+    await authService.logout()
+    return authService.getStatus()
   })
 }
 
-app.whenReady().then(() => {
-  registerIpcHandlers()
+app.whenReady().then(async () => {
+  const clientId = await loadMicrosoftClientId(app.getAppPath())
+  const authService = new MicrosoftAuthService(
+    clientId,
+    path.join(app.getPath('userData'), 'auth', 'msal-cache.bin'),
+  )
+  const authReady = authService.initialize()
+
+  registerIpcHandlers(authService, authReady)
   createWindow()
 
   app.on('activate', () => {

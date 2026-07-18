@@ -1,12 +1,33 @@
+export interface MinecraftProfile {
+  id: string
+  name: string
+  skinUrl?: string
+}
+
+export type AuthErrorCode =
+  | 'app-registration'
+  | 'busy'
+  | 'cancelled'
+  | 'network'
+  | 'no-minecraft'
+  | 'not-configured'
+  | 'profile-missing'
+  | 'secure-storage'
+  | 'timeout'
+  | 'unknown'
+  | 'xbox-account'
+
 export type AuthStatus =
   | { state: 'loading' }
   | { state: 'not-configured' }
-  | { state: 'ready' }
+  | { state: 'signed-out' }
   | { state: 'working' }
+  | { state: 'authenticated'; profile: MinecraftProfile }
+  | { state: 'error'; code: AuthErrorCode; message: string }
 
 export type AuthResult =
-  | { ok: true }
-  | { ok: false; code: 'not-configured' | 'not-implemented'; message: string }
+  | { ok: true; profile: MinecraftProfile }
+  | { ok: false; code: AuthErrorCode; message: string }
 
 export interface AppInfo {
   name: string
@@ -19,5 +40,6 @@ export interface EmpiBridge {
   auth: {
     getStatus(): Promise<AuthStatus>
     startMicrosoftLogin(): Promise<AuthResult>
+    logout(): Promise<AuthStatus>
   }
 }

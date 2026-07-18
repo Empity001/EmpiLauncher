@@ -4,9 +4,9 @@ Launcher personal de Minecraft para proyectos, series y versiones gestionadas.
 
 ## Estado
 
-`launcher-premium-foundation-01`: base de Electron, React y TypeScript con un
-puente IPC aislado. La autenticacion de Microsoft y el lanzamiento de Minecraft
-son los siguientes hitos.
+`launcher-microsoft-auth-01`: autenticacion de Microsoft mediante OAuth 2.0 con
+PKCE, verificacion de licencia y perfil de Minecraft Java, y sesion cifrada con
+el almacenamiento seguro del sistema operativo.
 
 ## Desarrollo
 
@@ -27,6 +27,7 @@ npm run lint
 npm run build
 ```
 
-El instalador de Windows se genera con `npm run dist`. El registro de Microsoft
-se conectara mediante `EMPILAUNCHER_MICROSOFT_CLIENT_ID`; el identificador es
-publico, pero los tokens y secretos nunca deben incluirse en el repositorio.
+El instalador de Windows se genera con `npm run dist`. Consulta
+[`docs/microsoft-auth.md`](docs/microsoft-auth.md) para registrar la aplicacion y
+agregar el identificador publico a `launcher.config.json`. Los tokens nunca se
+exponen a la interfaz ni se guardan sin cifrar.

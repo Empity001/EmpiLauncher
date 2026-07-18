@@ -6,6 +6,7 @@ const bridge: EmpiBridge = {
   auth: {
     getStatus: () => ipcRenderer.invoke('auth:get-status'),
     startMicrosoftLogin: () => ipcRenderer.invoke('auth:start-microsoft'),
+    logout: () => ipcRenderer.invoke('auth:logout'),
   },
 }
 
