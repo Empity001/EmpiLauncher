@@ -6,8 +6,8 @@ launcher que cada persona ya utiliza.
 
 ## Estado
 
-`launcher-curseforge-direct-instance-01`: primera instalacion directa para
-CurseForge en Windows, con Minecraft 1.20.1 y Forge 47.4.10.
+`launcher-curseforge-direct-instance-02`: instalacion directa para CurseForge en
+Windows, con Minecraft 1.20.1, Forge 47.4.10 y descarga compatible de Java 17.
 
 EmpiLauncher crea la instancia en
 `%USERPROFILE%\curseforge\minecraft\Instances\EmpiLauncher Forge 1.20.1` e

@@ -1,7 +1,7 @@
 {
   "name": "empilauncher",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "A personal Minecraft launcher for curated projects and series.",
   "author": "Empity001",
   "type": "module",

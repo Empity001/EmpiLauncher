@@ -6,7 +6,6 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import { Version } from '@xmcl/core'
 import {
-  fetchJavaRuntimeManifest,
   getVersionList,
   install,
   installDependencies,
@@ -14,6 +13,7 @@ import {
   installJavaRuntimeTask,
   JavaRuntimeTargetType,
 } from '@xmcl/installer'
+import type { JavaRuntimeManifest, JavaRuntimes } from '@xmcl/installer'
 import type {
   DirectInstanceResult,
   DirectInstanceStatus,
@@ -25,6 +25,8 @@ const execFileAsync = promisify(execFile)
 const PACK_DIRECTORY_NAME = 'forge-1.20.1'
 const INSTANCE_METADATA = 'minecraftinstance.json'
 const MANAGED_MARKER = path.join('.empilauncher', 'instance.json')
+const JAVA_RUNTIME_INDEX_URL =
+  'https://launchermeta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json'
 
 type ProgressReporter = (progress: InstallProgress) => void
 
@@ -52,6 +54,14 @@ async function pathExists(filePath: string) {
 
 async function readJson<T>(filePath: string): Promise<T> {
   return JSON.parse(await readFile(filePath, 'utf8')) as T
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new Error(`La descarga respondio con HTTP ${response.status}: ${url}`)
+  }
+  return await response.json() as T
 }
 
 async function writeJsonAtomic(filePath: string, value: unknown) {
@@ -158,9 +168,19 @@ async function ensureJava17(installRoot: string, report: ProgressReporter) {
     'windows-x64',
     'java-runtime-gamma',
   )
-  const manifest = await fetchJavaRuntimeManifest({
+  const runtimeIndex = await fetchJson<JavaRuntimes>(JAVA_RUNTIME_INDEX_URL)
+  const target = runtimeIndex['windows-x64']?.[JavaRuntimeTargetType.Gamma]?.[0]
+  if (!target) {
+    throw new Error('Mojang no publico un Java 17 compatible con Windows x64.')
+  }
+  const runtimeFiles = await fetchJson<Pick<JavaRuntimeManifest, 'files'>>(
+    target.manifest.url,
+  )
+  const manifest: JavaRuntimeManifest = {
     target: JavaRuntimeTargetType.Gamma,
-  })
+    version: target.version,
+    files: runtimeFiles.files,
+  }
   await mkdir(destination, { recursive: true })
   await installJavaRuntimeTask({ destination, manifest }).startAndWait()
 
