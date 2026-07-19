@@ -4,8 +4,8 @@
 
 - Minecraft: 1.20.1
 - Modloader: Forge 47.4.10 (recommended)
-- Version del perfil: 1.0.0
-- Mods: ninguno en este primer perfil de integracion
+- Version del perfil: 1.1.0
+- Mods: Just Enough Items (JEI) 15.20.0.106
 
 La configuracion vive en `packs/forge-1.20.1`. El instalador coloca los archivos
 compartidos de Minecraft y Forge en `%USERPROFILE%\curseforge\minecraft\Install`

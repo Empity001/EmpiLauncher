@@ -6,9 +6,9 @@ launcher que cada persona ya utiliza.
 
 ## Estado
 
-`launcher-multi-launcher-01`: selector inicial para CurseForge y Modrinth,
-rutas recordadas por launcher, progreso porcentual y actualizaciones de archivos
-gestionados.
+`launcher-jei-local-test-01`: selector para CurseForge y Modrinth, rutas
+recordadas por launcher, progreso porcentual, actualizaciones de archivos
+gestionados y JEI como primer mod local de prueba.
 
 En CurseForge, EmpiLauncher crea directamente la instancia en
 `%USERPROFILE%\curseforge\minecraft\Instances\EmpiLauncher Forge 1.20.1` e
