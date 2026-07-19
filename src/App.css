@@ -67,7 +67,7 @@
 
 .launcher-options {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin-top: 34px;
 }
@@ -120,6 +120,11 @@
 .modrinth-option .launcher-monogram {
   background: #1cce73;
   color: #0f2418;
+}
+
+.custom-option .launcher-monogram {
+  background: #5da9ff;
+  color: #0b1b2d;
 }
 
 .launcher-option-copy {
@@ -312,8 +317,19 @@ h1 {
 }
 
 .progress-heading strong {
-  color: #d7ff52;
   font-size: 13px;
+}
+
+.progress-heading > div {
+  min-width: 0;
+}
+
+.progress-kind {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .progress-track {
@@ -328,8 +344,25 @@ h1 {
   height: 100%;
   display: block;
   border-radius: inherit;
-  background: #d7ff52;
   transition: width 180ms ease;
+}
+
+.progress-base .progress-kind,
+.progress-base .progress-heading strong {
+  color: #5da9ff;
+}
+
+.progress-base .progress-track span {
+  background: #5da9ff;
+}
+
+.progress-pack .progress-kind,
+.progress-pack .progress-heading strong {
+  color: #d7ff52;
+}
+
+.progress-pack .progress-track span {
+  background: #d7ff52;
 }
 
 .progress-panel small {

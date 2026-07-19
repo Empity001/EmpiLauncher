@@ -19,6 +19,12 @@ const bridge: EmpiBridge = {
     open: () => ipcRenderer.invoke('modrinth:open'),
     openInstance: () => ipcRenderer.invoke('modrinth:open-instance'),
   },
+  custom: {
+    getInstanceStatus: () => ipcRenderer.invoke('custom:get-instance-status'),
+    chooseLocation: () => ipcRenderer.invoke('custom:choose-location'),
+    installOrRepair: () => ipcRenderer.invoke('custom:install-instance'),
+    openInstance: () => ipcRenderer.invoke('custom:open-instance'),
+  },
   onInstallProgress: (listener) => {
     const handler = (_event: Electron.IpcRendererEvent, progress: Parameters<typeof listener>[0]) => {
       listener(progress)

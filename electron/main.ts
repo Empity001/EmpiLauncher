@@ -3,10 +3,12 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import type { InstallProgress } from '../src/types/bridge.js'
+import { CustomInstanceService } from './custom/instanceService.js'
 import { detectCurseForge } from './curseforge/detection.js'
 import { CurseForgeInstanceService } from './curseforge/instanceService.js'
 import { detectModrinth } from './modrinth/detection.js'
 import { ModrinthInstanceService } from './modrinth/instanceService.js'
+import { PackRepository } from './packs/repository.js'
 import { LauncherSettingsStore } from './settings/launcherSettings.js'
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url))
@@ -49,6 +51,7 @@ const MODRINTH_DOWNLOAD_URL = 'https://modrinth.com/app'
 function registerIpcHandlers(
   curseForgeService: CurseForgeInstanceService,
   modrinthService: ModrinthInstanceService,
+  customService: CustomInstanceService,
 ) {
   ipcMain.handle('app:get-info', () => ({
     name: app.getName(),
@@ -157,6 +160,29 @@ function registerIpcHandlers(
     const error = await shell.openPath(detection.executablePath)
     return error ? { ok: false, message: error } : { ok: true }
   })
+
+  ipcMain.handle('custom:get-instance-status', () => customService.getStatus())
+  ipcMain.handle('custom:install-instance', () => customService.installOrRepair())
+
+  ipcMain.handle('custom:choose-location', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Elige donde crear la instancia portable',
+      buttonLabel: 'Usar esta carpeta',
+      properties: ['openDirectory', 'createDirectory'],
+    })
+    if (result.canceled || !result.filePaths[0]) return { ok: true }
+    await customService.chooseLocation(result.filePaths[0])
+    return { ok: true }
+  })
+
+  ipcMain.handle('custom:open-instance', async () => {
+    const status = await customService.getStatus()
+    if (status.state !== 'installed' && status.state !== 'update-available') {
+      return { ok: false, message: 'Crea primero la instancia portable.' }
+    }
+    const error = await shell.openPath(status.path)
+    return error ? { ok: false, message: error } : { ok: true }
+  })
 }
 
 app.whenReady().then(async () => {
@@ -164,25 +190,36 @@ app.whenReady().then(async () => {
     ? process.resourcesPath
     : app.getAppPath()
   const settings = new LauncherSettingsStore(app.getPath('userData'))
+  const packRepository = new PackRepository(
+    resourcesDirectory,
+    path.join(app.getPath('userData'), 'packs'),
+    process.env.EMPI_PACK_CATALOG_URL,
+  )
+  const packSourceDirectory = await packRepository.getDirectory()
   const reportProgress = (progress: InstallProgress) => {
     for (const window of BrowserWindow.getAllWindows()) {
       window.webContents.send('install:progress', progress)
     }
   }
   const curseForgeService = new CurseForgeInstanceService(
-    resourcesDirectory,
+    packSourceDirectory,
     settings,
     reportProgress,
   )
   const modrinthService = new ModrinthInstanceService(
-    resourcesDirectory,
+    packSourceDirectory,
     path.join(app.getPath('userData'), 'installers'),
     settings,
     (packPath) => shell.openPath(packPath),
     reportProgress,
   )
+  const customService = new CustomInstanceService(
+    packSourceDirectory,
+    settings,
+    reportProgress,
+  )
 
-  registerIpcHandlers(curseForgeService, modrinthService)
+  registerIpcHandlers(curseForgeService, modrinthService, customService)
   createWindow()
 
   app.on('activate', () => {

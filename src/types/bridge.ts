@@ -13,7 +13,7 @@ export interface PackInfo {
   loaderVersion: string
 }
 
-export type LauncherKind = 'curseforge' | 'modrinth'
+export type LauncherKind = 'curseforge' | 'modrinth' | 'custom'
 
 export type CurseForgeStatus =
   | { state: 'loading' }
@@ -33,6 +33,7 @@ export type DirectInstanceStatus =
   | { state: 'installed'; path: string; installedVersion: string }
   | { state: 'update-available'; path: string; installedVersion: string }
   | { state: 'conflict'; path: string }
+  | { state: 'location-required' }
   | { state: 'unsupported' }
 
 export type DirectInstanceResult =
@@ -46,7 +47,7 @@ export type DirectInstanceResult =
     }
   | {
       ok: false
-      code: 'unsupported' | 'instance-conflict' | 'installation-failed'
+      code: 'unsupported' | 'instance-conflict' | 'installation-failed' | 'location-required'
       message: string
     }
 
@@ -78,6 +79,12 @@ export interface EmpiBridge {
     installOrRepair(): Promise<DirectInstanceResult>
     locateInstance(): Promise<LauncherActionResult>
     open(): Promise<LauncherActionResult>
+    openInstance(): Promise<LauncherActionResult>
+  }
+  custom: {
+    getInstanceStatus(): Promise<DirectInstanceStatus>
+    chooseLocation(): Promise<LauncherActionResult>
+    installOrRepair(): Promise<DirectInstanceResult>
     openInstance(): Promise<LauncherActionResult>
   }
   onInstallProgress(listener: (progress: InstallProgress) => void): () => void

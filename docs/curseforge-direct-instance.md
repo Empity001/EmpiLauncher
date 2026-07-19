@@ -1,4 +1,4 @@
-# Instancias en CurseForge y Modrinth
+# Instancias en CurseForge, Modrinth y otras carpetas
 
 ## Perfil inicial
 
@@ -37,6 +37,24 @@ Modrinth registra oficialmente la extension `.mrpack`; EmpiLauncher utiliza ese
 flujo para que Modrinth instale Minecraft y Forge con sus propios mecanismos.
 Despues de la primera creacion, la ruta queda guardada en la configuracion local
 de EmpiLauncher.
+
+## Prueba de Otra ubicacion en Windows
+
+1. Elige `Otra ubicacion` y pulsa `Elegir ubicacion`.
+2. Selecciona la carpeta padre donde quieres guardar la instancia.
+3. Pulsa `Crear instancia`.
+4. La carpeta resultante contiene Minecraft, Forge y el modpack. Configura tu
+   launcher alternativo para usar esa carpeta como directorio del juego.
+
+La ruta se recuerda por separado. Reparar o actualizar conserva mundos,
+opciones y cualquier archivo que no forme parte del paquete gestionado.
+
+## Paquetes remotos
+
+Al abrir, EmpiLauncher consulta `Empity001/EmpiPacks/catalog.json`. Solo acepta
+paquetes con una version superior a la incluida, verifica su SHA-256 y los
+extrae en una carpeta temporal antes de activarlos. Si la red o el paquete
+fallan, usa la copia incluida en la aplicacion.
 
 ## Protecciones
 

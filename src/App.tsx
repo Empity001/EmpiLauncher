@@ -17,8 +17,10 @@ const INITIAL_INSTANCE_STATUS: DirectInstanceStatus = { state: 'loading' }
 
 function launcherLabel(
   launcher: LauncherKind,
-  status: CurseForgeStatus | ModrinthStatus,
+  status?: CurseForgeStatus | ModrinthStatus,
 ) {
+  if (launcher === 'custom') return 'Ubicacion elegida por ti'
+  if (!status) return 'Comprobando launcher'
   switch (status.state) {
     case 'detected':
       if (launcher === 'curseforge' && 'variant' in status) {
@@ -39,6 +41,7 @@ function instanceLabel(status: DirectInstanceStatus) {
     case 'installed': return 'Instancia instalada'
     case 'update-available': return 'Actualizacion disponible'
     case 'conflict': return 'El nombre de la instancia ya esta ocupado'
+    case 'location-required': return 'Elige donde guardar la instancia'
     case 'unsupported': return 'Instalacion disponible en Windows'
     default: return 'Comprobando la instancia'
   }
@@ -63,6 +66,7 @@ function App() {
   const [modrinth, setModrinth] = useState<ModrinthStatus>(INITIAL_MODRINTH_STATUS)
   const [curseForgeInstance, setCurseForgeInstance] = useState<DirectInstanceStatus>(INITIAL_INSTANCE_STATUS)
   const [modrinthInstance, setModrinthInstance] = useState<DirectInstanceStatus>(INITIAL_INSTANCE_STATUS)
+  const [customInstance, setCustomInstance] = useState<DirectInstanceStatus>(INITIAL_INSTANCE_STATUS)
   const [installResult, setInstallResult] = useState<DirectInstanceResult | null>(null)
   const [progress, setProgress] = useState<InstallProgress | null>(null)
   const [isInstalling, setIsInstalling] = useState(false)
@@ -71,9 +75,12 @@ function App() {
   const refreshInstance = async (launcher: LauncherKind) => {
     const nextStatus = launcher === 'curseforge'
       ? await window.empi.curseForge.getInstanceStatus()
-      : await window.empi.modrinth.getInstanceStatus()
+      : launcher === 'modrinth'
+        ? await window.empi.modrinth.getInstanceStatus()
+        : await window.empi.custom.getInstanceStatus()
     if (launcher === 'curseforge') setCurseForgeInstance(nextStatus)
-    else setModrinthInstance(nextStatus)
+    else if (launcher === 'modrinth') setModrinthInstance(nextStatus)
+    else setCustomInstance(nextStatus)
     return nextStatus
   }
 
@@ -90,7 +97,8 @@ function App() {
       window.empi.modrinth.getStatus(),
       window.empi.curseForge.getInstanceStatus(),
       window.empi.modrinth.getInstanceStatus(),
-    ]).then(([info, packInfo, curseStatus, modrinthStatus, curseInstance, modrinthProfile]) => {
+      window.empi.custom.getInstanceStatus(),
+    ]).then(([info, packInfo, curseStatus, modrinthStatus, curseInstance, modrinthProfile, customProfile]) => {
       if (!active) return
       setAppInfo(info)
       setPack(packInfo)
@@ -98,6 +106,7 @@ function App() {
       setModrinth(modrinthStatus)
       setCurseForgeInstance(curseInstance)
       setModrinthInstance(modrinthProfile)
+      setCustomInstance(customProfile)
     }).catch((error: unknown) => {
       if (!active) return
       setActionError(error instanceof Error ? error.message : 'No se pudo iniciar EmpiLauncher.')
@@ -153,7 +162,9 @@ function App() {
     try {
       const result = selectedLauncher === 'curseforge'
         ? await window.empi.curseForge.installOrRepair()
-        : await window.empi.modrinth.installOrRepair()
+        : selectedLauncher === 'modrinth'
+          ? await window.empi.modrinth.installOrRepair()
+          : await window.empi.custom.installOrRepair()
       setInstallResult(result)
       if (!result.ok) {
         setActionError(result.message)
@@ -181,14 +192,33 @@ function App() {
     }
   }
 
-  const launcherStatus = selectedLauncher === 'curseforge' ? curseForge : modrinth
-  const instance = selectedLauncher === 'curseforge' ? curseForgeInstance : modrinthInstance
+  const launcherStatus = selectedLauncher === 'curseforge'
+    ? curseForge
+    : selectedLauncher === 'modrinth'
+      ? modrinth
+      : undefined
+  const instance = selectedLauncher === 'curseforge'
+    ? curseForgeInstance
+    : selectedLauncher === 'modrinth'
+      ? modrinthInstance
+      : customInstance
   const instanceReady = instance.state === 'installed' || instance.state === 'update-available'
   const hasConflict = instance.state === 'conflict'
+  const locationRequired = instance.state === 'location-required'
   const unsupported = instance.state === 'unsupported'
   const selectedProgress = progress?.launcher === selectedLauncher ? progress : null
-  const launcherDetected = launcherStatus.state === 'detected'
-  const launcherName = selectedLauncher === 'curseforge' ? 'CurseForge' : 'Modrinth'
+  const launcherDetected = selectedLauncher === 'custom' || launcherStatus?.state === 'detected'
+  const launcherName = selectedLauncher === 'curseforge'
+    ? 'CurseForge'
+    : selectedLauncher === 'modrinth'
+      ? 'Modrinth'
+      : 'Otra ubicacion'
+  const progressKind = selectedProgress && (
+    selectedProgress.stage === 'instance'
+    || selectedProgress.stage === 'handoff'
+    || selectedProgress.stage === 'done'
+    || (selectedProgress.stage === 'preparing' && selectedLauncher === 'modrinth')
+  ) ? 'pack' : 'base'
 
   return (
     <main className="launcher-shell">
@@ -232,6 +262,15 @@ function App() {
               </span>
               <span className="option-arrow" aria-hidden="true">&gt;</span>
             </button>
+            <button className="launcher-option custom-option" type="button" onClick={() => chooseLauncher('custom')}>
+              <span className="launcher-monogram">...</span>
+              <span className="launcher-option-copy">
+                <strong>Otra ubicacion</strong>
+                <small>Carpeta portable para otro launcher</small>
+                <span>{instanceLabel(customInstance)}</span>
+              </span>
+              <span className="option-arrow" aria-hidden="true">&gt;</span>
+            </button>
           </div>
           {actionError && <p className="status-message error" role="alert">{actionError}</p>}
         </section>
@@ -247,7 +286,9 @@ function App() {
             <p className="lede">
               {selectedLauncher === 'curseforge'
                 ? 'EmpiLauncher instala Minecraft, Forge y sus librerias, y despues sincroniza solo los archivos gestionados.'
-                : 'EmpiLauncher prepara el paquete, Modrinth crea la instancia y luego recordamos su carpeta para las actualizaciones.'}
+                : selectedLauncher === 'modrinth'
+                  ? 'EmpiLauncher prepara el paquete, Modrinth crea la instancia y luego recordamos su carpeta para las actualizaciones.'
+                  : 'Elige una carpeta. EmpiLauncher prepara una raiz portable con Minecraft, Forge y el modpack para enlazarla desde otro launcher.'}
             </p>
           </div>
 
@@ -267,15 +308,28 @@ function App() {
                 </span>
               </div>
             </div>
-            <button className="primary-button" type="button" disabled={isInstalling || !pack || hasConflict || unsupported} onClick={installInstance}>
+            <button className="primary-button" type="button" disabled={isInstalling || !pack || hasConflict || unsupported || locationRequired} onClick={installInstance}>
               {installButtonLabel(selectedLauncher, instance, isInstalling)}
             </button>
           </div>
 
+          {selectedLauncher === 'custom' && !isInstalling && (
+            <button
+              className="text-button"
+              type="button"
+              onClick={() => runAction(() => window.empi.custom.chooseLocation(), true)}
+            >
+              {instance.state === 'location-required' ? 'Elegir ubicacion' : 'Cambiar ubicacion'}
+            </button>
+          )}
+
           {isInstalling && selectedProgress && (
-            <div className="progress-panel" role="status" aria-live="polite">
+            <div className={`progress-panel progress-${progressKind}`} role="status" aria-live="polite">
               <div className="progress-heading">
-                <p className="prepared-title">{selectedProgress.message}</p>
+                <div>
+                  <span className="progress-kind">{progressKind === 'base' ? 'Minecraft + Forge' : 'Archivos del modpack'}</span>
+                  <p className="prepared-title">{selectedProgress.message}</p>
+                </div>
                 <strong>{selectedProgress.percent}%</strong>
               </div>
               <div className="progress-track" aria-hidden="true">
@@ -306,12 +360,18 @@ function App() {
                 <small>Esta ruta queda guardada para las proximas actualizaciones.</small>
               </div>
               <div className="prepared-actions">
-                <button className="secondary-button" type="button" onClick={() => runAction(() => selectedLauncher === 'curseforge' ? window.empi.curseForge.openInstance() : window.empi.modrinth.openInstance())}>
+                <button className="secondary-button" type="button" onClick={() => runAction(() => selectedLauncher === 'curseforge'
+                  ? window.empi.curseForge.openInstance()
+                  : selectedLauncher === 'modrinth'
+                    ? window.empi.modrinth.openInstance()
+                    : window.empi.custom.openInstance())}>
                   Abrir carpeta
                 </button>
-                <button className="secondary-button" type="button" onClick={() => runAction(() => selectedLauncher === 'curseforge' ? window.empi.curseForge.open() : window.empi.modrinth.open())}>
-                  {launcherDetected ? `Abrir ${launcherName}` : `Obtener ${launcherName}`}
-                </button>
+                {selectedLauncher !== 'custom' && (
+                  <button className="secondary-button" type="button" onClick={() => runAction(() => selectedLauncher === 'curseforge' ? window.empi.curseForge.open() : window.empi.modrinth.open())}>
+                    {launcherDetected ? `Abrir ${launcherName}` : `Obtener ${launcherName}`}
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -327,7 +387,7 @@ function App() {
       )}
 
       <footer className="statusbar">
-        <span>{selectedLauncher ? launcherLabel(selectedLauncher, launcherStatus) : 'CurseForge + Modrinth'}</span>
+        <span>{selectedLauncher ? launcherLabel(selectedLauncher, launcherStatus) : 'CurseForge + Modrinth + carpeta portable'}</span>
         <span>{appInfo ? `v${appInfo.version} - ${appInfo.platform}` : 'Cargando...'}</span>
       </footer>
     </main>

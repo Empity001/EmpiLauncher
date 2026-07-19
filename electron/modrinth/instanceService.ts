@@ -14,7 +14,6 @@ import { listManagedFiles, syncManagedFiles } from '../packs/managedFiles.js'
 import { LauncherSettingsStore } from '../settings/launcherSettings.js'
 import { defaultModrinthProfileRoots } from './detection.js'
 
-const PACK_DIRECTORY_NAME = 'forge-1.20.1'
 const MANAGED_MARKER = path.join('.empilauncher', 'instance.json')
 
 type ProgressReporter = (progress: InstallProgress) => void
@@ -86,17 +85,13 @@ export class ModrinthInstanceService {
   #installation: Promise<DirectInstanceResult> | null = null
 
   constructor(
-    resourcesDirectory: string,
+    packSourceDirectory: string,
     installerDirectory: string,
     settings: LauncherSettingsStore,
     openPack: PackOpener,
     report: ProgressReporter = () => undefined,
   ) {
-    this.#packSourceDirectory = path.join(
-      resourcesDirectory,
-      'packs',
-      PACK_DIRECTORY_NAME,
-    )
+    this.#packSourceDirectory = packSourceDirectory
     this.#installerDirectory = installerDirectory
     this.#settings = settings
     this.#openPack = openPack

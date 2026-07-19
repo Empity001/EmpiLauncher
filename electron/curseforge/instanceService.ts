@@ -18,13 +18,13 @@ import type {
   DirectInstanceResult,
   DirectInstanceStatus,
   InstallProgress,
+  LauncherKind,
   PackInfo,
 } from '../../src/types/bridge.js'
 import { syncManagedFiles } from '../packs/managedFiles.js'
 import { LauncherSettingsStore } from '../settings/launcherSettings.js'
 
 const execFileAsync = promisify(execFile)
-const PACK_DIRECTORY_NAME = 'forge-1.20.1'
 const INSTANCE_METADATA = 'minecraftinstance.json'
 const MANAGED_MARKER = path.join('.empilauncher', 'instance.json')
 const JAVA_RUNTIME_INDEX_URL =
@@ -54,13 +54,14 @@ interface RunnableTask<T> extends TaskSnapshot {
 
 function reportProgress(
   report: ProgressReporter,
+  launcher: LauncherKind,
   stage: InstallProgress['stage'],
   message: string,
   percent: number,
   currentFile?: string,
 ) {
   report({
-    launcher: 'curseforge',
+    launcher,
     stage,
     message,
     percent: Math.max(0, Math.min(100, Math.round(percent))),
@@ -71,6 +72,7 @@ function reportProgress(
 async function runProgressTask<T>(
   task: RunnableTask<T>,
   report: ProgressReporter,
+  launcher: LauncherKind,
   stage: InstallProgress['stage'],
   message: string,
   fromPercent: number,
@@ -83,6 +85,7 @@ async function runProgressTask<T>(
     const ratio = task.total > 0 ? task.progress / task.total : 0
     reportProgress(
       report,
+      launcher,
       stage,
       message,
       fromPercent + ((toPercent - fromPercent) * ratio),
@@ -95,7 +98,7 @@ async function runProgressTask<T>(
     onStart: update,
     onUpdate: update,
   })
-  reportProgress(report, stage, message, toPercent, currentFile)
+  reportProgress(report, launcher, stage, message, toPercent, currentFile)
   return result
 }
 
@@ -220,14 +223,18 @@ async function findJava17(installRoot: string) {
   return null
 }
 
-async function ensureJava17(installRoot: string, report: ProgressReporter) {
+async function ensureJava17(
+  installRoot: string,
+  report: ProgressReporter,
+  launcher: LauncherKind,
+) {
   const existingJava = await findJava17(installRoot)
   if (existingJava) {
-    reportProgress(report, 'java', 'Java 17 ya esta listo.', 20)
+    reportProgress(report, launcher, 'java', 'Java 17 ya esta listo.', 20)
     return existingJava
   }
 
-  reportProgress(report, 'java', 'Preparando Java 17 de Minecraft...', 3)
+  reportProgress(report, launcher, 'java', 'Preparando Java 17 de Minecraft...', 3)
   const destination = path.join(
     installRoot,
     'runtime',
@@ -252,6 +259,7 @@ async function ensureJava17(installRoot: string, report: ProgressReporter) {
   await runProgressTask(
     installJavaRuntimeTask({ destination, manifest }),
     report,
+    launcher,
     'java',
     'Instalando Java 17 de Minecraft...',
     3,
@@ -264,6 +272,86 @@ async function ensureJava17(installRoot: string, report: ProgressReporter) {
     throw new Error('Java 17 se descargo, pero no se pudo ejecutar correctamente.')
   }
   return executable
+}
+
+export async function installForgeBase(
+  pack: PackInfo,
+  installRoot: string,
+  report: ProgressReporter,
+  launcher: LauncherKind,
+) {
+  await mkdir(installRoot, { recursive: true })
+  reportProgress(report, launcher, 'preparing', 'Preparando la instalacion...', 2)
+  const java = await ensureJava17(installRoot, report, launcher)
+  reportProgress(
+    report,
+    launcher,
+    'minecraft',
+    `Comprobando Minecraft ${pack.minecraftVersion}...`,
+    20,
+  )
+  const versionList = await getVersionList()
+  const minecraftVersion = versionList.versions.find(
+    (version) => version.id === pack.minecraftVersion,
+  )
+  if (!minecraftVersion) {
+    throw new Error(`Minecraft ${pack.minecraftVersion} no aparece en el manifiesto oficial.`)
+  }
+  await runProgressTask(
+    installTask(minecraftVersion, installRoot),
+    report,
+    launcher,
+    'minecraft',
+    `Instalando Minecraft ${pack.minecraftVersion}...`,
+    22,
+    55,
+  )
+
+  const installedForgeId = await runProgressTask(
+    installForgeTask(
+      {
+        mcversion: pack.minecraftVersion,
+        version: pack.loaderVersion,
+        installer: { path: forgeInstallerUrl(pack) },
+      },
+      installRoot,
+      {
+        java,
+        mavenHost: ['https://maven.minecraftforge.net'],
+      },
+    ),
+    report,
+    launcher,
+    'forge',
+    `Instalando Forge ${pack.loaderVersion}...`,
+    55,
+    80,
+  )
+  const resolvedForge = await Version.parse(installRoot, installedForgeId)
+  await runProgressTask(
+    installDependenciesTask(resolvedForge, {
+      mavenHost: ['https://maven.minecraftforge.net'],
+    }),
+    report,
+    launcher,
+    'forge',
+    'Comprobando librerias de Forge...',
+    80,
+    94,
+  )
+
+  const versionRoot = path.join(installRoot, 'versions', installedForgeId)
+  const versionJson = await readJson<unknown>(
+    path.join(versionRoot, `${installedForgeId}.json`),
+  )
+  const installProfile = await readJson<unknown>(
+    path.join(versionRoot, 'install_profile.json'),
+  )
+  if (!await fileExists(forgeInstallerPath(installRoot, pack))) {
+    throw new Error('Forge se instalo, pero falta su instalador compartido.')
+  }
+
+  return { installedForgeId, versionJson, installProfile }
 }
 
 function createBaseModLoader(
@@ -366,15 +454,11 @@ export class CurseForgeInstanceService {
   #installation: Promise<DirectInstanceResult> | null = null
 
   constructor(
-    resourcesDirectory: string,
+    packSourceDirectory: string,
     settings: LauncherSettingsStore,
     report: ProgressReporter = () => undefined,
   ) {
-    this.#packSourceDirectory = path.join(
-      resourcesDirectory,
-      'packs',
-      PACK_DIRECTORY_NAME,
-    )
+    this.#packSourceDirectory = packSourceDirectory
     this.#settings = settings
     this.#report = report
   }
@@ -452,73 +536,30 @@ export class CurseForgeInstanceService {
 
       await mkdir(installRoot, { recursive: true })
       await mkdir(instancesRoot, { recursive: true })
-
-      reportProgress(this.#report, 'preparing', 'Preparando la instalacion...', 2)
-      const java = await ensureJava17(installRoot, this.#report)
-      reportProgress(this.#report, 'minecraft', `Comprobando Minecraft ${pack.minecraftVersion}...`, 20)
-      const versionList = await getVersionList()
-      const minecraftVersion = versionList.versions.find(
-        (version) => version.id === pack.minecraftVersion,
-      )
-      if (!minecraftVersion) {
-        throw new Error(`Minecraft ${pack.minecraftVersion} no aparece en el manifiesto oficial.`)
-      }
-      await runProgressTask(
-        installTask(minecraftVersion, installRoot),
-        this.#report,
-        'minecraft',
-        `Instalando Minecraft ${pack.minecraftVersion}...`,
-        22,
-        55,
-      )
-
-      const installedForgeId = await runProgressTask(
-        installForgeTask(
-        {
-          mcversion: pack.minecraftVersion,
-          version: pack.loaderVersion,
-          installer: { path: forgeInstallerUrl(pack) },
-        },
+      const { installedForgeId, versionJson, installProfile } = await installForgeBase(
+        pack,
         installRoot,
-        {
-          java,
-          mavenHost: ['https://maven.minecraftforge.net'],
-        },
-        ),
         this.#report,
-        'forge',
-        `Instalando Forge ${pack.loaderVersion}...`,
-        55,
-        80,
+        'curseforge',
       )
-      const resolvedForge = await Version.parse(installRoot, installedForgeId)
-      await runProgressTask(
-        installDependenciesTask(resolvedForge, {
-          mavenHost: ['https://maven.minecraftforge.net'],
-        }),
+
+      reportProgress(
         this.#report,
-        'forge',
-        'Comprobando librerias de Forge...',
-        80,
+        'curseforge',
+        'instance',
+        'Creando la instancia de CurseForge...',
         94,
       )
-
-      const versionRoot = path.join(installRoot, 'versions', installedForgeId)
-      const versionJson = await readJson<unknown>(
-        path.join(versionRoot, `${installedForgeId}.json`),
-      )
-      const installProfile = await readJson<unknown>(
-        path.join(versionRoot, 'install_profile.json'),
-      )
-      if (!await fileExists(forgeInstallerPath(installRoot, pack))) {
-        throw new Error('Forge se instalo, pero falta su instalador compartido.')
-      }
-
-      reportProgress(this.#report, 'instance', 'Creando la instancia de CurseForge...', 94)
       const created = status.state === 'absent'
       await this.#writeInstance(pack, instancePath, versionJson, installProfile, created)
       await this.#settings.rememberInstancePath('curseforge', instancePath)
-      reportProgress(this.#report, 'done', 'Instancia lista para abrir en CurseForge.', 100)
+      reportProgress(
+        this.#report,
+        'curseforge',
+        'done',
+        'Instancia lista para abrir en CurseForge.',
+        100,
+      )
 
       return { ok: true, path: instancePath, created, forgeVersionId: installedForgeId }
     } catch (error) {
@@ -563,6 +604,7 @@ export class CurseForgeInstanceService {
         (file, completed, total) => {
           reportProgress(
             this.#report,
+            'curseforge',
             'instance',
             'Actualizando archivos del paquete...',
             94 + ((completed / total) * 5),
