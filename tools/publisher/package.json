@@ -1,0 +1,10 @@
+{
+  "name": "empilauncher-publisher",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pagina local para publicar EmpiLauncher y EmpiPacks sin usar la terminal a mano.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>EmpiLauncher Publisher</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <h1>EmpiLauncher <span>Publisher</span></h1>
+    <button id="settingsButton" class="ghost">Configuracion</button>
+</header>
+
+<main>
+    <section class="card">
+        <h2>Publicar Launcher</h2>
+        <p class="hint">Compila el instalador y lo publica en GitHub Releases.</p>
+        <label class="checkbox">
+            <input type="checkbox" id="bumpVersion" checked>
+            Subir de version (patch) antes de publicar
+        </label>
+        <button id="publishLauncherButton" class="primary">Publicar Launcher</button>
+        <pre id="launcherLog" class="log" hidden></pre>
+    </section>
+
+    <section class="card">
+        <h2>Publicar EmpiPacks</h2>
+        <p class="hint">Corre Nebula (si esta configurado), sube archivos grandes a un Release, y sube el resto al repositorio.</p>
+        <label>
+            Mensaje del commit
+            <input type="text" id="commitMessage" placeholder="Actualizar EmpiPacks">
+        </label>
+        <button id="publishPacksButton" class="primary">Publicar EmpiPacks</button>
+        <pre id="packsLog" class="log" hidden></pre>
+    </section>
+</main>
+
+<div id="settingsModal" class="modal-backdrop" hidden>
+    <div class="modal">
+        <h2>Configuracion</h2>
+        <label>
+            Carpeta del repo de EmpiLauncher
+            <input type="text" id="launcherRepoPath">
+        </label>
+        <label>
+            Carpeta local del repo de EmpiPacks
+            <input type="text" id="empiPacksRepoPath">
+        </label>
+        <label>
+            Repo de EmpiPacks en GitHub (owner/repo)
+            <input type="text" id="empiPacksGithubRepo">
+        </label>
+        <label>
+            Repo de EmpiLauncher en GitHub (owner/repo)
+            <input type="text" id="launcherGithubRepo">
+        </label>
+        <label>
+            Comando de Nebula (vacio = no correrlo, asumir que ya esta al dia)
+            <input type="text" id="nebulaCommand" placeholder="java -jar nebula.jar ...">
+        </label>
+        <label>
+            Archivos de mas de esta cantidad de MB van a un Release en vez del repo
+            <input type="number" id="largeFileThresholdMb" min="1">
+        </label>
+        <div class="modal-actions">
+            <button id="closeSettingsButton" class="ghost">Cerrar</button>
+            <button id="saveSettingsButton" class="primary">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
