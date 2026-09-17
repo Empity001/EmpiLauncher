@@ -1,217 +1,91 @@
-<p align="center"><img src="./app/assets/images/SealCircle.png" width="150px" height="150px" alt="aventium softworks"></p>
+<p align="center"><img src="./app/assets/images/SealCircle.png" width="150px" height="150px" alt="EmpiLauncher"></p>
 
-<h1 align="center">Helios Launcher</h1>
+<h1 align="center">EmpiLauncher</h1>
 
-<em><h5 align="center">(formerly Electron Launcher)</h5></em>
+<p align="center">Unite a servidores modeados sin preocuparte por instalar Java, Forge u otros mods. Nosotros nos encargamos.</p>
 
-[<p align="center"><img src="https://img.shields.io/github/actions/workflow/status/dscalzi/HeliosLauncher/build.yml?branch=master&style=for-the-badge" alt="gh actions">](https://github.com/dscalzi/HeliosLauncher/actions) [<img src="https://img.shields.io/github/downloads/dscalzi/HeliosLauncher/total.svg?style=for-the-badge" alt="downloads">](https://github.com/dscalzi/HeliosLauncher/releases) <img src="https://forthebadge.com/images/badges/winter-is-coming.svg"  height="28px" alt="winter-is-coming"></p>
+## Funciones
 
-<p align="center">Join modded servers without worrying about installing Java, Forge, or other mods. We'll handle that for you.</p>
+* Gestion de cuentas.
+  * Login con Microsoft (OAuth 2.0).
+  * Las credenciales nunca se guardan; se envian directo a Microsoft/Mojang.
+* Gestion eficiente de archivos.
+  * Recibi las actualizaciones del modpack apenas se publican.
+  * Los archivos se validan antes de iniciar; los corruptos o incorrectos se vuelven a descargar.
+* **Validacion automatica de Java.**
+  * Si tenes una version incompatible (o ninguna), el launcher instala la correcta por vos.
+* Panel de ajustes, incluido control de memoria/Java.
+* Actualizaciones automaticas del propio launcher.
+* Estado de los servicios de Mojang.
 
-![Screenshot 1](https://i.imgur.com/6o7SmH6.png)
-![Screenshot 2](https://i.imgur.com/x3B34n1.png)
+## Descargas
 
-## Features
+Ultima version disponible en [GitHub Releases](https://github.com/Empity001/EmpiLauncher/releases).
 
-* 🔒 Full account management.
-  * Add multiple accounts and easily switch between them.
-  * Microsoft (OAuth 2.0) + Mojang (Yggdrasil) authentication fully supported.
-  * Credentials are never stored and transmitted directly to Mojang.
-* 📂 Efficient asset management.
-  * Receive client updates as soon as we release them.
-  * Files are validated before launch. Corrupt or incorrect files will be redownloaded.
-* ☕ **Automatic Java validation.**
-  * If you have an incompatible version of Java installed, we'll install the right one *for you*.
-  * You do not need to have Java installed to run the launcher.
-* 📰 News feed natively built into the launcher.
-* ⚙️ Intuitive settings management, including a Java control panel.
-* Supports all of our servers.
-  * Switch between server configurations with ease.
-  * View the player count of the selected server.
-* Automatic updates. That's right, the launcher updates itself.
-*  View the status of Mojang's services.
+| Plataforma | Archivo |
+| ---------- | ------- |
+| Windows x64 | `Empi-Launcher-setup-VERSION.exe` |
 
-This is not an exhaustive list. Download and install the launcher to gauge all it can do!
+## Consola
 
-#### Need Help? [Check the wiki.][wiki]
-
-#### Like the project? Leave a ⭐ star on the repository!
-
-## Downloads
-
-You can download from [GitHub Releases](https://github.com/dscalzi/HeliosLauncher/releases)
-
-#### Latest Release
-
-[![](https://img.shields.io/github/release/dscalzi/HeliosLauncher.svg?style=flat-square)](https://github.com/dscalzi/HeliosLauncher/releases/latest)
-
-#### Latest Pre-Release
-[![](https://img.shields.io/github/release/dscalzi/HeliosLauncher/all.svg?style=flat-square)](https://github.com/dscalzi/HeliosLauncher/releases)
-
-**Supported Platforms**
-
-If you download from the [Releases](https://github.com/dscalzi/HeliosLauncher/releases) tab, select the installer for your system.
-
-| Platform | File |
-| -------- | ---- |
-| Windows x64 | `Helios-Launcher-setup-VERSION.exe` |
-| macOS x64 | `Helios-Launcher-setup-VERSION-x64.dmg` |
-| macOS arm64 | `Helios-Launcher-setup-VERSION-arm64.dmg` |
-| Linux x64 | `Helios-Launcher-setup-VERSION.AppImage` |
-
-## Console
-
-To open the console, use the following keybind.
+Para abrir la consola de desarrollo:
 
 ```console
 ctrl + shift + i
 ```
 
-Ensure that you have the console tab selected. Do not paste anything into the console unless you are 100% sure of what it will do. Pasting the wrong thing can expose sensitive information.
+No pegues nada en la consola salvo que sepas exactamente que hace.
 
-#### Export Output to a File
+## Desarrollo
 
-If you want to export the console output, simply right click anywhere on the console and click **Save as..**
+### Requisitos
 
-![console example](https://i.imgur.com/T5e73jP.png)
+* [Node.js][nodejs] v22 o superior.
 
-
-## Development
-
-This section details the setup of a basic developmentment environment.
-
-### Getting Started
-
-**System Requirements**
-
-* [Node.js][nodejs] v22
-
----
-
-**Clone and Install Dependencies**
+**Clonar e instalar dependencias**
 
 ```console
-> git clone https://github.com/dscalzi/HeliosLauncher.git
-> cd HeliosLauncher
+> git clone https://github.com/Empity001/EmpiLauncher.git
+> cd EmpiLauncher
 > npm install
 ```
 
-> **Empi Launcher:** no reutilices una carpeta `node_modules` de una versión
-> anterior. Ejecuta `npm install` después de extraer el ZIP de código; así se
-> instala también `sharp`, que crea la caché animada de bajo consumo. Si no está
-> disponible, los fondos y banners siguen reproduciéndose como respaldo, pero
-> sin la reducción persistente de RAM.
+> No reutilices una carpeta `node_modules` de una version anterior. Corre
+> `npm install` despues de clonar; asi se instala tambien `sharp`, que arma la
+> cache animada de bajo consumo. Si no esta disponible, los fondos y banners
+> siguen funcionando como respaldo, pero sin la reduccion persistente de RAM.
 
----
-
-**Launch Application**
+**Correr en modo desarrollo**
 
 ```console
 > npm start
 ```
 
----
-
-**Build Installers**
-
-To build for your current platform.
+**Compilar el instalador**
 
 ```console
-> npm run dist
+> npm run dist        # plataforma actual
+> npm run dist:win    # Windows x64
 ```
 
-Build for a specific platform.
+**Publicar un release (compila y sube directo a GitHub Releases)**
 
-| Platform    | Command              |
-| ----------- | -------------------- |
-| Windows x64 | `npm run dist:win`   |
-| macOS       | `npm run dist:mac`   |
-| Linux x64   | `npm run dist:linux` |
-
-Builds for macOS may not work on Windows/Linux and vice-versa.
-
----
-
-### Visual Studio Code
-
-All development of the launcher should be done using [Visual Studio Code][vscode].
-
-Paste the following into `.vscode/launch.json`
-
-```JSON
-{
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Debug Main Process",
-      "type": "node",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "program": "${workspaceFolder}/node_modules/electron/cli.js",
-      "args" : ["."],
-      "outputCapture": "std"
-    },
-    {
-      "name": "Debug Renderer Process",
-      "type": "chrome",
-      "request": "launch",
-      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron",
-      "windows": {
-        "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron.cmd"
-      },
-      "runtimeArgs": [
-        "${workspaceFolder}/.",
-        "--remote-debugging-port=9222"
-      ],
-      "webRoot": "${workspaceFolder}"
-    }
-  ]
-}
+```console
+> npm run release:win
 ```
 
-This adds two debug configurations.
+### Notas de arquitectura
 
-#### Debug Main Process
-
-This allows you to debug Electron's [main process][mainprocess]. You can debug scripts in the [renderer process][rendererprocess] by opening the DevTools Window.
-
-#### Debug Renderer Process
-
-This allows you to debug Electron's [renderer process][rendererprocess]. This requires you to install the [Debugger for Chrome][chromedebugger] extension.
-
-Note that you **cannot** open the DevTools window while using this debug configuration. Chromium only allows one debugger, opening another will crash the program.
+* [`docs/distro.md`](docs/distro.md) explica el formato de `distribution.json`.
+* [`docs/MicrosoftAuth.md`](docs/MicrosoftAuth.md) explica como configurar el
+  login de Microsoft (Client ID de Azure).
+* [`docs/OPTIMIZACION.md`](docs/OPTIMIZACION.md) documenta las optimizaciones
+  de RAM/CPU ya implementadas (modo de ahorro automatico, decodificacion de
+  animaciones, etc.).
 
 ---
 
-### Note on Third-Party Usage
-
-Please give credit to the original author and provide a link to the original source. This is free software, please do at least this much.
-
-For instructions on setting up Microsoft Authentication, see https://github.com/dscalzi/HeliosLauncher/blob/master/docs/MicrosoftAuth.md.
-
----
-
-## Resources
-
-* [Wiki][wiki]
-* [Nebula (Create Distribution.json)][nebula]
-* [v2 Rewrite Branch (Inactive)][v2branch]
-
-The best way to contact the developers is on Discord.
-
-[![discord](https://discordapp.com/api/guilds/211524927831015424/embed.png?style=banner3)][discord]
-
----
-
-### See you ingame.
-
+Basado originalmente en [Helios Launcher](https://github.com/dscalzi/HeliosLauncher)
+(MIT License, ver [`LICENSE.txt`](LICENSE.txt)), reescrito y personalizado para EmpiLauncher.
 
 [nodejs]: https://nodejs.org/en/ 'Node.js'
-[vscode]: https://code.visualstudio.com/ 'Visual Studio Code'
-[mainprocess]: https://electronjs.org/docs/tutorial/application-architecture#main-and-renderer-processes 'Main Process'
-[rendererprocess]: https://electronjs.org/docs/tutorial/application-architecture#main-and-renderer-processes 'Renderer Process'
-[chromedebugger]: https://marketplace.visualstudio.com/items?itemName=msjsdiag.debugger-for-chrome 'Debugger for Chrome'
-[discord]: https://discord.gg/zNWUXdt 'Discord'
-[wiki]: https://github.com/dscalzi/HeliosLauncher/wiki 'wiki'
-[nebula]: https://github.com/dscalzi/Nebula 'dscalzi/Nebula'
-[v2branch]: https://github.com/dscalzi/HeliosLauncher/tree/ts-refactor 'v2 branch'

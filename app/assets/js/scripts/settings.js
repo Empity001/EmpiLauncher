@@ -1564,7 +1564,7 @@ function populateReleaseNotes(){
     }
 
     releaseNotesRequest = $.ajax({
-        url: 'https://github.com/dscalzi/HeliosLauncher/releases.atom',
+        url: 'https://github.com/Empity001/EmpiLauncher/releases.atom',
         timeout: 2500
     }).then(data => {
         const version = 'v' + remote.app.getVersion()

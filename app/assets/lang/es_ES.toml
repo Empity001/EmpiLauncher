@@ -203,7 +203,7 @@ javaDownloadPrepare = "Preparando la descarga de Java..."
 javaDownloadFailureTitle = "Error al descargar Java"
 javaDownloadFailureText = "Revisa la consola (CTRL + Shift + I) para obtener más detalles."
 javaRequired = "Se necesita Java<br>para iniciar"
-javaRequiredMessage = 'Se necesita una instalación válida de Java {major} x64 para iniciar.<br><br>Consulta nuestra <a href="https://github.com/dscalzi/HeliosLauncher/wiki/Java-Management#manually-installing-a-valid-version-of-java">guía de administración de Java</a> para ver cómo instalarlo manualmente.'
+javaRequiredMessage = 'Se necesita una instalación válida de Java {major} x64 para iniciar.<br><br>Abre un <a href="https://github.com/Empity001/EmpiLauncher/issues">issue</a> si necesitas ayuda para instalarlo manualmente.'
 javaRequiredDismiss = "Entendido"
 javaRequiredCancel = "Volver"
 
@@ -226,7 +226,7 @@ downloadingFiles = "Descargando archivos..."
 errorDuringFileDownloadTitle = "Error al descargar archivos"
 preparingToLaunch = "Preparando el inicio..."
 launchingGame = "Iniciando el juego..."
-launchWrapperNotDownloaded = "El archivo principal, LaunchWrapper, no se descargó correctamente. Por este motivo, el juego no puede iniciarse.<br><br>Para intentar solucionarlo, desactiva temporalmente tu antivirus y vuelve a iniciar el juego.<br><br>Cuando tengas tiempo, <a href=\"https://github.com/dscalzi/HeliosLauncher/issues\">reporta el problema</a> e indica qué antivirus utilizas."
+launchWrapperNotDownloaded = "El archivo principal, LaunchWrapper, no se descargó correctamente. Por este motivo, el juego no puede iniciarse.<br><br>Para intentar solucionarlo, desactiva temporalmente tu antivirus y vuelve a iniciar el juego.<br><br>Cuando tengas tiempo, <a href=\"https://github.com/Empity001/EmpiLauncher/issues\">reporta el problema</a> e indica qué antivirus utilizas."
 doneEnjoyServer = "Listo. ¡Disfruta del servidor!"
 checkConsoleForDetails = "Revisa la consola (CTRL + Shift + I) para obtener más detalles."
 
