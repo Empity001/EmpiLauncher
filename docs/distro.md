@@ -4,6 +4,26 @@ You can use [Nebula](https://github.com/dscalzi/Nebula) to automate the generati
 
 The most up to date and accurate descriptions of the distribution spec can be viewed in [helios-distribution-types](https://github.com/dscalzi/helios-distribution-types).
 
+## NeoForge
+
+Neither `helios-distribution-types` nor `helios-core` (and therefore Nebula)
+know about NeoForge as of their latest published versions - only `Forge`,
+`ForgeHosted`, `Fabric` and `LiteLoader` are recognized as top-level loaders.
+EmpiLauncher patches those two libraries (see `patches/`, applied
+automatically by `npm install` via `patch-package`) to add two more types,
+handled identically to `ForgeHosted`/`ForgeMod`:
+
+- `NeoForgeHosted` - the top-level loader module (the NeoForge universal jar).
+- `NeoForgeMod` - individual mod jars for a NeoForge server.
+
+Nebula won't emit these on its own, so after generating the distribution
+index with Nebula, open `distribution.json` and change the loader module's
+(and its mods') `"type"` from whatever Nebula produced (or from `"Forge"` /
+`"ForgeHosted"` if you built it by hand starting from a Forge example) to
+`"NeoForgeHosted"` / `"NeoForgeMod"`. Everything else - `subModules`
+(the `VersionManifest` submodule, extra `Library` entries), artifact hashes,
+sizes, URLs - stays exactly the same shape as a modern (1.17+) Forge server.
+
 The distribution index is written in JSON. The general format of the index is as posted below.
 
 ```json
