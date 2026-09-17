@@ -72,7 +72,7 @@ document.getElementById('publishPacksButton').addEventListener('click', () => {
 })
 
 const settingsModal = document.getElementById('settingsModal')
-const settingsFields = ['launcherRepoPath', 'empiPacksRepoPath', 'empiPacksGithubRepo', 'launcherGithubRepo', 'nebulaCommand', 'largeFileThresholdMb']
+const settingsFields = ['launcherRepoPath', 'empiPacksRepoPath', 'empiPacksGithubRepo', 'launcherGithubRepo', 'nebulaProjectPath', 'nebulaRootPath', 'nebulaCommand', 'largeFileThresholdMb']
 
 document.getElementById('settingsButton').addEventListener('click', async () => {
     const config = await getConfig()

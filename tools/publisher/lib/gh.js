@@ -36,4 +36,11 @@ async function assetDownloadUrl(repo, tag, assetName) {
     return `https://github.com/${repo}/releases/download/${tag}/${encodeURIComponent(assetName)}`
 }
 
-module.exports = { releaseExists, createRelease, createReleaseWithAsset, uploadAsset, assetDownloadUrl }
+/** electron-builder's GitHub publisher creates releases as drafts by default - this makes one visible/live. */
+async function publishDraft(repo, tag, log) {
+    const args = ['release', 'edit', tag, '-R', repo, '--draft=false']
+    withLog(log, 'gh', args)
+    await run('gh', args, {}, log)
+}
+
+module.exports = { releaseExists, createRelease, createReleaseWithAsset, uploadAsset, assetDownloadUrl, publishDraft }

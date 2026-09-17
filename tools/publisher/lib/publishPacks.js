@@ -23,9 +23,21 @@ async function publishPacks(config, options, log) {
     }
 
     if (config.nebulaCommand && config.nebulaCommand.trim()) {
-        log('Regenerando distribution.json con Nebula...')
+        log(`Corriendo Nebula en ${config.nebulaProjectPath}...`)
         const [cmd, ...args] = config.nebulaCommand.trim().split(/\s+/)
-        await run(cmd, args, { cwd: repoRoot }, log)
+        await run(cmd, args, { cwd: config.nebulaProjectPath }, log)
+
+        log(`Copiando distribution.json, repo y servers desde ${config.nebulaRootPath}...`)
+        for (const item of ['distribution.json', 'repo', 'servers']) {
+            const source = path.join(config.nebulaRootPath, item)
+            const destination = path.join(repoRoot, item)
+            if (!fs.existsSync(source)) {
+                log(`Aviso: Nebula no genero ${item}, se deja como estaba.`)
+                continue
+            }
+            fs.rmSync(destination, { recursive: true, force: true })
+            fs.cpSync(source, destination, { recursive: true })
+        }
     } else {
         log('(No hay comando de Nebula configurado; se asume que el repo ya esta al dia.)')
     }

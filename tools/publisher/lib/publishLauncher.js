@@ -2,6 +2,7 @@ const fs = require('fs')
 const path = require('path')
 const { run, capture, npmBinary } = require('./exec')
 const git = require('./git')
+const gh = require('./gh')
 
 function bumpPatch(version) {
     const parts = version.split('.')
@@ -36,6 +37,12 @@ async function publishLauncher(config, options, log) {
         cwd: repoRoot,
         env: { GH_TOKEN: ghToken }
     }, log)
+
+    // electron-builder creates the GitHub release as a draft by default; without this
+    // extra step players never see the update until someone remembers to click
+    // "Publish release" on GitHub by hand.
+    log('Publicando el Release (sacandolo de modo borrador)...')
+    await gh.publishDraft(config.launcherGithubRepo, `v${version}`, log)
 
     if (options.bumpVersion) {
         await git.push(repoRoot, log)

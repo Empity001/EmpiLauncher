@@ -55,8 +55,16 @@
             <input type="text" id="launcherGithubRepo">
         </label>
         <label>
-            Comando de Nebula (vacio = no correrlo, asumir que ya esta al dia)
-            <input type="text" id="nebulaCommand" placeholder="java -jar nebula.jar ...">
+            Carpeta del proyecto Nebula
+            <input type="text" id="nebulaProjectPath">
+        </label>
+        <label>
+            Carpeta ROOT de Nebula (la del .env, donde deja distribution.json/repo/servers)
+            <input type="text" id="nebulaRootPath">
+        </label>
+        <label>
+            Comando de Nebula (vacio = no correrlo, asumir que el repo ya esta al dia)
+            <input type="text" id="nebulaCommand" placeholder="npm run start -- g distro">
         </label>
         <label>
             Archivos de mas de esta cantidad de MB van a un Release en vez del repo
