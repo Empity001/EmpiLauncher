@@ -1,0 +1,67 @@
+appId: 'empilauncher'
+productName: 'Empi Launcher'
+artifactName: '${productName}-setup-${version}.${ext}'
+
+publish:
+  provider: github
+  owner: Empity001
+  repo: EmpiLauncher
+  
+copyright: 'Copyright © 2026 Empity'
+
+asar: true
+compression: 'maximum'
+
+files:
+  - '!{dist,.gitignore,.vscode,docs,dev-app-update.yml,.nvmrc,eslint.config.mjs}'
+  - '!.github/**'
+
+extraResources:
+  - 'libraries'
+
+# Windows Configuration
+win:
+  icon: 'build/icon.ico'
+  target:
+    - target: 'nsis'
+      arch:
+        - 'x64'
+
+# Windows Installer Configuration
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+
+  installerIcon: 'build/icon.ico'
+  uninstallerIcon: 'build/icon.ico'
+  installerHeaderIcon: 'build/icon.ico'
+
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 'Empi Launcher'
+
+# macOS Configuration
+mac:
+  target:
+    - target: 'dmg'
+      arch:
+        - 'x64'
+        - 'arm64'
+  artifactName: '${productName}-setup-${version}-${arch}.${ext}'
+  category: 'public.app-category.games'
+
+# Linux Configuration
+linux: 
+  target: 'AppImage'
+  maintainer: 'Daniel Scalzi'
+  vendor: 'Daniel Scalzi'
+  synopsis: 'Modded Minecraft Launcher'
+  description: 'Custom launcher which allows users to join modded servers. All mods, configurations, and updates are handled automatically.'
+  category: 'Game'
+
+
+directories:
+  buildResources: 'build'
+  output: 'dist'

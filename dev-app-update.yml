@@ -1,0 +1,4 @@
+provider: github
+owner: Empity001
+repo: EmpiLauncher
+updaterCacheDirName: empilauncher-updater
