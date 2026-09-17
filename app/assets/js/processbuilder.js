@@ -322,11 +322,47 @@ class ProcessBuilder {
     // }
 
     /**
+     * Forge (and NeoForge) 1.20.3+ dropped support for --fml.modLists; mods must be
+     * physically present in the instance's mods folder and get auto-discovered from
+     * there instead, the same way Fabric/vanilla always worked. This copies every
+     * currently-enabled mod from the shared modstore into the instance, and removes
+     * any mod EmpiLauncher previously copied there that is no longer enabled.
+     */
+    _syncModsFolder(mods) {
+        const modsDir = path.join(this.gameDir, 'mods')
+        fs.ensureDirSync(modsDir)
+        const markerFile = path.join(this.gameDir, '.empi-managed-mods.json')
+
+        const previouslyManaged = fs.existsSync(markerFile) ? JSON.parse(fs.readFileSync(markerFile, 'UTF-8')) : []
+        const currentlyManaged = []
+
+        for (const mod of mods) {
+            const fileName = path.basename(mod.getPath())
+            fs.copyFileSync(mod.getPath(), path.join(modsDir, fileName))
+            currentlyManaged.push(fileName)
+        }
+
+        for (const fileName of previouslyManaged) {
+            if (!currentlyManaged.includes(fileName)) {
+                fs.removeSync(path.join(modsDir, fileName))
+            }
+        }
+
+        fs.writeFileSync(markerFile, JSON.stringify(currentlyManaged), 'UTF-8')
+    }
+
+    /**
      * Construct the mod argument list for forge 1.13 and Fabric
-     * 
+     *
      * @param {Array.<Object>} mods An array of mods to add to the mod list.
      */
     constructModList(mods) {
+
+        if(!this.usingFabricLoader && mcVersionAtLeast('1.20.3', this.server.rawServer.minecraftVersion)) {
+            this._syncModsFolder(mods)
+            return []
+        }
+
         const writeBuffer = mods.map(mod => {
             return this.usingFabricLoader ? mod.getPath() : mod.getExtensionlessMavenIdentifier()
         }).join('\n')
