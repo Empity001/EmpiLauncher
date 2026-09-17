@@ -15,7 +15,8 @@
     "dist:mac": "npm run dist -- -m",
     "dist:linux": "npm run dist -- -l",
     "release:win": "electron-builder build -w --publish always",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "postinstall": "patch-package"
   },
   "engines": {
     "node": ">=22"
@@ -42,7 +43,8 @@
     "@stylistic/eslint-plugin": "^5.6.1",
     "electron": "^39.2.7",
     "electron-builder": "^26.4.0",
-    "eslint": "^9.39.2"
+    "eslint": "^9.39.2",
+    "patch-package": "^8.0.1"
   },
   "repository": {
     "type": "git",

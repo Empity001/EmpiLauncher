@@ -1,0 +1,57 @@
+diff --git a/node_modules/helios-distribution-types/build/spec/type.d.ts b/node_modules/helios-distribution-types/build/spec/type.d.ts
+index e9c7565..e3d7931 100644
+--- a/node_modules/helios-distribution-types/build/spec/type.d.ts
++++ b/node_modules/helios-distribution-types/build/spec/type.d.ts
+@@ -2,9 +2,11 @@ export declare enum Type {
+     Library = "Library",
+     ForgeHosted = "ForgeHosted",
+     Forge = "Forge",
++    NeoForgeHosted = "NeoForgeHosted",
+     Fabric = "Fabric",
+     LiteLoader = "LiteLoader",
+     ForgeMod = "ForgeMod",
++    NeoForgeMod = "NeoForgeMod",
+     FabricMod = "FabricMod",
+     LiteMod = "LiteMod",
+     File = "File",
+diff --git a/node_modules/helios-distribution-types/build/spec/type.js b/node_modules/helios-distribution-types/build/spec/type.js
+index 8791720..d71e850 100644
+--- a/node_modules/helios-distribution-types/build/spec/type.js
++++ b/node_modules/helios-distribution-types/build/spec/type.js
+@@ -6,9 +6,11 @@ var Type;
+     Type["Library"] = "Library";
+     Type["ForgeHosted"] = "ForgeHosted";
+     Type["Forge"] = "Forge";
++    Type["NeoForgeHosted"] = "NeoForgeHosted";
+     Type["Fabric"] = "Fabric";
+     Type["LiteLoader"] = "LiteLoader";
+     Type["ForgeMod"] = "ForgeMod";
++    Type["NeoForgeMod"] = "NeoForgeMod";
+     Type["FabricMod"] = "FabricMod";
+     Type["LiteMod"] = "LiteMod";
+     Type["File"] = "File";
+@@ -30,6 +32,13 @@ exports.TypeMetadata = {
+         id: Type.Forge,
+         defaultExtension: 'jar'
+     },
++    /**
++     * EmpiLauncher addition: NeoForge, treated identically to ForgeHosted.
++     */
++    NeoForgeHosted: {
++        id: Type.NeoForgeHosted,
++        defaultExtension: 'jar'
++    },
+     Fabric: {
+         id: Type.Fabric,
+         defaultExtension: 'jar'
+@@ -42,6 +51,10 @@ exports.TypeMetadata = {
+         id: Type.ForgeMod,
+         defaultExtension: 'jar'
+     },
++    NeoForgeMod: {
++        id: Type.NeoForgeMod,
++        defaultExtension: 'jar'
++    },
+     FabricMod: {
+         id: Type.FabricMod,
+         defaultExtension: 'jar'
