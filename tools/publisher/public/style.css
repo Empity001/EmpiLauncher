@@ -576,3 +576,271 @@ button.pname { cursor: pointer; }
 @media (max-width: 520px) {
     .brand span { display: none; }
 }
+
+/* ============================================================ modular UI (modules on the living ground)
+   Dark translucent modules so the dot field reads through their edges, pills and circles for everything you press,
+   Geist Mono for data and chrome, Doto for big numerals and titles, hatched bars where a share is shown.
+   Corner rule: modules 22px, inputs 12px, everything pressable is a pill or a circle. */
+@font-face {
+    font-family: 'Geist Mono';
+    src: url('/fonts/GeistMono.woff2') format('woff2');
+    font-weight: 400 700;
+    font-display: swap;
+}
+
+:root {
+    --font-mono: 'Geist Mono', 'Cascadia Mono', Consolas, monospace;
+    --font-code: var(--font-mono);
+    --r-module: 22px;
+    --r-input: 12px;
+    --module: rgb(17 18 21 / .76);
+    --hair: rgb(241 239 232 / .1);
+    --hair-strong: rgb(241 239 232 / .22);
+    --spring: cubic-bezier(.34, 1.56, .64, 1);
+    --pipeline-h: 112px;
+    --hatch: repeating-linear-gradient(135deg, rgb(241 239 232 / .55) 0 2px, transparent 2px 5px);
+}
+
+h1 { font: 700 30px/1.1 var(--font-dot); }
+h2, h3 { font-family: var(--font-mono); font-weight: 500; letter-spacing: -.01em; }
+h2 { font-size: 15px; }
+small, .hint-line, .pack-sub, .facts, .versions-line, .count, .hint, .muted { font-family: var(--font-mono); }
+p.muted, .prose p, .prose .muted, .zone-desc, .mods-help, .note { font-family: var(--font-ui); }
+label, .label { font: 500 12px/1.2 var(--font-mono); color: var(--text-2); }
+label.check { font: 14px/1.3 var(--font-ui); color: var(--text); }
+code, pre, .log { font-family: var(--font-mono); }
+
+/* ------------------------------------------------------------ modules */
+.module, .section, .section:first-child, .appearance .section:first-child, .protection .section:first-child {
+    position: relative; isolation: isolate;
+    padding: 20px 22px; margin: 0 0 16px;
+    background: var(--module); background-image: none;
+    border: 1px solid var(--hair); border-radius: var(--r-module);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / .05), 0 24px 40px -28px rgb(0 0 0 / .85);
+    transition: border-color .3s var(--ease-out);
+}
+.module:hover, .section:hover { border-color: var(--hair-strong); }
+.module::before, .section::before {   /* a corner of halftone dots inside the module: the ground continues in it */
+    content: ''; position: absolute; z-index: -1; top: 0; right: 0; width: 46%; height: 64%; pointer-events: none;
+    border-radius: 0 var(--r-module) 0 0;
+    background: radial-gradient(circle, rgb(241 239 232 / .22) 1px, transparent 1.5px) 0 0 / 9px 9px;
+    -webkit-mask-image: radial-gradient(120% 120% at 100% 0, #000 0, transparent 68%);
+    mask-image: radial-gradient(120% 120% at 100% 0, #000 0, transparent 68%);
+}
+.module-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; min-height: 30px; }
+.module-head > h2, .module-head > h3 { flex: 1; min-width: 0; margin: 0; }
+.section > h2 { margin-bottom: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: rgb(255 255 255 / .06); border: 1px solid var(--hair); font: 500 11.5px/1.4 var(--font-mono); color: var(--text-2); }
+
+/* ------------------------------------------------------------ buttons: pills and circles */
+.btn {
+    border-radius: 999px; padding: 11px 18px; gap: 8px;
+    background-color: rgb(255 255 255 / .07); border: 1px solid var(--hair);
+    font: 500 13px/1 var(--font-mono); letter-spacing: -.005em;
+    transition: background .2s var(--ease), border-color .2s var(--ease), transform .45s var(--spring);
+}
+.btn:hover:not(:disabled) { background-color: rgb(255 255 255 / .13); border-color: var(--hair-strong); }
+.btn.primary { clip-path: none; border-radius: 999px; }
+.btn.paper { font-weight: 600; }
+.btn.small { padding: 8px 14px; font-size: 12px; }
+.btn.big { padding: 15px 26px; font-size: 14px; }
+.btn.danger { background-color: transparent; }
+.icon-btn {
+    width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--hair); background: transparent; color: var(--text-2);
+    transition: transform .5s var(--spring), background .2s var(--ease), color .2s var(--ease), border-color .2s var(--ease);
+}
+.icon-btn:hover { background: rgb(255 255 255 / .08); color: var(--text); border-color: var(--hair-strong); }
+.icon-btn[aria-pressed=true], .icon-btn.on { background: var(--text); color: var(--bg); border-color: var(--text); transform: scale(1.12); }
+#lifeBtn[aria-pressed=false] { color: var(--text-3); }
+
+/* ------------------------------------------------------------ inputs */
+input, select, textarea { border-radius: var(--r-input); background-color: rgb(6 6 7 / .62); border: 1px solid var(--hair); min-height: 42px; padding: 10px 14px; }
+input:hover, select:hover, textarea:hover { border-color: var(--hair-strong); }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 0; border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-tint); }
+textarea { border-radius: 16px; }
+select { background-position: right 14px center; padding-right: 38px; }
+input[type=search] { border-radius: 999px; padding-left: 42px; background-repeat: no-repeat; background-position: 16px center; background-size: 16px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b8b81' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E"); }
+input[type=checkbox] {   /* a switch, not a tick box */
+    appearance: none; -webkit-appearance: none; flex: none; position: relative; cursor: pointer;
+    width: 40px; height: 24px; min-height: 0; padding: 0; border-radius: 999px; background: rgb(255 255 255 / .1); border: 1px solid var(--hair-strong);
+    transition: background .25s var(--ease-out), border-color .25s var(--ease-out);
+}
+input[type=checkbox]::before { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--text-2); transition: transform .45s var(--spring), background .2s var(--ease); }
+input[type=checkbox]:checked { background: var(--text); border-color: var(--text); }
+input[type=checkbox]:checked::before { transform: translateX(16px); background: var(--bg); }
+input[type=checkbox]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; box-shadow: none; }
+label.check { flex-direction: row-reverse; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--hair); }
+label.check:first-child { border-top: 0; }
+.checks { flex-direction: column; align-items: stretch; gap: 0; min-height: 0; }
+
+/* ------------------------------------------------------------ segmented controls with a sliding thumb */
+.tabs, .subtabs { position: relative; display: inline-flex; padding: 4px; gap: 2px; border-radius: 999px; background: rgb(17 18 21 / .7); border: 1px solid var(--hair); }
+.tabs { align-self: center; height: 42px; }
+.subtabs { max-width: 100%; margin: 18px 0 20px; overflow-x: auto; -webkit-mask-image: none; mask-image: none; }
+.subtabs::after { display: none; }
+.tab, .subtab { position: relative; z-index: 1; border-radius: 999px; padding: 0 18px; font: 500 13px/1 var(--font-mono); transition: color .25s var(--ease-out); }
+.subtab { padding: 9px 16px; }
+.tab[aria-current], .subtab[aria-selected=true] { color: var(--bg); }
+.tab[aria-current]::after, .subtab[aria-selected=true]::after { display: none; }
+.tabs .ink, .subtabs .ink { top: 4px; bottom: 4px; height: auto; z-index: 0; border-radius: 999px; background: var(--text); transition: transform .55s cubic-bezier(.34, 1.25, .64, 1), width .55s cubic-bezier(.34, 1.25, .64, 1), opacity .2s; }
+.segmented { padding: 4px; gap: 2px; border-radius: 999px; background: rgb(17 18 21 / .7); border: 1px solid var(--hair); }
+.segmented button { border-radius: 999px; font: 500 13px var(--font-mono); }
+
+/* ------------------------------------------------------------ top bar and layout */
+.topbar { height: 60px; gap: 24px; }
+.topbar::after { display: none; }
+.pill { border-radius: 999px; border: 1px solid var(--hair); background: rgb(255 255 255 / .05); font-family: var(--font-mono); }
+.pill.bad { border-color: var(--danger); }
+.layout { grid-template-columns: 308px minmax(0, 1fr); gap: 20px; max-width: 1360px; padding: 24px 24px 12px; }
+.sidebar { gap: 16px; top: 84px; }
+main { padding-bottom: calc(var(--pipeline-h) + 16px); }
+.single { max-width: 1080px; padding: 24px 24px 12px; }
+
+/* the sidebar: the list of modpacks, and where the publishing stands */
+.list-module { padding: 18px 12px 12px; }
+.list-module .module-head { padding: 0 8px; }
+.pack-list { gap: 4px; }
+.pack-card { border-radius: 16px; padding: 10px 12px; }
+.pack-card.active, .pack-card.active:hover { background: var(--text); color: var(--bg); }
+.pack-card.active::after { display: none; }
+.pack-icon { border-radius: 12px; }
+.pack-sub { font-size: 11.5px; }
+.status-module { padding: 18px 20px 12px; }
+.kv { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 10px 0; border-top: 1px solid var(--hair); font: 12.5px/1.3 var(--font-mono); }
+.kv span { color: var(--text-2); }
+.kv b { font-weight: 500; color: var(--text); text-align: right; }
+.stage { display: inline-flex; gap: 6px; }
+.stage i { width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--hair-strong); transition: background .4s var(--ease-out), border-color .4s var(--ease-out); }
+.stage i.on { background: var(--text); border-color: var(--text); }
+.stage i.next { border-color: var(--accent); background: var(--accent-tint); }
+
+/* the modpack: name, then four data tiles (numerals in Doto, hatched share for mods) */
+.hero { padding: 22px 24px 20px; margin-bottom: 0; background-image: radial-gradient(120% 170% at 0% 0%, rgb(241 239 232 / .08), transparent 55%); }
+.hero .pack-head { align-items: center; }
+.hero .pack-head p { margin-top: 4px; font-size: 13px; }
+.pack-head .icon-pick .pack-icon { width: 64px; height: 64px; border-radius: 18px; }
+.pack-head .icon-pick::after { border-radius: 18px; }
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 20px; }
+.tile { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 13px 14px 12px; border-radius: 16px; background: rgb(255 255 255 / .04); border: 1px solid var(--hair); }
+.tile .k { font: 500 11.5px/1.2 var(--font-mono); color: var(--text-3); }
+.tile .v { font: 700 24px/1.1 var(--font-dot); margin-top: 4px; overflow-wrap: anywhere; }
+.tile .sub { font: 11.5px/1.3 var(--font-mono); color: var(--text-2); }
+.mix { display: flex; gap: 2px; height: 8px; margin: 6px 0 2px; }
+.mix i { display: block; min-width: 4px; border-radius: 4px; }
+.mix .req { background: var(--text); }
+.mix .on { background: rgb(241 239 232 / .5); }
+.mix .off { background: var(--hatch); box-shadow: inset 0 0 0 1px rgb(241 239 232 / .35); }
+
+/* settings as a bento of modules */
+.bento { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.bento > .module { margin: 0; }
+.bento .span2, #launcherContent .span2 { grid-column: 1 / -1; }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+.bento .inline .btn { flex: none; }
+details.module > summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; font: 500 14px var(--font-mono); margin: 0; }
+details.module > summary::-webkit-details-marker { display: none; }
+details.module > summary::after { content: ''; margin-left: auto; width: 8px; height: 8px; border-right: 1.5px solid var(--text-2); border-bottom: 1.5px solid var(--text-2); transform: rotate(45deg); transition: transform .4s var(--spring); }
+details.module[open] > summary { margin-bottom: 14px; }
+details.module[open] > summary::after { transform: rotate(225deg); }
+.advanced, .advanced.module { margin-top: 0; padding-top: 20px; background-image: none; }
+.savebar { display: flex; align-items: center; gap: 14px; padding: 4px 4px 0; }
+.form-actions { margin-top: 20px; }
+
+/* mods, files, tree */
+.zone { border: 1px solid var(--hair); border-radius: 20px; background: var(--module); min-height: 320px; padding: 14px 10px 10px; }
+.zone.over { border-color: var(--accent); background: var(--accent-tint); }
+.mod-row { border-radius: 12px; }
+.mod-actions { border-radius: 10px; }
+.mods-toolbar { gap: 10px; }
+.entry { border-radius: 999px; border: 1px solid var(--hair); background: rgb(255 255 255 / .04); font-family: var(--font-mono); padding: 4px 12px; }
+.ptree { border: 1px solid var(--hair); border-radius: 20px; background: var(--module); }
+.prow + .prow { border-top: 1px solid var(--hair); }
+.pctl { border-radius: 999px; background: rgb(6 6 7 / .6); border: 1px solid var(--hair); }
+.pctl button { border-radius: 999px; font-family: var(--font-mono); }
+.pbadge { border-radius: 999px; border: 1px solid var(--hair); font-family: var(--font-mono); }
+.pbadge.free { border-radius: 999px; }
+.rule { border-bottom-color: var(--hair); }
+.command-preview, .log, .visual-thumb { border-radius: 14px; border: 1px solid var(--hair); }
+.accent-sample { border-radius: 999px; }
+.color-row input[type=color] { border-radius: 12px; }
+
+/* the launcher tab as a bento too */
+#launcherContent { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+#launcherContent > .module, #launcherContent > .section { margin: 0; }
+.version-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.choice { border-radius: 16px; border: 1px solid var(--hair); background: rgb(255 255 255 / .04); }
+.choice[aria-checked=true] { background: var(--text); border-color: var(--text); }
+.build-row { flex-wrap: wrap; }
+
+/* empty state and the new-pack form */
+.empty-hero { max-width: none; grid-template-columns: minmax(0, 1fr) minmax(200px, 320px); padding: 32px 36px; }
+.empty-hero .btn { margin-top: 20px; }
+.form-pane { padding: 24px 26px; max-width: 560px; }
+
+/* ------------------------------------------------------------ the pipeline as a floating dock */
+.pipeline {
+    left: 0; right: 0; bottom: 16px; width: min(960px, calc(100vw - 32px)); margin: 0 auto; min-height: 76px;
+    padding: 10px 20px; border-radius: 32px; border: 1px solid var(--hair);
+    background: rgb(14 15 17 / .84);
+    box-shadow: 0 30px 60px -20px rgb(0 0 0 / .9), inset 0 1px 0 rgb(255 255 255 / .06);
+}
+.pipeline::before { display: none; }
+.pnum { border-radius: 50%; }
+.pinfo .title { font: 600 14px/1.2 var(--font-mono); }
+.pinfo .hint { font: 11.5px/1.35 var(--font-mono); }
+.pmessage { border-radius: 999px; }
+.toast { border-radius: 999px; font-family: var(--font-mono); font-weight: 500; }
+
+/* ------------------------------------------------------------ drawer, dialog, banners */
+.activity { top: 12px; right: 12px; bottom: 12px; border: 1px solid var(--hair); border-radius: 26px; background: rgb(14 15 17 / .94); }
+.activity-head { border-radius: 26px 26px 0 0; }
+dialog { border-radius: 24px; border: 1px solid var(--hair-strong); }
+.banner { border-radius: 14px; }
+.skeleton { border-radius: 16px; }
+
+/* ------------------------------------------------------------ narrow screens */
+@media (max-width: 900px) {
+    .layout { grid-template-columns: minmax(0, 1fr); padding: 16px 16px 8px; }
+    .sidebar { position: static; }
+    .bento, #launcherContent { grid-template-columns: minmax(0, 1fr); }
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .pipeline { width: calc(100vw - 16px); bottom: 8px; padding: 10px 12px; border-radius: 26px; }
+    .activity { top: 6px; right: 6px; bottom: 6px; left: 6px; width: auto; }
+    .topbar { height: 56px; }
+}
+@media (max-width: 520px) {
+    .tab { padding: 0 12px; }
+    .version-choices { grid-template-columns: minmax(0, 1fr); }
+}
+
+#lifeBtn[aria-pressed=true] { color: var(--bg); }
+
+/* ------------------------------------------------------------ layout corrections after the first look */
+.pipeline { background: rgb(14 15 17 / .95); }
+.activity { background: rgb(13 14 16 / .985); }
+.hero { padding: 16px 20px 16px; }
+.tiles { margin-top: 14px; gap: 8px; }
+.tile { padding: 10px 12px; }
+.tile .v { font-size: 21px; margin-top: 2px; }
+.form-pane { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px; max-width: 900px; align-items: start; }
+.form-pane > :first-child, .form-pane > .command-preview, .form-pane > .form-actions { grid-column: 1 / -1; }
+.form-pane > .form-actions { margin-top: 4px; }
+@media (max-width: 900px) {
+    .form-pane { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* phones: the publishing status is already in the dock, the modpack head stacks, buttons keep to one line */
+@media (max-width: 900px) {
+    .status-module { display: none; }
+    .list-module { padding: 14px 10px 10px; }
+    .hero .pack-head { flex-wrap: wrap; }
+    .hero .pack-head .grow { flex: 1 1 calc(100% - 90px); }
+    .hero .pack-head > .btn { flex: 1 1 100%; }
+}
+@media (max-width: 520px) {
+    .pinfo .btn { white-space: nowrap; padding-left: 10px; padding-right: 10px; }
+    .pinfo .btn .i { display: none; }
+    .tile .v { font-size: 19px; }
+    h1 { font-size: 24px; }
+}

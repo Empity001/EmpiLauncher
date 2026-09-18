@@ -37,18 +37,22 @@
         <!-- ============================== MODPACKS ============================== -->
         <section id="tab-packs" class="layout">
             <aside class="sidebar" aria-label="Modpacks">
-                <div class="side-head">
-                    <h2>Mis modpacks</h2>
-                    <button class="btn paper small" id="newPackBtn"><span data-icon="plus"></span>Nuevo</button>
-                </div>
-                <div id="packList" class="pack-list"></div>
+                <section class="module list-module">
+                    <div class="module-head">
+                        <h2>Modpacks</h2>
+                        <span class="chip tnum" id="packCount" aria-label="Cantidad de modpacks"></span>
+                        <button class="btn paper small" id="newPackBtn"><span data-icon="plus"></span>Nuevo</button>
+                    </div>
+                    <div id="packList" class="pack-list"></div>
+                </section>
+                <section class="module status-module" id="statusModule" aria-label="Estado de la publicación"></section>
             </aside>
 
             <div class="content">
                 <div id="packContent"></div>
 
                 <!-- Creating a modpack happens in place, so the list stays visible next to it. -->
-                <form id="newPackForm" class="form-pane" hidden>
+                <form id="newPackForm" class="form-pane module" hidden>
                     <div>
                         <h2>Nuevo modpack</h2>
                         <p class="muted">Rellena esto y yo hago el resto por detrás. Después subes los mods y pulsas Compilar.</p>

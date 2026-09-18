@@ -20,7 +20,7 @@
     const PAPER = 'rgba(241, 239, 232, 0.4)'
     const PINK = 'rgba(255, 61, 139, 0.9)'
     const hyp = (a, b) => Math.sqrt(a * a + b * b)
-    const HOT = '.pack-card, .btn:not(:disabled), .subtab, .tab, .choice, .zone, .icon-btn, .segmented button, input, select, textarea, .mod-row, .prow'
+    const HOT = '.pack-card, .btn:not(:disabled), .subtab, .tab, .choice, .zone, .icon-btn, .segmented button, input, select, textarea, .mod-row, .prow, .module, .section'
 
     const read = () => { try { return localStorage.getItem(KEY) } catch { return null } }
     const write = (value) => { try { localStorage.setItem(KEY, value) } catch { /* private window */ } }
@@ -292,9 +292,11 @@
     }
 
     const inkMemory = {}
+    const inkArgs = {}
     /** A dotted underline that slides from the last tab to the new one. */
-    function ink(container, key, selector) {
+    function ink(container, key, selector, inset = 8) {
         if (!container) return
+        inkArgs[key] = [container, key, selector, inset]
         let bar = container.querySelector(':scope > .ink')
         if (!bar) {
             bar = document.createElement('i')
@@ -305,7 +307,7 @@
         const target = container.querySelector(selector)
         if (!target) { bar.style.opacity = '0'; return }
         const r = target.getBoundingClientRect(), c = container.getBoundingClientRect()
-        const x = Math.round(r.left - c.left + container.scrollLeft + 8), w = Math.max(0, Math.round(r.width - 16))
+        const x = Math.round(r.left - c.left - container.clientLeft + container.scrollLeft + inset), w = Math.max(0, Math.round(r.width - inset * 2))
         const before = inkMemory[key]
         bar.style.opacity = '1'
         if (before && alive) {
@@ -384,6 +386,7 @@
         enter, ink, scramble, burst,
         busy: (on) => { wantSpeed = on ? 2.4 : 1 },
         refresh: () => { lastQuiet = 0; nextProbe = 0 },
+        reink: () => { for (const args of Object.values(inkArgs)) if (args[0].isConnected) ink(...args) },
         stats: () => ({ alive, pitch, cost: +cost.toFixed(2), dots: paper.reduce((n, a) => n + a.length / 2, 0) + pink.reduce((n, a) => n + a.length / 2, 0) })
     }
 
@@ -404,6 +407,10 @@
     document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else if (alive) start() })
     reduce.addEventListener('change', () => { if (!read()) setAlive(!reduce.matches) })
     if (toggle) toggle.addEventListener('click', () => setAlive(!alive))
+    // the sliding thumbs measure text: place them once the fonts are in, and again when the window changes size
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => window.Life.reink())
+    let reinking = 0
+    window.addEventListener('resize', () => { cancelAnimationFrame(reinking); reinking = requestAnimationFrame(() => window.Life.reink()) })
 
     setAlive(alive, false, false)
     glitchSometimes()

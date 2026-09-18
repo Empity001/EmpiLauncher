@@ -350,18 +350,29 @@ async function refreshLauncher() {
 }
 
 async function refreshAll() {
+    const first = !state.loaded
+    const rest = Promise.all([refreshStatus(), refreshLauncher()])
+    rest.catch(() => {})
     try {
-        await Promise.all([refreshPacks(), refreshStatus(), refreshLauncher()])
+        await refreshPacks()
+        if (first) {
+            // the list and the modpack come in now; publishing status and the launcher fill in when GitHub answers
+            state.loaded = true
+            render()
+            Life?.enter($('#packList'), ':scope > *', 60)
+            Life?.enter($('#packContent'), ':scope > *', 70)
+        }
+        await rest
     } catch (err) {
         toast(err.message, true)
     }
-    const first = !state.loaded
-    state.loaded = true
-    render()
     if (first) {
-        Life?.enter($('#packList'), ':scope > *', 60)
-        Life?.enter($('#packContent'), ':scope > *', 70)
-        requestAnimationFrame(() => Life?.ink($('#mainTabs'), 'main', '.tab[aria-current]'))
+        renderLauncher()
+        renderPipeline()
+        renderStatus()
+    } else {
+        state.loaded = true
+        render()
     }
     Life?.refresh()
 }
@@ -375,10 +386,32 @@ function render() {
     if (!state.creating) renderPackDetail()
     renderLauncher()
     renderPipeline()
+    renderStatus()
+}
+
+/** Where the publishing stands, in the sidebar: three dots, then four facts. */
+function renderStatus() {
+    const box = $('#statusModule')
+    if (!box) return
+    const { compiled, stale } = state.packsStatus
+    const fresh = !!compiled && !stale
+    const sent = fresh && !!compiled.sentAt
+    const stage = !compiled ? 0 : sent ? 3 : fresh ? 2 : 1
+    const row = (name, value) => h('div', { class: 'kv' }, h('span', {}, name), h('b', { class: 'tnum' }, value))
+    box.replaceChildren(...[
+        h('div', { class: 'module-head' }, h('h2', {}, 'Publicación'),
+            h('span', { class: 'stage', 'aria-hidden': 'true' }, ...[0, 1, 2].map((i) => h('i', { class: i < stage ? 'on' : i === stage ? 'next' : '' })))),
+        row('Compilado', !compiled ? 'nunca' : stale ? 'hay cambios nuevos' : ago(compiled.at)),
+        row('Enviado', sent ? ago(compiled.sentAt) : 'pendiente'),
+        row('Cambios', compiled ? String(compiled.changes.total) : '-'),
+        compiled && compiled.large.length ? row('Archivos grandes', String(compiled.large.length)) : null
+    ].filter(Boolean))
 }
 
 function renderPackList() {
     const list = $('#packList')
+    const count = $('#packCount')
+    if (count) count.textContent = String(state.packs.length)
     if (!state.loaded) {
         list.replaceChildren(...[0, 1].map(() => h('div', { class: 'skeleton', style: 'height:56px' })))
         return
@@ -426,10 +459,11 @@ function renderPackDetail() {
         return
     }
     if (!pack) {
-        box.replaceChildren(h('div', { class: 'empty-hero' },
+        box.replaceChildren(h('div', { class: 'empty-hero module' },
             h('div', { class: 'prose' },
                 h('h1', {}, 'Empieza creando un modpack'),
-                h('p', { class: 'muted' }, 'Pulsa “Nuevo”, elige la versión de Minecraft y el loader, y yo preparo todo por detrás.')),
+                h('p', { class: 'muted' }, 'Elige la versión de Minecraft y el loader, y yo preparo todo por detrás.'),
+                h('button', { class: 'btn primary big', onclick: () => $('#newPackBtn').click() }, withIcon('plus', 'Crear modpack'))),
             h('img', { src: '/art/flower.png', alt: '', width: '651', height: '655', decoding: 'async' })))
         return
     }
@@ -437,30 +471,42 @@ function renderPackDetail() {
     const modCount = pack.counts.required + pack.counts.optionalon + pack.counts.optionaloff
     const tabs = [['settings', 'Ajustes'], ['appearance', 'Apariencia'], ['protection', 'Protección'], ['mods', `Mods (${modCount})`], ['files', 'Archivos']]
 
+    const tile = (name, value, sub) => h('div', { class: 'tile' }, h('span', { class: 'k' }, name), h('span', { class: 'v' }, value), sub ? h('span', { class: 'sub' }, sub) : null)
+    const counts = pack.counts
+    const segment = (kind, n) => (n ? h('i', { class: kind, style: `flex:${n}` }) : null)
+    const modsTile = h('div', { class: 'tile' },
+        h('span', { class: 'k' }, 'Mods'),
+        h('span', { class: 'v' }, String(modCount)),
+        h('div', { class: 'mix', role: 'img', 'aria-label': `${counts.required} obligatorios, ${counts.optionalon} opcionales activados, ${counts.optionaloff} opcionales apagados` },
+            segment('req', counts.required), segment('on', counts.optionalon), segment('off', counts.optionaloff)),
+        h('span', { class: 'sub' }, `${counts.required} obligatorios, ${counts.optionalon + counts.optionaloff} opcionales`))
+
     box.replaceChildren(
-        h('div', { class: 'pack-head' },
-            h('label', { class: 'icon-pick', title: 'Cambiar el icono (PNG)' },
-                pack.hasIcon ? h('img', { class: 'pack-icon', src: packIconUrl(pack), alt: 'Icono del modpack' }) : h('div', { class: 'pack-icon' }, icon('package')),
-                h('input', { type: 'file', accept: 'image/png', class: 'sr-only', 'aria-label': 'Cambiar el icono del modpack', onchange: (event) => uploadIcon(event.target.files[0]) })),
-            h('div', { class: 'grow' },
-                h('h1', {}, pack.name),
-                h('div', { class: 'facts tnum' },
-                    h('span', {}, `Minecraft ${pack.minecraft}`),
-                    h('span', {}, `${LOADER_NAMES[pack.loader.type] || 'Sin loader'} ${pack.loader.version || ''}`.trim()),
-                    h('span', {}, `Modpack v${pack.packVersion}`),
-                    h('span', {}, plural(modCount, 'mod', 'mods')))),
-            h('button', { class: 'btn small', onclick: () => openFolder('root') }, withIcon('folder', 'Abrir carpeta'))),
+        h('section', { class: 'module hero' },
+            h('div', { class: 'pack-head' },
+                h('label', { class: 'icon-pick', title: 'Cambiar el icono (PNG)' },
+                    pack.hasIcon ? h('img', { class: 'pack-icon', src: packIconUrl(pack), alt: 'Icono del modpack' }) : h('div', { class: 'pack-icon' }, icon('package')),
+                    h('input', { type: 'file', accept: 'image/png', class: 'sr-only', 'aria-label': 'Cambiar el icono del modpack', onchange: (event) => uploadIcon(event.target.files[0]) })),
+                h('div', { class: 'grow' },
+                    h('h1', {}, pack.name),
+                    pack.meta.description ? h('p', { class: 'muted' }, pack.meta.description) : null),
+                h('button', { class: 'btn small', onclick: () => openFolder('root') }, withIcon('folder', 'Abrir carpeta'))),
+            h('div', { class: 'tiles' },
+                tile('Minecraft', pack.minecraft),
+                tile('Loader', LOADER_NAMES[pack.loader.type] || 'Sin loader', pack.loader.version || ''),
+                tile('Versión', `v${pack.packVersion}`),
+                modsTile)),
         h('div', { class: 'subtabs', role: 'tablist' },
             ...tabs.map(([id, label]) => h('button', {
                 class: 'subtab', role: 'tab', 'aria-selected': String(state.subtab === id),
-                onclick: () => { state.subtab = id; renderPackDetail(); Life?.enter($('#packContent'), ':scope > :not(.pack-head):not(.subtabs)', 70) }
+                onclick: () => { state.subtab = id; renderPackDetail(); Life?.enter($('#packContent'), ':scope > :not(.hero):not(.subtabs)', 70) }
             }, label))),
         state.subtab === 'settings' ? settingsForm(pack)
             : state.subtab === 'appearance' ? appearanceView(pack)
                 : state.subtab === 'protection' ? protectionView(pack)
                     : state.subtab === 'mods' ? modsView(pack) : filesView(pack))
 
-    Life?.ink($('.subtabs'), 'sub', '.subtab[aria-selected="true"]')
+    Life?.ink($('.subtabs'), 'sub', '.subtab[aria-selected="true"]', 0)
     if (state.subtab === 'settings') fillLoaderVersions(pack)
     if (state.subtab === 'appearance') loadVisuals()
     if (state.subtab === 'protection') loadProtection()
@@ -502,28 +548,33 @@ function settingsForm(pack) {
     }
     const imageInput = h('input', { value: discord.largeImageKey, oninput: setDiscord('largeImageKey'), placeholder: 'https://…/icon.png' })
 
-    return h('form', { onsubmit: (event) => { event.preventDefault(); saveMeta() } },
-        h('div', { class: 'form-grid' },
-            h('label', {}, 'Nombre que ven los jugadores', h('input', { value: value('name', meta.name), oninput: set('name') })),
-            h('label', {}, 'Versión del modpack',
-                h('div', { class: 'inline' }, versionInput, bump('patch'), bump('minor')),
-                h('small', { class: 'muted' }, 'Súbela cada vez que publiques cambios para que los jugadores actualicen.')),
-            h('label', { class: 'wide' }, 'Descripción', h('input', { value: value('description', meta.description || ''), oninput: set('description') })),
-            h('label', {}, 'IP del servidor',
-                h('input', { value: address, placeholder: 'ip:puerto', oninput: set('address') }),
-                /localhost/.test(address) ? h('small', { class: 'warn' }, 'Todavía tiene la IP de ejemplo.') : null),
-            h('label', {}, `Versión de ${LOADER_NAMES[pack.loader.type] || 'loader'}`,
-                h('select', { id: 'metaLoaderVersion', onchange: set('loaderVersion') }, h('option', { value: pack.loader.version }, pack.loader.version))),
-            h('label', {}, 'Java',
-                h('select', { onchange: set('javaMajor') }, ...JAVA_CHOICES.map(([id, label]) => h('option', { value: id, selected: String(value('javaMajor', pack.javaMajor || '')) === id }, label)))),
-            h('div', { class: 'field' }, h('span', { class: 'label' }, 'Opciones'),
-                h('div', { class: 'checks' },
-                    ...[['mainServer', 'Servidor principal'], ['whitelist', 'Tiene whitelist'], ['autoconnect', 'Conectar solo']].map(([key, label]) =>
-                        h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: value(key, !!meta[key]), onchange: set(key) }), label))))),
-        h('details', { class: 'advanced', open: !!(meta.discord && meta.discord.shortId) },
+    const head = (title) => h('div', { class: 'module-head' }, h('h3', {}, title))
+    return h('form', { class: 'bento', onsubmit: (event) => { event.preventDefault(); saveMeta() } },
+        h('section', { class: 'module' }, head('Identidad'),
+            h('div', { class: 'stack' },
+                h('label', {}, 'Nombre que ven los jugadores', h('input', { value: value('name', meta.name), oninput: set('name') })),
+                h('label', {}, 'Descripción', h('input', { value: value('description', meta.description || ''), oninput: set('description') })))),
+        h('section', { class: 'module' }, head('Versión'),
+            h('div', { class: 'stack' },
+                h('label', {}, 'Versión del modpack', h('div', { class: 'inline' }, versionInput, bump('patch'), bump('minor'))),
+                h('p', { class: 'muted small-help' }, 'Súbela cada vez que publiques cambios para que los jugadores actualicen.'))),
+        h('section', { class: 'module' }, head('Servidor'),
+            h('div', { class: 'stack' },
+                h('label', {}, 'IP del servidor',
+                    h('input', { value: address, placeholder: 'ip:puerto', oninput: set('address') }),
+                    /localhost/.test(address) ? h('small', { class: 'warn' }, 'Todavía tiene la IP de ejemplo.') : null),
+                h('label', {}, `Versión de ${LOADER_NAMES[pack.loader.type] || 'loader'}`,
+                    h('select', { id: 'metaLoaderVersion', onchange: set('loaderVersion') }, h('option', { value: pack.loader.version }, pack.loader.version))),
+                h('label', {}, 'Java',
+                    h('select', { onchange: set('javaMajor') }, ...JAVA_CHOICES.map(([id, label]) => h('option', { value: id, selected: String(value('javaMajor', pack.javaMajor || '')) === id }, label)))))),
+        h('section', { class: 'module' }, head('Opciones'),
+            h('div', { class: 'checks' },
+                ...[['mainServer', 'Servidor principal'], ['whitelist', 'Tiene whitelist'], ['autoconnect', 'Conectar solo']].map(([key, label]) =>
+                    h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: value(key, !!meta[key]), onchange: set(key) }), label)))),
+        h('details', { class: 'module advanced span2', open: !!(meta.discord && meta.discord.shortId) },
             h('summary', {}, 'Discord (Rich Presence)'),
             h('p', { class: 'muted' }, 'Lo que ven tus amigos en Discord mientras juegas este modpack. Déjalo vacío para no mostrar nada.'),
-            h('div', { class: 'form-grid' },
+            h('div', { class: 'form-grid', style: 'margin-top:14px;max-width:none' },
                 h('label', {}, 'Nombre en Discord', h('input', { value: discord.shortId, oninput: setDiscord('shortId'), placeholder: pack.name })),
                 h('label', {}, 'Texto de la imagen', h('input', { value: discord.largeImageText, oninput: setDiscord('largeImageText'), placeholder: `Jugando ${pack.name}` })),
                 h('label', { class: 'wide' }, 'Imagen (enlace)',
@@ -532,7 +583,7 @@ function settingsForm(pack) {
                             type: 'button', class: 'btn small',
                             onclick: () => { imageInput.value = pack.defaultDiscordImage; discord.largeImageKey = pack.defaultDiscordImage; state.draft.discord = { ...discord }; markDirty() }
                         }, 'Usar el icono del pack'))))),
-        h('div', { class: 'form-actions' },
+        h('div', { class: 'savebar span2' },
             h('button', { class: 'btn paper', id: 'saveMeta', type: 'submit', disabled: !dirty() }, 'Guardar cambios'),
             h('span', { class: `hint-line${dirty() ? ' dirty' : ''}`, id: 'saveHint' }, dirty() ? 'Cambios sin guardar' : 'Todo guardado. Cuando termines, pulsa Compilar abajo.')))
 }
@@ -1044,6 +1095,7 @@ function renderPipeline() {
             }) : null
         ].filter(Boolean))
         markPipeline('packs')
+        renderStatus()
         return
     }
 
@@ -1105,26 +1157,32 @@ function renderLauncher() {
 
     const chosen = info.build && info.build.version === launcherVersion() ? info.build : null
 
+    const tile = (name, value, sub) => h('div', { class: 'tile' }, h('span', { class: 'k' }, name), h('span', { class: 'v' }, value), sub ? h('span', { class: 'sub' }, sub) : null)
     box.replaceChildren(...[
-        h('section', { class: 'section' },
-            h('h1', {}, 'Publicar el launcher'),
-            h('div', { class: 'versions-line' },
-                h('span', {}, 'En tu código ', h('b', {}, `v${info.version}`)),
-                h('span', {}, 'Publicada en GitHub ', h('b', {}, info.latestTag || '—')))),
-        h('section', { class: 'section' },
-            h('h2', {}, 'Versión nueva'),
+        h('section', { class: 'module hero span2' },
+            h('div', { class: 'pack-head' },
+                h('div', { class: 'grow' },
+                    h('h1', {}, 'Publicar el launcher'),
+                    h('p', { class: 'muted' }, 'Una versión nueva llega a todos los jugadores como actualización.'))),
+            h('div', { class: 'tiles' },
+                tile('En tu código', `v${info.version}`),
+                tile('Publicada en GitHub', info.latestTag || '-'),
+                tile('Sin subir', String(info.dirty), info.dirty > 0 ? 'archivos modificados' : 'nada pendiente'),
+                tile('Se publicará', `v${launcherVersion()}`))),
+        h('section', { class: 'module' },
+            h('div', { class: 'module-head' }, h('h2', {}, 'Versión nueva')),
             h('p', { class: 'muted' }, 'Cuánto cambia el número decide cómo se presenta la actualización.'),
-            h('div', { class: 'version-choices', role: 'radiogroup', 'aria-label': 'Versión nueva' },
+            h('div', { class: 'version-choices', role: 'radiogroup', 'aria-label': 'Versión nueva', style: 'margin-top:14px' },
                 choice('patch', 'Parche', 'arreglos pequeños'),
                 choice('minor', 'Menor', 'cosas nuevas'),
                 choice('major', 'Mayor', 'cambio grande'),
                 choice('same', 'La misma', 'reintentar')),
             info.dirty > 0 ? h('p', { class: 'note' }, icon('alert'), `Tienes ${plural(info.dirty, 'archivo modificado', 'archivos modificados')} en el código: se subirán junto con esta versión.`) : null),
-        h('section', { class: 'section' },
-            h('h2', {}, 'Qué cambia'),
+        h('section', { class: 'module' },
+            h('div', { class: 'module-head' }, h('h2', {}, 'Qué cambia')),
             h('p', { class: 'muted' }, 'Se muestra en la página de la versión en GitHub. Puedes dejarlo vacío.'),
-            h('textarea', { placeholder: '- Arreglado el login\n- Nuevo fondo', 'aria-label': 'Qué cambia en esta versión', oninput: (event) => { state.notes = event.target.value } }, state.notes)),
-        chosen ? h('section', { class: 'section' },
+            h('textarea', { style: 'margin-top:14px', placeholder: '- Arreglado el login\n- Nuevo fondo', 'aria-label': 'Qué cambia en esta versión', oninput: (event) => { state.notes = event.target.value } }, state.notes)),
+        chosen ? h('section', { class: 'module span2' },
             h('div', { class: 'build-row' }, icon('checkCircle'),
                 h('span', { class: 'tnum' }, h('b', {}, chosen.name), ` · ${formatSize(chosen.size)} · ${ago(chosen.at)}`),
                 h('span', {}, chosen.sent ? 'Ya está publicado en GitHub.' : 'Listo: pulsa “Enviar” abajo para publicarlo.'))) : null
@@ -1308,7 +1366,7 @@ $('#mainTabs').addEventListener('click', (event) => {
     $('#tab-packs').hidden = state.tab !== 'packs'
     $('#tab-launcher').hidden = state.tab !== 'launcher'
     renderPipeline()
-    Life?.ink($('#mainTabs'), 'main', '.tab[aria-current]')
+    Life?.ink($('#mainTabs'), 'main', '.tab[aria-current]', 0)
     Life?.enter(state.tab === 'launcher' ? $('#launcherContent') : $('#packContent'), ':scope > *', 70)
     Life?.refresh()
 })
@@ -1319,5 +1377,6 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) refr
 
 render()
 watchPresence()
+requestAnimationFrame(() => Life?.ink($('#mainTabs'), 'main', '.tab[aria-current]', 0))
 renderHealth()
 refreshAll()

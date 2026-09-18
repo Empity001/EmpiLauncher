@@ -1,0 +1,10 @@
+Geist Mono (variable, weights 400-700), latin subset, self-hosted as GeistMono.woff2.
+
+Origin:   Google Fonts, https://fonts.google.com/specimen/Geist+Mono
+          (downloaded 2026-09-18 from fonts.gstatic.com, family "Geist Mono", woff2 "latin" range).
+Author:   The Geist Project Authors (Vercel and Basement Studio), https://github.com/vercel/geist-font
+License:  SIL Open Font License, Version 1.1 - https://openfontlicense.org
+          The font may be used, studied, modified and redistributed freely, including bundled with software,
+          provided it is not sold on its own and this notice travels with it.
+
+Used for: numbers, versions, sizes, hints, tabs, chips and the small labels of the Publisher. Never for long reading text.
