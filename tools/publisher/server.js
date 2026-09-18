@@ -34,14 +34,14 @@ class HttpError extends Error {
 }
 
 function jobSummary(job) {
-    return job && { id: job.id, title: job.title, done: job.done, error: job.error }
+    return job && { id: job.id, title: job.title, done: job.done, error: job.error, startedAt: job.startedAt }
 }
 
 function startJob(title, task) {
     if (activeJob && !activeJob.done) throw new HttpError(409, `Ya hay una tarea en marcha: ${activeJob.title}`)
 
     const job = {
-        id: crypto.randomUUID(), title, events: [], done: false, error: null, result: null,
+        id: crypto.randomUUID(), title, startedAt: Date.now(), events: [], done: false, error: null, result: null,
         listeners: new Set(), store: { children: new Set(), cancelled: false }
     }
     jobs.set(job.id, job)

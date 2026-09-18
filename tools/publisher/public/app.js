@@ -3,15 +3,36 @@
 const $ = (selector) => document.querySelector(selector)
 
 const CATEGORIES = [
-    { id: 'required', title: 'Obligatorios', desc: 'Todos los jugadores los llevan.', icon: '🔒' },
-    { id: 'optionalon', title: 'Opcionales · activados', desc: 'Vienen encendidos, se pueden apagar.', icon: '✅' },
-    { id: 'optionaloff', title: 'Opcionales · apagados', desc: 'Vienen apagados, se pueden encender.', icon: '⬜' }
+    { id: 'required', title: 'Obligatorios', desc: 'Todos los jugadores los llevan.', icon: 'lock' },
+    { id: 'optionalon', title: 'Opcionales · activados', desc: 'Vienen encendidos, se pueden apagar.', icon: 'toggleOn' },
+    { id: 'optionaloff', title: 'Opcionales · apagados', desc: 'Vienen apagados, se pueden encender.', icon: 'toggleOff' }
 ]
 const LOADER_NAMES = { fabric: 'Fabric', forge: 'Forge', neoforge: 'NeoForge' }
 const JAVA_CHOICES = [['', 'Automático'], ['8', 'Java 8'], ['17', 'Java 17'], ['21', 'Java 21'], ['25', 'Java 25']]
 
+// One authored icon family: 24px grid, 1.75 stroke, round caps.
+const ICONS = {
+    sliders: '<path d="M21 4h-7"/><path d="M10 4H3"/><path d="M21 12h-9"/><path d="M8 12H3"/><path d="M21 20h-5"/><path d="M12 20H3"/><path d="M14 2v4"/><path d="M8 10v4"/><path d="M16 18v4"/>',
+    plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+    package: '<path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+    lock: '<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    toggleOn: '<rect width="20" height="12" x="2" y="6" rx="6"/><circle cx="16" cy="12" r="2"/>',
+    toggleOff: '<rect width="20" height="12" x="2" y="6" rx="6"/><circle cx="8" cy="12" r="2"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/>',
+    folder: '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>',
+    upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
+    send: '<path d="M14.5 21.7a.5.5 0 0 0 .94-.02l6.5-19a.5.5 0 0 0-.64-.64l-19 6.5a.5.5 0 0 0-.02.94l7.93 3.18a2 2 0 0 1 1.11 1.11z"/><path d="m21.85 2.15-10.94 10.94"/>',
+    alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    checkCircle: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+    external: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>'
+}
+
 const state = {
     tab: 'packs',
+    loaded: false,
+    creating: false,
     packs: [],
     selectedId: null,
     pack: null,
@@ -28,6 +49,20 @@ const state = {
 }
 
 // ------------------------------------------------------------------ helpers
+
+function icon(name) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    svg.setAttribute('viewBox', '0 0 24 24')
+    svg.setAttribute('fill', 'none')
+    svg.setAttribute('stroke', 'currentColor')
+    svg.setAttribute('stroke-width', '1.75')
+    svg.setAttribute('stroke-linecap', 'round')
+    svg.setAttribute('stroke-linejoin', 'round')
+    svg.setAttribute('class', 'i')
+    svg.setAttribute('aria-hidden', 'true')
+    svg.innerHTML = ICONS[name] // static, authored strings only
+    return svg
+}
 
 /** Tiny hyperscript: h('div', { class: 'x', onclick }, 'text', child...) - text is never parsed as HTML. */
 function h(tag, attrs, ...children) {
@@ -46,6 +81,8 @@ function h(tag, attrs, ...children) {
     }
     return el
 }
+
+const withIcon = (name, label) => [icon(name), label]
 
 async function api(path, { method = 'GET', body, raw } = {}) {
     const res = await fetch(path, {
@@ -82,6 +119,8 @@ function ago(iso) {
     return `hace ${Math.round(minutes / 60 / 24)} d`
 }
 
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
+
 function bumpVersion(version, kind) {
     const [major, minor, patch] = String(version).split('.').map((part) => Number(part) || 0)
     if (kind === 'minor') return `${major}.${minor + 1}.0`
@@ -90,25 +129,37 @@ function bumpVersion(version, kind) {
 
 const packIconUrl = (pack) => `/api/packs/${encodeURIComponent(pack.id)}/icon?t=${state.iconStamp}`
 
+// Static markup carries `data-icon`; fill those in once.
+for (const el of document.querySelectorAll('[data-icon]')) el.prepend(icon(el.dataset.icon))
+
+// The footer's height changes with the viewport; keep content and toast clear of it.
+new ResizeObserver(([entry]) => {
+    document.documentElement.style.setProperty('--pipeline-h', `${Math.ceil(entry.target.getBoundingClientRect().height)}px`)
+}).observe($('#pipeline'))
+
 // ------------------------------------------------------------------ activity drawer (live progress)
 
-const activity = { steps: [], failed: false }
+const activity = { steps: [], failed: false, finished: false, startedAt: 0, timer: null }
+
+function elapsed() {
+    const seconds = Math.max(0, Math.round((Date.now() - activity.startedAt) / 1000))
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+}
 
 function renderSteps() {
-    const list = $('#activitySteps')
-    list.replaceChildren(...activity.steps.map((step, index) => {
+    $('#activitySteps').replaceChildren(...activity.steps.map((step, index) => {
         const isLast = index === activity.steps.length - 1
         let cls = 'done'
-        let icon = h('span', {}, '✓')
+        let mark = icon('check')
         if (isLast && !activity.finished) {
             cls = 'current'
-            icon = h('span', { class: 'spinner' })
+            mark = h('span', { class: 'spinner' })
         }
         if (isLast && activity.failed) {
             cls = 'failed'
-            icon = h('span', {}, '✗')
+            mark = icon('x')
         }
-        return h('li', { class: cls }, h('span', { class: 'step-icon' }, icon), step)
+        return h('li', { class: cls }, h('span', { class: 'step-icon' }, mark), step)
     }))
 }
 
@@ -116,18 +167,19 @@ function showBanner(kind, text, action) {
     const banner = $('#activityBanner')
     banner.className = `banner ${kind}`
     banner.replaceChildren(text)
-    if (action) {
-        banner.append(' ', h('button', { class: 'btn small', onclick: action.run }, action.label))
-    }
+    if (action) banner.append(h('button', { class: 'btn small', onclick: action.run }, action.icon ? withIcon(action.icon, action.label) : action.label))
     banner.hidden = false
 }
 
-function openActivity(title, subtitle) {
+function openActivity(title, startedAt) {
+    clearInterval(activity.timer)
     activity.steps = []
     activity.finished = false
     activity.failed = false
+    activity.startedAt = startedAt || Date.now()
     $('#activityTitle').textContent = title
-    $('#activitySub').textContent = subtitle || 'No cierres esta ventana hasta que termine.'
+    $('#activitySub').textContent = `En marcha · ${elapsed()}`
+    activity.timer = setInterval(() => { $('#activitySub').textContent = `En marcha · ${elapsed()}` }, 1000)
     $('#activityLog').textContent = ''
     $('#activityBanner').hidden = true
     $('#activityCancel').hidden = false
@@ -144,9 +196,9 @@ function appendLog(line) {
     if (atBottom) log.scrollTop = log.scrollHeight
 }
 
-function attachJob(jobId, title, onSuccess) {
+function attachJob(jobId, title, onSuccess, startedAt) {
     state.running = { jobId, title }
-    if ($('#activity').hidden) openActivity(title)
+    if ($('#activity').hidden) openActivity(title, startedAt)
     renderPipeline()
 
     const source = new EventSource(`/api/jobs/${jobId}/stream`)
@@ -170,13 +222,14 @@ function attachJob(jobId, title, onSuccess) {
 }
 
 function finishJob(data, onSuccess) {
+    clearInterval(activity.timer)
     state.running = null
     activity.finished = true
     activity.failed = !!data.error
     renderSteps()
     $('#activityCancel').hidden = true
     $('#activityClose').hidden = false
-    $('#activitySub').textContent = data.error ? 'Algo salió mal.' : 'Terminado.'
+    $('#activitySub').textContent = `${data.error ? 'Se detuvo' : 'Terminado'} · ${elapsed()}`
     if (data.error) {
         showBanner('err', data.error)
         $('#logWrap').open = true
@@ -194,6 +247,7 @@ async function runJob(title, endpoint, body, onSuccess) {
         const { jobId } = await api(endpoint, { method: 'POST', body: body || {} })
         attachJob(jobId, title, onSuccess)
     } catch (err) {
+        clearInterval(activity.timer)
         state.running = null
         $('#activity').hidden = true
         toast(err.message, true)
@@ -220,8 +274,8 @@ async function renderHealth() {
         if (!info.nebula) problems.push(['Nebula sin instalar', 'Corre "npm install" una vez en la carpeta de Nebula.'])
         if (!info.launcherRepo) problems.push(['Launcher no encontrado', 'Revisa la ruta en Ajustes.'])
         box.replaceChildren(...(problems.length === 0
-            ? [h('span', { class: 'pill ok' }, 'Todo listo ✓')]
-            : problems.map(([label, hint]) => h('span', { class: 'pill bad', title: hint }, label))))
+            ? [h('span', { class: 'pill ok' }, withIcon('checkCircle', 'Todo listo'))]
+            : problems.map(([label, hint]) => h('span', { class: 'pill bad', title: hint }, withIcon('alert', label)))))
     } catch {
         box.replaceChildren()
     }
@@ -257,8 +311,8 @@ async function refreshStatus() {
     state.packsStatus = status.packs
     if (status.job && !state.running) {
         // Page was reloaded while something was running: pick the live log back up.
-        openActivity(status.job.title)
-        attachJob(status.job.id, status.job.title)
+        openActivity(status.job.title, status.job.startedAt)
+        attachJob(status.job.id, status.job.title, null, status.job.startedAt)
     }
 }
 
@@ -272,40 +326,48 @@ async function refreshAll() {
     } catch (err) {
         toast(err.message, true)
     }
+    state.loaded = true
     render()
 }
 
 // ------------------------------------------------------------------ rendering: pack list & detail
 
 function render() {
+    $('#packContent').hidden = state.creating
+    $('#newPackForm').hidden = !state.creating
     renderPackList()
-    renderPackDetail()
+    if (!state.creating) renderPackDetail()
     renderLauncher()
     renderPipeline()
 }
 
 function renderPackList() {
     const list = $('#packList')
+    if (!state.loaded) {
+        list.replaceChildren(...[0, 1].map(() => h('div', { class: 'skeleton', style: 'height:56px' })))
+        return
+    }
     if (state.packs.length === 0) {
-        list.replaceChildren(h('p', { class: 'muted' }, 'Todavía no hay modpacks. Crea el primero con “+ Nuevo”.'))
+        list.replaceChildren(h('p', { class: 'muted' }, 'Todavía no hay modpacks. Crea el primero con “Nuevo”.'))
         return
     }
     list.replaceChildren(...state.packs.map((pack) => h('button', {
-        class: `pack-card${pack.id === state.selectedId ? ' active' : ''}`,
+        class: `pack-card${pack.id === state.selectedId && !state.creating ? ' active' : ''}`,
         onclick: () => selectPack(pack.id)
     },
     packIcon(pack),
     h('div', { class: 'pack-meta' },
         h('div', { class: 'pack-name' }, pack.name),
-        h('div', { class: 'pack-sub' }, `${LOADER_NAMES[pack.loader.type] || '?'} · MC ${pack.minecraft} · v${pack.packVersion}`)))))
+        h('div', { class: 'pack-sub tnum' }, `${LOADER_NAMES[pack.loader.type] || '?'} · MC ${pack.minecraft} · v${pack.packVersion}`)))))
 }
 
 function packIcon(pack) {
-    if (!pack.hasIcon) return h('div', { class: 'pack-icon' }, '📦')
+    if (!pack.hasIcon) return h('div', { class: 'pack-icon' }, icon('package'))
     return h('img', { class: 'pack-icon', src: packIconUrl(pack), alt: '' })
 }
 
 async function selectPack(id) {
+    state.creating = false
     state.selectedId = id
     state.draft = {}
     state.filter = ''
@@ -316,81 +378,91 @@ async function selectPack(id) {
 function renderPackDetail() {
     const box = $('#packContent')
     const pack = state.pack
+    if (!state.loaded) {
+        box.replaceChildren(h('div', { class: 'skeleton', style: 'height:64px;max-width:420px' }), h('div', { class: 'skeleton', style: 'height:220px;margin-top:32px;max-width:820px' }))
+        return
+    }
     if (!pack) {
-        box.replaceChildren(h('div', { class: 'card empty' },
-            h('h2', {}, 'Empieza creando un modpack'),
-            h('p', {}, 'Pulsa “+ Nuevo”, elige la versión de Minecraft y el loader, y yo preparo todo por detrás.')))
+        box.replaceChildren(h('div', { class: 'prose' },
+            h('h1', {}, 'Empieza creando un modpack'),
+            h('p', { class: 'muted', style: 'margin-top:8px' }, 'Pulsa “Nuevo”, elige la versión de Minecraft y el loader, y yo preparo todo por detrás.')))
         return
     }
 
     const modCount = pack.counts.required + pack.counts.optionalon + pack.counts.optionaloff
-    const head = h('div', { class: 'card' },
+    const tabs = [['settings', 'Ajustes'], ['mods', `Mods (${modCount})`], ['files', 'Archivos']]
+
+    box.replaceChildren(
         h('div', { class: 'pack-head' },
-            h('label', { title: 'Cambiar icono (PNG)' },
-                pack.hasIcon ? h('img', { class: 'pack-icon', src: packIconUrl(pack), alt: '' }) : h('div', { class: 'pack-icon' }, '📦'),
-                h('input', { type: 'file', accept: 'image/png', hidden: true, onchange: (event) => uploadIcon(event.target.files[0]) })),
+            h('label', { class: 'icon-pick', title: 'Cambiar el icono (PNG)' },
+                pack.hasIcon ? h('img', { class: 'pack-icon', src: packIconUrl(pack), alt: 'Icono del modpack' }) : h('div', { class: 'pack-icon' }, icon('package')),
+                h('input', { type: 'file', accept: 'image/png', class: 'sr-only', 'aria-label': 'Cambiar el icono del modpack', onchange: (event) => uploadIcon(event.target.files[0]) })),
             h('div', { class: 'grow' },
                 h('h1', {}, pack.name),
-                h('div', { class: 'chips' },
-                    h('span', { class: 'chip accent' }, `Minecraft ${pack.minecraft}`),
-                    h('span', { class: 'chip accent' }, `${LOADER_NAMES[pack.loader.type] || 'Sin loader'} ${pack.loader.version || ''}`),
-                    h('span', { class: 'chip' }, `Modpack v${pack.packVersion}`),
-                    h('span', { class: 'chip' }, `${modCount} mods`))),
-            h('button', { class: 'btn small', onclick: () => openFolder('root') }, 'Abrir carpeta')),
-        h('div', { class: 'subtabs' },
-            ...[['settings', 'Ajustes'], ['mods', `Mods (${modCount})`], ['files', 'Archivos']].map(([id, label]) => h('button', {
-                class: `subtab${state.subtab === id ? ' active' : ''}`,
+                h('div', { class: 'facts tnum' },
+                    h('span', {}, `Minecraft ${pack.minecraft}`),
+                    h('span', {}, `${LOADER_NAMES[pack.loader.type] || 'Sin loader'} ${pack.loader.version || ''}`.trim()),
+                    h('span', {}, `Modpack v${pack.packVersion}`),
+                    h('span', {}, plural(modCount, 'mod', 'mods')))),
+            h('button', { class: 'btn small', onclick: () => openFolder('root') }, withIcon('folder', 'Abrir carpeta'))),
+        h('div', { class: 'subtabs', role: 'tablist' },
+            ...tabs.map(([id, label]) => h('button', {
+                class: 'subtab', role: 'tab', 'aria-selected': String(state.subtab === id),
                 onclick: () => { state.subtab = id; renderPackDetail() }
             }, label))),
         state.subtab === 'settings' ? settingsForm(pack) : state.subtab === 'mods' ? modsView(pack) : filesView(pack))
 
-    box.replaceChildren(head)
     if (state.subtab === 'settings') fillLoaderVersions(pack)
 }
 
 function settingsForm(pack) {
     const value = (key, fallback) => (key in state.draft ? state.draft[key] : fallback)
     const meta = pack.meta
+    const dirty = () => Object.keys(state.draft).length > 0
+    const markDirty = () => {
+        $('#saveMeta').disabled = !dirty()
+        const hint = $('#saveHint')
+        hint.textContent = dirty() ? 'Cambios sin guardar' : 'Todo guardado. Cuando termines, pulsa Compilar abajo.'
+        hint.classList.toggle('dirty', dirty())
+    }
     const set = (key) => (event) => {
         state.draft[key] = event.target.type === 'checkbox' ? event.target.checked : event.target.value
-        $('#saveMeta').disabled = false
+        markDirty()
     }
 
-    const versionInput = h('input', { value: value('version', meta.version), oninput: set('version') })
+    const versionInput = h('input', { value: value('version', meta.version), oninput: set('version'), inputmode: 'decimal', class: 'tnum' })
     const bump = (kind) => h('button', {
         type: 'button', class: 'btn small',
         onclick: () => {
             versionInput.value = bumpVersion(versionInput.value || meta.version, kind)
             state.draft.version = versionInput.value
-            $('#saveMeta').disabled = false
+            markDirty()
         }
     }, kind === 'minor' ? '+ menor' : '+ parche')
 
     const address = value('address', meta.address)
 
-    return h('form', {
-        onsubmit: (event) => { event.preventDefault(); saveMeta() }
-    },
-    h('div', { class: 'form-grid' },
-        h('label', {}, 'Nombre que ven los jugadores', h('input', { value: value('name', meta.name), oninput: set('name') })),
-        h('label', {}, 'Versión del modpack',
-            h('div', { class: 'inline' }, versionInput, bump('patch'), bump('minor')),
-            h('small', { class: 'muted' }, 'Súbela cada vez que publiques cambios para que los jugadores actualicen.')),
-        h('label', { class: 'wide' }, 'Descripción', h('input', { value: value('description', meta.description || ''), oninput: set('description') })),
-        h('label', {}, 'IP del servidor',
-            h('input', { value: address, placeholder: 'ip:puerto', oninput: set('address') }),
-            /localhost/.test(address) ? h('small', { class: 'warn' }, 'Todavía tiene la IP de ejemplo.') : null),
-        h('label', {}, `Versión de ${LOADER_NAMES[pack.loader.type] || 'loader'}`,
-            h('select', { id: 'metaLoaderVersion', onchange: set('loaderVersion') }, h('option', { value: pack.loader.version }, pack.loader.version))),
-        h('label', {}, 'Java',
-            h('select', { onchange: set('javaMajor') }, ...JAVA_CHOICES.map(([id, label]) => h('option', { value: id, selected: String(value('javaMajor', pack.javaMajor || '')) === id }, label)))),
-        h('div', { class: 'field' }, h('span', { class: 'label' }, 'Opciones'),
-            h('div', { class: 'checks' },
-                ...[['mainServer', 'Servidor principal'], ['whitelist', 'Tiene whitelist'], ['autoconnect', 'Conectar solo']].map(([key, label]) =>
-                    h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: value(key, !!meta[key]), onchange: set(key) }), label))))),
-    h('div', { class: 'form-actions' },
-        h('button', { class: 'btn primary', id: 'saveMeta', type: 'submit', disabled: Object.keys(state.draft).length === 0 }, 'Guardar cambios'),
-        h('span', { class: 'muted' }, 'Guarda y luego pulsa “Compilar” abajo para preparar la publicación.')))
+    return h('form', { onsubmit: (event) => { event.preventDefault(); saveMeta() } },
+        h('div', { class: 'form-grid' },
+            h('label', {}, 'Nombre que ven los jugadores', h('input', { value: value('name', meta.name), oninput: set('name') })),
+            h('label', {}, 'Versión del modpack',
+                h('div', { class: 'inline' }, versionInput, bump('patch'), bump('minor')),
+                h('small', { class: 'muted' }, 'Súbela cada vez que publiques cambios para que los jugadores actualicen.')),
+            h('label', { class: 'wide' }, 'Descripción', h('input', { value: value('description', meta.description || ''), oninput: set('description') })),
+            h('label', {}, 'IP del servidor',
+                h('input', { value: address, placeholder: 'ip:puerto', oninput: set('address') }),
+                /localhost/.test(address) ? h('small', { class: 'warn' }, 'Todavía tiene la IP de ejemplo.') : null),
+            h('label', {}, `Versión de ${LOADER_NAMES[pack.loader.type] || 'loader'}`,
+                h('select', { id: 'metaLoaderVersion', onchange: set('loaderVersion') }, h('option', { value: pack.loader.version }, pack.loader.version))),
+            h('label', {}, 'Java',
+                h('select', { onchange: set('javaMajor') }, ...JAVA_CHOICES.map(([id, label]) => h('option', { value: id, selected: String(value('javaMajor', pack.javaMajor || '')) === id }, label)))),
+            h('div', { class: 'field' }, h('span', { class: 'label' }, 'Opciones'),
+                h('div', { class: 'checks' },
+                    ...[['mainServer', 'Servidor principal'], ['whitelist', 'Tiene whitelist'], ['autoconnect', 'Conectar solo']].map(([key, label]) =>
+                        h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: value(key, !!meta[key]), onchange: set(key) }), label))))),
+        h('div', { class: 'form-actions' },
+            h('button', { class: 'btn primary', id: 'saveMeta', type: 'submit', disabled: !dirty() }, 'Guardar cambios'),
+            h('span', { class: `hint-line${dirty() ? ' dirty' : ''}`, id: 'saveHint' }, dirty() ? 'Cambios sin guardar' : 'Todo guardado. Cuando termines, pulsa Compilar abajo.')))
 }
 
 /** The loader-version dropdown is filled from the network after the form is drawn. */
@@ -411,7 +483,7 @@ async function saveMeta() {
     try {
         state.pack = await api(`/api/packs/${encodeURIComponent(state.selectedId)}/meta`, { method: 'POST', body: patch })
         state.draft = {}
-        toast('Guardado ✓')
+        toast('Guardado')
         await refreshAll()
     } catch (err) {
         toast(err.message, true)
@@ -423,7 +495,7 @@ async function saveMeta() {
 function modsView(pack) {
     const filter = state.filter.toLowerCase()
     const search = h('input', {
-        placeholder: 'Buscar un mod…', value: state.filter,
+        type: 'search', placeholder: 'Buscar un mod…', value: state.filter, 'aria-label': 'Buscar un mod',
         oninput: (event) => {
             state.filter = event.target.value
             const caret = event.target.selectionStart
@@ -433,34 +505,40 @@ function modsView(pack) {
             again.setSelectionRange(caret, caret)
         }
     })
-    const picker = h('input', { type: 'file', accept: '.jar', multiple: true, hidden: true, onchange: (event) => uploadMods([...event.target.files], 'required') })
 
     return h('div', {},
         h('div', { class: 'mods-toolbar' }, search,
-            h('button', { class: 'btn', type: 'button', onclick: () => picker.click() }, '+ Añadir mods'),
-            picker,
-            h('button', { class: 'btn', type: 'button', onclick: () => openFolder('mods') }, 'Abrir carpeta de mods')),
-        h('p', { class: 'muted' }, 'Arrastra los .jar a la columna que corresponda. Se copian a la carpeta del modpack.'),
+            h('button', { class: 'btn', type: 'button', onclick: () => openFolder('mods') }, withIcon('folder', 'Abrir carpeta de mods'))),
+        h('p', { class: 'muted mods-help' }, 'Arrastra los .jar a la columna que corresponda, o usa el + de cada una. Se copian a la carpeta del modpack.'),
         h('div', { class: 'zones' }, ...CATEGORIES.map((category) => modZone(pack, category, filter))))
 }
 
 function modZone(pack, category, filter) {
-    const files = pack.mods[category.id].filter((file) => file.name.toLowerCase().includes(filter))
+    const all = pack.mods[category.id]
+    const files = all.filter((file) => file.name.toLowerCase().includes(filter))
+    const picker = h('input', { type: 'file', accept: '.jar', multiple: true, class: 'sr-only', tabindex: '-1', onchange: (event) => uploadMods([...event.target.files], category.id) })
+
     const zone = h('div', { class: 'zone' },
-        h('div', { class: 'zone-head' }, h('h3', {}, category.title), h('span', { class: 'muted' }, String(pack.mods[category.id].length))),
+        h('div', { class: 'zone-head' },
+            h('h3', {}, category.title),
+            h('span', { class: 'count tnum' }, String(all.length)),
+            h('button', { class: 'icon-btn', type: 'button', title: `Añadir mods a ${category.title}`, 'aria-label': `Añadir mods a ${category.title}`, onclick: () => picker.click() }, icon('plus')),
+            picker),
         h('div', { class: 'zone-desc' }, category.desc),
         h('div', { class: 'zone-list' },
             files.length === 0
-                ? h('div', { class: 'zone-empty' }, filter ? 'Sin resultados' : 'Suelta aquí los .jar')
+                ? h('div', { class: 'zone-empty' }, icon('upload'), filter ? 'Sin resultados' : 'Suelta aquí los .jar')
                 : files.map((file) => h('div', { class: 'mod-row' },
                     h('span', { class: 'name', title: file.name }, file.name),
                     h('span', { class: 'size' }, formatSize(file.size)),
-                    ...CATEGORIES.filter((other) => other.id !== category.id).map((other) =>
-                        h('button', { title: `Mover a ${other.title}`, onclick: () => moveMod(file.name, category.id, other.id) }, other.icon)),
-                    h('button', { class: 'del', title: 'Quitar del modpack', onclick: () => deleteMod(file.name, category.id) }, '🗑')))))
+                    h('span', { class: 'mod-actions' },
+                        ...CATEGORIES.filter((other) => other.id !== category.id).map((other) =>
+                            h('button', { title: `Mover a ${other.title}`, 'aria-label': `Mover ${file.name} a ${other.title}`, onclick: () => moveMod(file.name, category.id, other.id) }, icon(other.icon))),
+                        h('button', { class: 'del', title: 'Quitar del modpack', 'aria-label': `Quitar ${file.name} del modpack`, onclick: () => deleteMod(file.name, category.id) }, icon('trash'))))))
+    )
 
     zone.addEventListener('dragover', (event) => { event.preventDefault(); zone.classList.add('over') })
-    zone.addEventListener('dragleave', () => zone.classList.remove('over'))
+    zone.addEventListener('dragleave', (event) => { if (!zone.contains(event.relatedTarget)) zone.classList.remove('over') })
     zone.addEventListener('drop', (event) => {
         event.preventDefault()
         zone.classList.remove('over')
@@ -473,7 +551,7 @@ async function uploadMods(files, category) {
     const jars = files.filter((file) => file.name.toLowerCase().endsWith('.jar'))
     if (jars.length < files.length) toast('Solo se aceptan archivos .jar', true)
     for (const [index, file] of jars.entries()) {
-        toast(`Subiendo ${index + 1}/${jars.length}: ${file.name}`)
+        toast(`Subiendo ${index + 1} de ${jars.length}: ${file.name}`)
         try {
             await api(`/api/packs/${encodeURIComponent(state.selectedId)}/mods?category=${category}&name=${encodeURIComponent(file.name)}`, { method: 'POST', raw: file })
         } catch (err) {
@@ -482,7 +560,7 @@ async function uploadMods(files, category) {
         }
     }
     if (jars.length) {
-        toast(`${jars.length} mod(s) añadidos ✓`)
+        toast(`${plural(jars.length, 'mod añadido', 'mods añadidos')}`)
         await refreshAll()
     }
 }
@@ -503,7 +581,7 @@ async function uploadIcon(file) {
     if (file.type !== 'image/png') return toast('El icono tiene que ser un PNG.', true)
     await api(`/api/packs/${encodeURIComponent(state.selectedId)}/icon`, { method: 'POST', raw: file })
     state.iconStamp = Date.now()
-    toast('Icono actualizado ✓')
+    toast('Icono actualizado')
     await refreshAll()
 }
 
@@ -513,20 +591,22 @@ function openFolder(what) {
 
 function filesView(pack) {
     return h('div', {},
-        h('p', {}, 'Aquí van las cosas que no son mods: ',
+        h('p', { class: 'prose' }, 'Aquí van las cosas que no son mods: ',
             h('b', {}, 'configuraciones, resource packs, shaders, options.txt, servers.dat'),
             '… Todo lo que pongas en la carpeta “files” se copia al Minecraft de cada jugador.'),
         h('div', { class: 'form-actions' },
-            h('button', { class: 'btn primary', onclick: () => openFolder('files') }, 'Abrir carpeta “files”'),
-            h('span', { class: 'muted' }, 'Cuando termines de copiar cosas, vuelve aquí y pulsa Compilar.')),
-        h('h3', { style: 'margin-top:20px' }, 'Contenido actual'),
-        h('div', { class: 'chips' }, pack.filesEntries.length ? pack.filesEntries.map((name) => h('span', { class: 'chip' }, name)) : h('span', { class: 'muted' }, 'La carpeta está vacía.')))
+            h('button', { class: 'btn primary', onclick: () => openFolder('files') }, withIcon('folder', 'Abrir carpeta “files”')),
+            h('span', { class: 'hint-line' }, 'Cuando termines de copiar cosas, vuelve aquí y pulsa Compilar.')),
+        h('h3', { style: 'margin-top:32px' }, 'Contenido actual'),
+        h('div', { class: 'entries' }, pack.filesEntries.length ? pack.filesEntries.map((name) => h('span', { class: 'entry' }, name)) : h('span', { class: 'muted' }, 'La carpeta está vacía.')))
 }
 
 // ------------------------------------------------------------------ pipeline footer (Editar -> Compilar -> Enviar)
 
 function step(number, { done, current }, ...content) {
-    return h('div', { class: `pstep${done ? ' done' : ''}${current ? ' current' : ''}` }, h('div', { class: 'pnum' }, done ? '✓' : number), h('div', { class: 'pinfo' }, ...content))
+    return h('div', { class: `pstep${done ? ' done' : ''}${current ? ' current' : ''}` },
+        h('div', { class: 'pnum' }, done ? icon('check') : String(number)),
+        h('div', { class: 'pinfo' }, ...content))
 }
 
 const connector = (done) => h('div', { class: `pconnect${done ? ' done' : ''}` })
@@ -541,30 +621,33 @@ function renderPipeline() {
         const nothingNew = fresh && compiled.changes.total === 0
         const sent = fresh && !!compiled.sentAt
         const canSend = fresh && !sent && !nothingNew
-        const largeCount = compiled ? compiled.large.filter((file) => file.needsUpload).length : 0
-        const largeBytes = compiled ? compiled.large.filter((file) => file.needsUpload).reduce((sum, file) => sum + file.size, 0) : 0
+        const pending = compiled ? compiled.large.filter((file) => file.needsUpload) : []
+        const pendingBytes = pending.reduce((sum, file) => sum + file.size, 0)
 
-        let compileHint = 'Aún no compilado'
+        let compileHint = 'Aún sin compilar'
         if (stale) compileHint = 'Hay cambios nuevos: compila otra vez'
         else if (fresh) compileHint = `Compilado ${ago(compiled.at)}`
 
         let sendHint = 'Primero compila'
-        if (canSend) sendHint = `${compiled.changes.total} cambios${largeCount ? ` · ${largeCount} archivo(s) grande(s), ${formatSize(largeBytes)}, van a Releases` : ''}`
+        if (canSend) sendHint = `${plural(compiled.changes.total, 'cambio', 'cambios')}${pending.length ? ` · ${plural(pending.length, 'archivo grande', 'archivos grandes')} (${formatSize(pendingBytes)}) irán a Releases` : ''}`
         else if (sent) sendHint = `Enviado ${ago(compiled.sentAt)}`
         else if (nothingNew) sendHint = 'Todo está al día, nada que enviar'
 
         footer.replaceChildren(...[
-            step(1, { done: state.packs.length > 0 }, h('b', {}, 'Editar'), h('span', { class: 'hint' }, 'Crea modpacks y sube mods')),
+            step(1, { done: state.packs.length > 0 }, h('span', { class: 'title' }, 'Editar'), h('span', { class: 'hint' }, 'Crea modpacks y sube mods')),
             connector(true),
-            step(2, { done: fresh, current: !fresh }, h('button', { class: `btn ${fresh ? '' : 'primary'} big`, disabled: busy || state.packs.length === 0, onclick: compilePacks }, fresh ? 'Compilar de nuevo' : 'Compilar'), h('span', { class: 'hint' }, compileHint)),
+            step(2, { done: fresh, current: !fresh },
+                h('button', { class: `btn ${fresh ? '' : 'primary'} big`, disabled: busy || state.packs.length === 0, onclick: compilePacks }, withIcon('package', fresh ? 'Compilar de nuevo' : 'Compilar')),
+                h('span', { class: 'hint' }, compileHint)),
             connector(fresh),
             step(3, { done: sent || nothingNew, current: canSend },
-                h('button', { class: `btn ${canSend ? 'primary' : ''} big`, disabled: busy || !canSend, onclick: sendPacks }, 'Enviar'),
-                h('span', { class: 'hint' }, sendHint)),
+                h('button', { class: `btn ${canSend ? 'primary' : ''} big`, disabled: busy || !canSend, onclick: sendPacks }, withIcon('send', 'Enviar')),
+                h('span', { class: 'hint tnum' }, sendHint)),
             canSend ? h('input', {
-                class: 'pmessage', placeholder: compiled.suggestedMessage, value: state.commitMessage,
-                oninput: (event) => { state.commitMessage = event.target.value }, title: 'Mensaje del cambio (opcional)'
-            }) : null].filter(Boolean))
+                class: 'pmessage', placeholder: compiled.suggestedMessage, value: state.commitMessage, 'aria-label': 'Mensaje del cambio (opcional)',
+                oninput: (event) => { state.commitMessage = event.target.value }
+            }) : null
+        ].filter(Boolean))
         return
     }
 
@@ -574,13 +657,14 @@ function renderPipeline() {
     const other = info && info.build && !build ? info.build : null
     const canSend = !!build && !build.sent
     footer.replaceChildren(
-        step(1, { done: true }, h('b', {}, 'Elegir versión'), h('span', { class: 'hint' }, 'Y contar qué cambia')),
+        step(1, { done: true }, h('span', { class: 'title' }, 'Elegir versión'), h('span', { class: 'hint' }, 'Y contar qué cambia')),
         connector(true),
-        step(2, { done: !!build, current: !build }, h('button', { class: `btn ${build ? '' : 'primary'} big`, disabled: busy || !info, onclick: compileLauncher }, build ? 'Compilar de nuevo' : 'Compilar'),
-            h('span', { class: 'hint' }, build ? `Instalador v${build.version} listo (${formatSize(build.size)})` : other ? `Hay uno de v${other.version}; para v${launcherVersion()} compila otra vez` : 'Genera el instalador (unos minutos)')),
+        step(2, { done: !!build, current: !build },
+            h('button', { class: `btn ${build ? '' : 'primary'} big`, disabled: busy || !info, onclick: compileLauncher }, withIcon('package', build ? 'Compilar de nuevo' : 'Compilar')),
+            h('span', { class: 'hint tnum' }, build ? `Instalador v${build.version} listo (${formatSize(build.size)})` : other ? `Hay uno de v${other.version}; para v${launcherVersion()} compila otra vez` : 'Genera el instalador (unos minutos)')),
         connector(!!build),
         step(3, { done: !!build && build.sent, current: canSend },
-            h('button', { class: `btn ${canSend ? 'primary' : ''} big`, disabled: busy || !canSend, onclick: sendLauncher }, 'Enviar'),
+            h('button', { class: `btn ${canSend ? 'primary' : ''} big`, disabled: busy || !canSend, onclick: sendLauncher }, withIcon('send', 'Enviar')),
             h('span', { class: 'hint' }, build ? (build.sent ? `v${build.version} ya está publicada` : 'Sube la versión a GitHub para que se actualicen') : 'Primero compila')))
 }
 
@@ -590,14 +674,14 @@ function compilePacks() {
         const { total } = compiled.changes
         showBanner('ok', total === 0
             ? 'Todo estaba ya al día, no hay nada nuevo que enviar.'
-            : `Listo para enviar: ${total} cambios${compiled.large.some((f) => f.needsUpload) ? ' (los archivos grandes irán a Releases)' : ''}. Cierra esto y pulsa “Enviar”.`)
+            : `Listo para enviar: ${plural(total, 'cambio', 'cambios')}${compiled.large.some((f) => f.needsUpload) ? ' (los archivos grandes irán a Releases)' : ''}. Cierra esto y pulsa “Enviar”.`)
     })
 }
 
 function sendPacks() {
     runJob('Enviar modpacks', '/api/jobs/send-packs', { message: state.commitMessage }, () => {
         state.commitMessage = ''
-        showBanner('ok', 'Publicado ✓ GitHub Pages tarda un par de minutos en mostrar los cambios; luego el launcher los descarga solo.')
+        showBanner('ok', 'Publicado. GitHub Pages tarda un par de minutos en mostrar los cambios; luego el launcher los descarga solo.')
     })
 }
 
@@ -613,35 +697,41 @@ function renderLauncher() {
     const box = $('#launcherContent')
     const info = state.launcher
     if (!info) {
-        box.replaceChildren(h('p', { class: 'muted' }, 'Cargando…'))
+        box.replaceChildren(h('div', { class: 'skeleton', style: 'height:180px' }))
         return
     }
 
     const choice = (id, title, detail) => h('button', {
-        class: `choice${state.launcherChoice === id ? ' active' : ''}`,
+        class: 'choice', role: 'radio', 'aria-checked': String(state.launcherChoice === id),
         onclick: () => { state.launcherChoice = id; renderLauncher(); renderPipeline() }
     }, h('b', {}, id === 'same' ? info.version : info.next[id]), h('span', {}, `${title} · ${detail}`))
 
-    box.replaceChildren(
-        h('div', { class: 'stat-row' },
-            h('div', { class: 'card stat' }, h('span', { class: 'muted' }, 'Versión en tu código'), h('div', { class: 'num' }, `v${info.version}`)),
-            h('div', { class: 'card stat' }, h('span', { class: 'muted' }, 'Última publicada en GitHub'), h('div', { class: 'num accent' }, info.latestTag || '—'))),
-        h('div', { class: 'card' },
-            h('h2', {}, '1 · ¿Qué versión vas a publicar?'),
-            h('div', { class: 'version-choices' },
+    const chosen = info.build && info.build.version === launcherVersion() ? info.build : null
+
+    box.replaceChildren(...[
+        h('section', { class: 'section' },
+            h('h1', {}, 'Publicar el launcher'),
+            h('div', { class: 'versions-line' },
+                h('span', {}, 'En tu código ', h('b', {}, `v${info.version}`)),
+                h('span', {}, 'Publicada en GitHub ', h('b', {}, info.latestTag || '—')))),
+        h('section', { class: 'section' },
+            h('h2', {}, 'Versión nueva'),
+            h('p', { class: 'muted' }, 'Cuánto cambia el número decide cómo se presenta la actualización.'),
+            h('div', { class: 'version-choices', role: 'radiogroup', 'aria-label': 'Versión nueva' },
                 choice('patch', 'Parche', 'arreglos pequeños'),
                 choice('minor', 'Menor', 'cosas nuevas'),
                 choice('major', 'Mayor', 'cambio grande'),
                 choice('same', 'La misma', 'reintentar')),
-            info.dirty > 0 ? h('p', { class: 'muted' }, `Tienes ${info.dirty} archivo(s) modificados en el código: se subirán junto con esta versión.`) : null),
-        h('div', { class: 'card' },
-            h('h2', {}, '2 · ¿Qué cambia?'),
-            h('p', { class: 'muted' }, 'Este texto aparece en la página de la versión en GitHub. Puedes dejarlo vacío.'),
-            h('textarea', { placeholder: '- Arreglado el login\n- Nuevo fondo', oninput: (event) => { state.notes = event.target.value } }, state.notes)),
-        info.build && info.build.version === launcherVersion() ? h('div', { class: 'card' },
-            h('h2', {}, 'Instalador compilado'),
-            h('p', {}, `${info.build.name} · ${formatSize(info.build.size)} · ${ago(info.build.at)}`),
-            info.build.sent ? h('p', { class: 'muted' }, 'Ya está publicado en GitHub.') : h('p', { class: 'muted' }, 'Listo: pulsa “Enviar” abajo para publicarlo.')) : null)
+            info.dirty > 0 ? h('p', { class: 'note' }, icon('alert'), `Tienes ${plural(info.dirty, 'archivo modificado', 'archivos modificados')} en el código: se subirán junto con esta versión.`) : null),
+        h('section', { class: 'section' },
+            h('h2', {}, 'Qué cambia'),
+            h('p', { class: 'muted' }, 'Se muestra en la página de la versión en GitHub. Puedes dejarlo vacío.'),
+            h('textarea', { placeholder: '- Arreglado el login\n- Nuevo fondo', 'aria-label': 'Qué cambia en esta versión', oninput: (event) => { state.notes = event.target.value } }, state.notes)),
+        chosen ? h('section', { class: 'section' },
+            h('div', { class: 'build-row' }, icon('checkCircle'),
+                h('span', { class: 'tnum' }, h('b', {}, chosen.name), ` · ${formatSize(chosen.size)} · ${ago(chosen.at)}`),
+                h('span', {}, chosen.sent ? 'Ya está publicado en GitHub.' : 'Listo: pulsa “Enviar” abajo para publicarlo.'))) : null
+    ].filter(Boolean))
 }
 
 function compileLauncher() {
@@ -655,11 +745,11 @@ function sendLauncher() {
     const build = state.launcher.build
     if (!confirm(`¿Publicar el launcher v${build.version}? Los jugadores lo recibirán como actualización.`)) return
     runJob(`Enviar el launcher v${build.version}`, '/api/jobs/send-launcher', { notes: state.notes }, (result) => {
-        showBanner('ok', 'Publicado ✓ El launcher de los jugadores se actualizará solo.', result && result.url ? { label: 'Ver en GitHub', run: () => window.open(result.url, '_blank') } : null)
+        showBanner('ok', 'Publicado. El launcher de los jugadores se actualizará solo.', result && result.url ? { icon: 'external', label: 'Ver en GitHub', run: () => window.open(result.url, '_blank') } : null)
     })
 }
 
-// ------------------------------------------------------------------ new modpack dialog
+// ------------------------------------------------------------------ new modpack (inline form)
 
 const newPack = { loader: 'fabric', token: 0, mcLoaded: false, timer: null }
 
@@ -716,10 +806,11 @@ async function loadLoaderChoices() {
 }
 
 async function openNewPack() {
-    const dialog = $('#newPackDialog')
+    state.creating = true
+    render()
     $('#npName').value = ''
-    dialog.showModal()
     updateNewPackPreview()
+    $('#npName').focus()
     if (!newPack.mcLoaded) {
         try {
             const { versions, latest } = await api('/api/versions/minecraft')
@@ -731,8 +822,13 @@ async function openNewPack() {
     loadLoaderChoices()
 }
 
+function closeNewPack() {
+    state.creating = false
+    render()
+}
+
 $('#newPackBtn').addEventListener('click', openNewPack)
-$('#npCancel').addEventListener('click', () => $('#newPackDialog').close())
+$('#npCancel').addEventListener('click', closeNewPack)
 $('#npName').addEventListener('input', updateNewPackPreview)
 $('#npMc').addEventListener('input', () => {
     updateNewPackPreview()
@@ -743,7 +839,10 @@ $('#npLoader').addEventListener('click', (event) => {
     const button = event.target.closest('button')
     if (!button) return
     newPack.loader = button.dataset.value
-    for (const other of $('#npLoader').children) other.classList.toggle('active', other === button)
+    for (const other of $('#npLoader').children) {
+        other.classList.toggle('active', other === button)
+        other.setAttribute('aria-checked', String(other === button))
+    }
     loadLoaderChoices()
 })
 $('#npLoaderVersion').addEventListener('change', () => {
@@ -761,7 +860,7 @@ $('#newPackForm').addEventListener('submit', (event) => {
     if (!id) return toast('Ponle un nombre al modpack.', true)
     if (!loaderVersion || loaderVersion === '__custom') return toast('Elige la versión del loader.', true)
 
-    $('#newPackDialog').close()
+    closeNewPack()
     runJob(`Crear ${id}-${minecraft}`, '/api/jobs/create-pack', { id, minecraft, loader: newPack.loader, loaderVersion, displayName: name }, async (result) => {
         await refreshPacks()
         if (result && result.id) {
@@ -770,7 +869,7 @@ $('#newPackForm').addEventListener('submit', (event) => {
             state.pack = await api(`/api/packs/${encodeURIComponent(result.id)}`)
         }
         render()
-        showBanner('ok', 'Modpack creado ✓ Ahora sube sus mods.', { label: 'Ir a los mods', run: () => { $('#activity').hidden = true } })
+        showBanner('ok', 'Modpack creado. Ahora sube sus mods.', { icon: 'package', label: 'Ir a los mods', run: () => { $('#activity').hidden = true } })
     })
 })
 
@@ -793,7 +892,7 @@ $('#settingsForm').addEventListener('submit', async (event) => {
     }
     await api('/api/config', { method: 'POST', body: partial })
     $('#settingsDialog').close()
-    toast('Ajustes guardados ✓')
+    toast('Ajustes guardados')
     renderHealth()
     refreshAll()
 })
@@ -804,7 +903,10 @@ $('#mainTabs').addEventListener('click', (event) => {
     const button = event.target.closest('.tab')
     if (!button) return
     state.tab = button.dataset.tab
-    for (const tab of $('#mainTabs').children) tab.classList.toggle('active', tab === button)
+    for (const tab of $('#mainTabs').children) {
+        if (tab === button) tab.setAttribute('aria-current', 'page')
+        else tab.removeAttribute('aria-current')
+    }
     $('#tab-packs').hidden = state.tab !== 'packs'
     $('#tab-launcher').hidden = state.tab !== 'launcher'
     renderPipeline()
@@ -814,6 +916,7 @@ $('#mainTabs').addEventListener('click', (event) => {
 for (const type of ['dragover', 'drop']) window.addEventListener(type, (event) => event.preventDefault())
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshAll() })
 
+render()
 watchPresence()
 renderHealth()
 refreshAll()

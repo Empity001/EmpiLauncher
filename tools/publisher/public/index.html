@@ -3,33 +3,80 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
     <title>Empi Publisher</title>
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-    <div id="offline" class="offline" hidden>El Publisher se cerró. Ábrelo de nuevo con su acceso directo y recarga esta página.</div>
+    <div id="offline" class="offline" role="alert" hidden>El Publisher se cerró. Ábrelo de nuevo con su acceso directo y recarga esta página.</div>
 
     <header class="topbar">
-        <div class="brand"><span class="logo">E</span><span>Empi Publisher</span></div>
-        <nav class="tabs" id="mainTabs">
-            <button class="tab active" data-tab="packs">Modpacks</button>
+        <div class="brand"><span class="logo" aria-hidden="true">E</span><span>Empi Publisher</span></div>
+        <nav class="tabs" id="mainTabs" aria-label="Secciones">
+            <button class="tab active" data-tab="packs" aria-current="page">Modpacks</button>
             <button class="tab" data-tab="launcher">Launcher</button>
         </nav>
-        <div class="health" id="health"></div>
-        <button class="icon-btn" id="settingsBtn" title="Ajustes">⚙</button>
+        <div class="health" id="health" role="status"></div>
+        <button class="icon-btn" id="settingsBtn" aria-label="Ajustes" title="Ajustes" data-icon="sliders"></button>
     </header>
 
     <main>
         <!-- ============================== MODPACKS ============================== -->
         <section id="tab-packs" class="layout">
-            <aside class="sidebar">
+            <aside class="sidebar" aria-label="Modpacks">
                 <div class="side-head">
                     <h2>Mis modpacks</h2>
-                    <button class="btn primary small" id="newPackBtn">+ Nuevo</button>
+                    <button class="btn primary small" id="newPackBtn"><span data-icon="plus"></span>Nuevo</button>
                 </div>
                 <div id="packList" class="pack-list"></div>
             </aside>
-            <div class="content" id="packContent"></div>
+
+            <div class="content">
+                <div id="packContent"></div>
+
+                <!-- Creating a modpack happens in place, so the list stays visible next to it. -->
+                <form id="newPackForm" class="form-pane" hidden>
+                    <div>
+                        <h2>Nuevo modpack</h2>
+                        <p class="muted">Rellena esto y yo hago el resto por detrás. Después subes los mods y pulsas Compilar.</p>
+                    </div>
+
+                    <label>Nombre del modpack
+                        <input id="npName" placeholder="MiModpack" autocomplete="off" required>
+                        <small class="muted" id="npNameHint"></small>
+                    </label>
+
+                    <label>Versión de Minecraft
+                        <input id="npMc" list="mcList" placeholder="1.21.11" autocomplete="off" inputmode="decimal" required>
+                        <datalist id="mcList"></datalist>
+                    </label>
+
+                    <div class="field">
+                        <span class="label" id="npLoaderLabel">Loader</span>
+                        <div class="segmented" id="npLoader" role="radiogroup" aria-labelledby="npLoaderLabel">
+                            <button type="button" role="radio" aria-checked="true" data-value="fabric" class="active">Fabric</button>
+                            <button type="button" role="radio" aria-checked="false" data-value="forge">Forge</button>
+                            <button type="button" role="radio" aria-checked="false" data-value="neoforge">NeoForge</button>
+                        </div>
+                    </div>
+
+                    <label>Versión del loader
+                        <select id="npLoaderVersion"></select>
+                        <input id="npLoaderVersionCustom" placeholder="Escribe la versión, por ejemplo 61.2.1" hidden>
+                        <small class="muted" id="npLoaderHint"></small>
+                    </label>
+
+                    <div class="command-preview">
+                        <span class="muted">Comando que se ejecutará por detrás</span>
+                        <code id="npCommand"></code>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn primary" id="npCreate">Crear modpack</button>
+                        <button type="button" class="btn" id="npCancel">Cancelar</button>
+                    </div>
+                </form>
+            </div>
         </section>
 
         <!-- ============================== LAUNCHER ============================== -->
@@ -38,13 +85,13 @@
         </section>
     </main>
 
-    <footer class="pipeline" id="pipeline"></footer>
+    <footer class="pipeline" id="pipeline" aria-label="Pasos para publicar"></footer>
 
     <!-- Live progress of whatever is running -->
-    <aside class="activity" id="activity" hidden>
+    <aside class="activity" id="activity" role="dialog" aria-labelledby="activityTitle" hidden>
         <div class="activity-head">
             <div>
-                <div class="activity-title" id="activityTitle"></div>
+                <h2 class="activity-title" id="activityTitle"></h2>
                 <div class="activity-sub" id="activitySub"></div>
             </div>
             <div class="activity-actions">
@@ -52,53 +99,13 @@
                 <button class="btn small" id="activityClose" hidden>Cerrar</button>
             </div>
         </div>
-        <ol class="steps" id="activitySteps"></ol>
-        <div class="banner" id="activityBanner" hidden></div>
+        <ol class="steps" id="activitySteps" aria-live="polite"></ol>
+        <div class="banner" id="activityBanner" role="status" hidden></div>
         <details class="log-wrap" id="logWrap" open>
             <summary>Detalle técnico</summary>
-            <pre id="activityLog" class="log"></pre>
+            <pre id="activityLog" class="log" tabindex="0"></pre>
         </details>
     </aside>
-
-    <!-- New modpack -->
-    <dialog id="newPackDialog">
-        <form method="dialog" id="newPackForm" class="dialog-body">
-            <h2>Nuevo modpack</h2>
-            <p class="muted">Rellena esto y yo hago el resto por detrás. Después subes los mods y le das a Compilar.</p>
-
-            <label>Nombre del modpack
-                <input id="npName" placeholder="MiModpack" autocomplete="off" required>
-                <small class="muted" id="npNameHint"></small>
-            </label>
-
-            <label>Versión de Minecraft
-                <input id="npMc" list="mcList" placeholder="1.21.11" autocomplete="off" required>
-                <datalist id="mcList"></datalist>
-            </label>
-
-            <div class="field">
-                <span class="label">Loader</span>
-                <div class="segmented" id="npLoader">
-                    <button type="button" data-value="fabric" class="active">Fabric</button>
-                    <button type="button" data-value="forge">Forge</button>
-                    <button type="button" data-value="neoforge">NeoForge</button>
-                </div>
-            </div>
-
-            <label>Versión del loader
-                <select id="npLoaderVersion"></select>
-                <input id="npLoaderVersionCustom" placeholder="Escribe la versión, por ejemplo 61.2.1" hidden>
-                <small class="muted" id="npLoaderHint"></small>
-            </label>
-
-            <div class="command-preview"><span class="muted">Comando que se ejecutará por detrás:</span><code id="npCommand"></code></div>
-
-            <div class="dialog-actions">
-                <button type="button" class="btn" id="npCancel">Cancelar</button>
-                <button type="submit" class="btn primary" id="npCreate">Crear modpack</button>
-            </div>
-        </form>
-    </dialog>
 
     <!-- Settings -->
     <dialog id="settingsDialog">
@@ -119,7 +126,7 @@
         </form>
     </dialog>
 
-    <div id="toast" class="toast" hidden></div>
+    <div id="toast" class="toast" role="status" hidden></div>
     <script src="/app.js"></script>
 </body>
 </html>
