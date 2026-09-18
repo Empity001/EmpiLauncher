@@ -24,3 +24,11 @@ FIRST VIEWPORT (1280): ribbed-glass top band with a dotted mark and two tabs; le
 FORM: item 6 of the grounded list (darkroom contact sheet and proof marks), seed key 562a65f2. Raised by the one-bit desktop challenger (dither as state: dimmed for disabled, inverted for selected, steps() motion) and the drum-machine row (one lit indicator as the only glow, while a task runs). Both other challengers declined.
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+
+## Motion update (2026-09-18, author's request)
+
+The author asked for more life: a moving background in the spirit of a dot-field reference page, plus transitions and movement throughout. This replaces the earlier "still at rest" rule for the Publisher only; the launcher keeps its budget (see app-app-ejs.md).
+
+- The ground is one canvas of halftone dots (life.js): slow interference waves, two corner plates that swell, a scan band that crosses now and then, the pointer and clicks pushing dots outward, the hovered control lighting the dots around it, the next action glowing pink, a running job speeding the field up, a finished job sending a ring through it. Dots stay faint under text.
+- Everything else moves to say where you are, what changed or what to do next: staggered arrivals on load and on pack/tab change, an underline that slides between tabs, the pack title decoding out of noise, pipeline steps that pop when they change and beat when they are next, links that carry dots forward, cards that lean, buttons that lift and sink, the primary that catches light and leans toward the pointer, the flower that turns, the cloud that drifts.
+- Budget stays binding: canvas 24 fps focused and 10 fps otherwise, nothing while hidden, one canvas pixel per CSS pixel, measured frame cost and delivered frame rate thin the field and finally stop it, only transform and opacity animate, infinite CSS animations are avoided (finite, replayed on a timer), a visible "Vivo / Tranquilo" switch, prefers-reduced-motion starts calm. Measured in headless Edge with software raster: about 7-10% of one core alive, about 0% calm.

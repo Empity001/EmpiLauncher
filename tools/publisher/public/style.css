@@ -1,6 +1,7 @@
-/* Empi Publisher - a proof bench. Halftone dots are the tone of everything, a glitch is how the tool speaks
-   about change and failure, and one electric pink marks the next action. Text and controls stay crisp;
-   nothing moves at rest (motion is a 260 ms tear when something happens, or one lit indicator while a task runs). */
+/* Empi Publisher - a proof bench, alive. Halftone dots are the tone of everything, a glitch is how the tool speaks
+   about change and failure, and one electric pink marks the next action. Text and controls stay crisp.
+   The ground breathes (life.js draws it), things arrive and slide instead of jumping, and every movement says something:
+   where you are, what changed, what to do next. Only transform and opacity animate, and a visible switch makes it all calm. */
 
 @font-face {
     font-family: 'Doto';
@@ -45,6 +46,7 @@
     --font-code: 'Cascadia Mono', Consolas, monospace;
 
     --ease: cubic-bezier(.2, .9, .2, 1);
+    --ease-out: cubic-bezier(.16, 1, .3, 1);
     --pipeline-h: 84px;
     --dotted: radial-gradient(circle, var(--dot) 1px, transparent 1.4px) 0 0 / 7px 3px repeat-x;
 }
@@ -118,7 +120,7 @@ small { font-size: 12px; }
     position: sticky; top: 0; z-index: 5;
     display: flex; align-items: center; gap: 28px;
     padding: 0 24px; height: 52px;
-    background: var(--surface);
+    background: rgb(17 17 20 / .86);
 }
 .topbar::before {   /* ribbed glass: fine vertical lines that fade in from the left */
     content: ''; position: absolute; inset: 0; pointer-events: none;
@@ -335,7 +337,7 @@ label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--t
 /* ------------------------------------------------------------ pipeline footer (frame, develop, print) */
 .pipeline {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; min-height: 84px;
-    background: var(--surface);
+    background: rgb(17 17 20 / .9);
     display: flex; align-items: center; justify-content: center; gap: 16px; padding: 12px 24px;
 }
 .pipeline::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--dotted); }
@@ -350,8 +352,9 @@ label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--t
 .pinfo { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .pinfo .title { font-weight: 700; }
 .pinfo .hint { font-size: 12px; color: var(--text-2); max-width: 260px; line-height: 1.35; }
-.pconnect { width: 36px; height: 4px; flex: none; background: radial-gradient(circle, var(--dot) 1px, transparent 1.5px) 0 50% / 6px 4px repeat-x; }
-.pconnect.done { background: radial-gradient(circle, var(--text) 1px, transparent 1.5px) 0 50% / 6px 4px repeat-x; }
+.pconnect { position: relative; overflow: hidden; width: 36px; height: 4px; flex: none; }
+.pconnect::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0; right: -6px; background: radial-gradient(circle, var(--dot) 1px, transparent 1.5px) 0 50% / 6px 4px repeat-x; }
+.pconnect.done::before { background-image: radial-gradient(circle, var(--text) 1px, transparent 1.5px); }
 .pmessage { width: 230px; }
 
 /* ------------------------------------------------------------ activity drawer */
@@ -359,13 +362,15 @@ label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--t
     position: fixed; top: 0; right: 0; bottom: 0; width: min(520px, 100vw); z-index: 20;
     background: var(--surface); border-left: 1px dotted var(--dot); box-shadow: -16px 0 40px rgb(0 0 0 / .55);
     display: flex; flex-direction: column; padding: 20px 22px; gap: 18px; overflow: auto;
-    animation: slide .18s var(--ease);
+    animation: slide .5s var(--ease-out);
 }
-@keyframes slide { from { transform: translateX(28px); opacity: 0; } }
+@keyframes slide { from { transform: translateX(56px); opacity: 0; } }
 .activity-head {
+    position: relative; isolation: isolate; overflow: hidden;
     display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; min-height: 96px; margin: -20px -22px 0; padding: 20px 22px;
-    background: linear-gradient(90deg, var(--surface) 38%, rgb(17 17 20 / 0) 100%), url('/art/cloud.png') right 128px center / auto 70% no-repeat;
 }
+.activity-head::before { content: ''; position: absolute; inset: 0; z-index: -2; background: url('/art/cloud.png') right 128px center / auto 70% no-repeat; }
+.activity-head::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, var(--surface) 38%, rgb(17 17 20 / 0) 100%); }
 .activity-head > div:first-child { flex: 1; min-width: 0; max-width: calc(100% - 262px); }
 .activity-title { font: 700 24px/1.1 var(--font-dot); }
 .activity-sub { color: var(--text-2); font-size: 13px; margin-top: 6px; font-variant-numeric: tabular-nums; }
@@ -392,8 +397,8 @@ label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--t
 
 /* ------------------------------------------------------------ dialog & toast */
 dialog { background: var(--surface); color: var(--text); border: 1px solid var(--text-3); padding: 0; width: min(520px, 94vw); }
-dialog[open] { animation: pop .16s var(--ease); }
-@keyframes pop { from { transform: translateY(8px); opacity: 0; } }
+dialog[open] { animation: pop .38s var(--ease-out); }
+@keyframes pop { from { transform: translateY(14px) scale(.97); opacity: 0; } }
 dialog::backdrop { background: rgb(6 6 7 / .8); }
 .dialog-body { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
@@ -401,10 +406,76 @@ dialog::backdrop { background: rgb(6 6 7 / .8); }
 .toast {
     position: fixed; left: 50%; bottom: calc(var(--pipeline-h) + 16px); transform: translateX(-50%); z-index: 30;
     background: var(--text); color: var(--bg); font-weight: 600; padding: 9px 18px; max-width: min(560px, 92vw);
-    animation: rise .16s var(--ease);
+    animation: rise .42s var(--ease-out);
 }
 .toast.err { background: var(--danger); color: #1a0703; }
-@keyframes rise { from { transform: translate(-50%, 8px); opacity: 0; } }
+@keyframes rise { from { transform: translate(-50%, 16px) scale(.95); opacity: 0; } }
+
+/* ------------------------------------------------------------ alive: the ground, arrivals, transitions */
+.life { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+html[data-motion] body::before, html[data-motion] body::after { display: none; }   /* the static plates were the fallback */
+
+@keyframes drop { from { transform: translateY(-100%); } }
+@keyframes lift { from { transform: translateY(100%); } }
+@keyframes rise-in { from { opacity: 0; transform: translateY(16px); clip-path: inset(0 0 100% 0); } to { opacity: 1; transform: none; clip-path: inset(0); } }
+@keyframes pop-mark { 0% { transform: scale(.6); } 55% { transform: scale(1.22); } 100% { transform: none; } }
+@keyframes beat { 0%, 100% { transform: none; } 50% { transform: scale(1.14); } }
+@keyframes beat2 { 0%, 100% { transform: none; } 50% { transform: scale(1.14); } }   /* same beat, another name: a new name is what restarts it */
+@keyframes beat3 { 0%, 100% { transform: none; } 50% { transform: scale(1.14); } }
+@keyframes march { from { transform: translateX(-6px); } }
+@keyframes bloom { to { transform: rotate(45deg); } }   /* eight petals: 45 degrees is one whole turn of the pattern, so it never seems to reset */
+@keyframes drift { to { transform: translateX(-18px) scale(1.05); } }
+@keyframes pick { 0% { transform: scale(.96); } 60% { transform: scale(1.025); } 100% { transform: none; } }
+@keyframes step-in { from { opacity: 0; transform: translateX(-12px); } }
+@keyframes crop-in { from { transform: scale(1.14); opacity: 0; } }
+
+html[data-motion=alive] .topbar { animation: drop .6s var(--ease-out) backwards; }
+html[data-motion=alive] .pipeline { animation: lift .7s var(--ease-out) .12s backwards; }
+html[data-motion=alive] .rise { animation: rise-in .6s var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * 45ms); }
+
+/* the underline that slides from tab to tab (life.js places it) */
+.tabs { position: relative; }
+.ink { position: absolute; left: 0; bottom: 0; height: 4px; width: 0; z-index: 1; pointer-events: none; background: radial-gradient(circle, var(--accent) 1px, transparent 1.5px) 0 50% / 6px 4px repeat-x; transition: transform .5s var(--ease-out), width .5s var(--ease-out), opacity .2s; }
+html[data-motion] .tab[aria-current]::after, html[data-motion] .subtab[aria-selected=true]::after { display: none; }
+html[data-motion=calm] .ink { transition: none; }
+
+/* things answer the hand: a card leans in, a button lifts and sinks, the primary catches the light and leans toward the pointer */
+.pack-card { transition: background .12s var(--ease), transform .4s var(--ease-out); }
+.pack-card:hover { transform: translateX(4px); }
+.pack-card:active { transform: translateX(2px) scale(.985); transition-duration: .08s; }
+.pack-card.active::after { animation: crop-in .5s var(--ease-out); }
+.btn { transition: background .12s var(--ease), border-color .12s var(--ease), transform .35s var(--ease-out); }
+.btn:hover:not(:disabled) { transform: translateY(-1px); }
+.btn:active:not(:disabled) { transform: scale(.97); transition-duration: .06s; }
+.btn.primary { position: relative; overflow: hidden; transform: translate(var(--mx, 0px), var(--my, 0px)); transition: background .12s var(--ease), transform .3s var(--ease-out); }
+.btn.primary:hover:not(:disabled) { transform: translate(var(--mx, 0px), calc(var(--my, 0px) - 1px)); }
+.btn.primary:active:not(:disabled) { transform: translate(var(--mx, 0px), var(--my, 0px)) scale(.97); }
+.btn.primary::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(100deg, transparent 32%, rgb(255 255 255 / .38) 50%, transparent 68%); transform: translateX(-130%); }
+.btn.primary:hover:not(:disabled)::before { transform: translateX(130%); transition: transform .8s var(--ease-out); }
+input, select, textarea { transition: border-color .15s var(--ease), box-shadow .3s var(--ease-out); }
+input:focus-visible, select:focus-visible, textarea:focus-visible { box-shadow: inset 0 -3px 0 var(--accent); }
+.choice { transition: background .12s var(--ease), transform .35s var(--ease-out); }
+.choice:hover { transform: translateY(-2px); }
+html[data-motion=alive] .choice[aria-checked=true], html[data-motion=alive] .segmented button.active { animation: pick .4s var(--ease-out); }
+.mod-row, .prow { transition: background .15s var(--ease); }
+#lifeBtn[aria-pressed=true] { color: var(--text); }
+#lifeBtn[aria-pressed=false] { color: var(--text-3); }
+
+/* the pipeline is a line of work: steps pop when they change, the next one beats, finished links carry dots forward */
+.pnum.pop { animation: pop-mark .55s var(--ease-out); }
+html[data-motion=alive] .pstep.current .pnum:not(.pop) { animation: beat 1.6s var(--ease-out) 2; }
+html[data-motion=alive] .pstep.current .pnum.beat-b:not(.pop) { animation: beat2 1.6s var(--ease-out) 2; }
+html[data-motion=alive] .pstep.current .pnum.beat-c:not(.pop) { animation: beat3 1.6s var(--ease-out) 2; }
+html[data-motion=alive] .pconnect.done::before { animation: march .9s linear 4; }
+
+/* things that live at rest: the flower turns, the cloud drifts, a new step slides in */
+html[data-motion=alive] .empty-hero img { animation: bloom 24s linear infinite; }
+html[data-motion=alive] .activity-head::before { animation: drift 18s ease-out forwards; }
+html[data-motion=alive] .steps li:last-child { animation: step-in .4s var(--ease-out); }
+
+html[data-motion=calm] .rise, html[data-motion=calm] .topbar, html[data-motion=calm] .pipeline,
+html[data-motion=calm] .empty-hero img, html[data-motion=calm] .activity-head::before, html[data-motion=calm] .pconnect.done::before,
+html[data-motion=calm] .pstep.current .pnum, html[data-motion=calm] .pack-card.active::after { animation: none !important; }
 
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }

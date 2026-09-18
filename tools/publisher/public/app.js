@@ -32,6 +32,7 @@ const ICONS = {
     chevronDown: '<path d="m6 9 6 6 6-6"/>',
     file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
     image: '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
+    wave: '<path d="M2 12c2.5-6 5-6 7.5 0s5 6 7.5 0 3.5-4 5-3"/><path d="M2 18c2.5-4 5-4 7.5 0s5 4 7.5 0 3.5-2.5 5-2"/>',
     refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>'
 }
 
@@ -210,6 +211,7 @@ function openActivity(title, startedAt) {
     $('#activityClose').hidden = true
     renderSteps()
     $('#activity').hidden = false
+    Life?.busy(true)
 }
 
 function appendLog(line) {
@@ -248,6 +250,8 @@ function attachJob(jobId, title, onSuccess, startedAt) {
 function finishJob(data, onSuccess) {
     clearInterval(activity.timer)
     state.running = null
+    Life?.busy(false)
+    Life?.burst($('#activity .activity-title'), !data.error)
     activity.finished = true
     activity.failed = !!data.error
     renderSteps()
@@ -351,8 +355,15 @@ async function refreshAll() {
     } catch (err) {
         toast(err.message, true)
     }
+    const first = !state.loaded
     state.loaded = true
     render()
+    if (first) {
+        Life?.enter($('#packList'), ':scope > *', 60)
+        Life?.enter($('#packContent'), ':scope > *', 70)
+        requestAnimationFrame(() => Life?.ink($('#mainTabs'), 'main', '.tab[aria-current]'))
+    }
+    Life?.refresh()
 }
 
 // ------------------------------------------------------------------ rendering: pack list & detail
@@ -403,6 +414,8 @@ async function selectPack(id) {
     try { state.pack = await api(`/api/packs/${encodeURIComponent(id)}`) } catch (err) { toast(err.message, true) }
     render()
     tear($('.pack-head h1'))
+    Life?.enter($('#packContent'), ':scope > *', 70)
+    Life?.scramble($('.pack-head h1'))
 }
 
 function renderPackDetail() {
@@ -440,13 +453,14 @@ function renderPackDetail() {
         h('div', { class: 'subtabs', role: 'tablist' },
             ...tabs.map(([id, label]) => h('button', {
                 class: 'subtab', role: 'tab', 'aria-selected': String(state.subtab === id),
-                onclick: () => { state.subtab = id; renderPackDetail() }
+                onclick: () => { state.subtab = id; renderPackDetail(); Life?.enter($('#packContent'), ':scope > :not(.pack-head):not(.subtabs)', 70) }
             }, label))),
         state.subtab === 'settings' ? settingsForm(pack)
             : state.subtab === 'appearance' ? appearanceView(pack)
                 : state.subtab === 'protection' ? protectionView(pack)
                     : state.subtab === 'mods' ? modsView(pack) : filesView(pack))
 
+    Life?.ink($('.subtabs'), 'sub', '.subtab[aria-selected="true"]')
     if (state.subtab === 'settings') fillLoaderVersions(pack)
     if (state.subtab === 'appearance') loadVisuals()
     if (state.subtab === 'protection') loadProtection()
@@ -981,6 +995,17 @@ function step(number, { done, current }, ...content) {
 
 const connector = (done) => h('div', { class: `pconnect${done ? ' done' : ''}` })
 
+const pipeSig = {}
+/** A step whose state just changed (done, or now the next one) pops; the field is told the layout moved. */
+function markPipeline(key) {
+    const steps = [...document.querySelectorAll('#pipeline .pstep')]
+    const sig = steps.map((s) => `${s.classList.contains('done') ? 'd' : ''}${s.classList.contains('current') ? 'c' : ''}`)
+    const before = pipeSig[key]
+    pipeSig[key] = sig
+    if (before) steps.forEach((s, i) => { if (before[i] !== sig[i]) s.querySelector('.pnum')?.classList.add('pop') })
+    Life?.refresh()
+}
+
 function renderPipeline() {
     const busy = !!state.running
     const footer = $('#pipeline')
@@ -1018,6 +1043,7 @@ function renderPipeline() {
                 oninput: (event) => { state.commitMessage = event.target.value }
             }) : null
         ].filter(Boolean))
+        markPipeline('packs')
         return
     }
 
@@ -1036,6 +1062,7 @@ function renderPipeline() {
         step(3, { done: !!build && build.sent, current: canSend },
             h('button', { class: `btn ${canSend ? 'primary' : ''} big`, disabled: busy || !canSend, onclick: sendLauncher }, withIcon('send', 'Enviar')),
             h('span', { class: 'hint' }, build ? (build.sent ? `v${build.version} ya está publicada` : 'Sube la versión a GitHub para que se actualicen') : 'Primero compila')))
+    markPipeline('launcher')
 }
 
 function compilePacks() {
@@ -1281,6 +1308,9 @@ $('#mainTabs').addEventListener('click', (event) => {
     $('#tab-packs').hidden = state.tab !== 'packs'
     $('#tab-launcher').hidden = state.tab !== 'launcher'
     renderPipeline()
+    Life?.ink($('#mainTabs'), 'main', '.tab[aria-current]')
+    Life?.enter(state.tab === 'launcher' ? $('#launcherContent') : $('#packContent'), ':scope > *', 70)
+    Life?.refresh()
 })
 
 // Dropping a file outside a drop zone must not make the browser navigate away to it.

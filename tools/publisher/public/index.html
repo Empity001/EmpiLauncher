@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+    <canvas id="life" class="life" aria-hidden="true"></canvas>
     <div id="offline" class="offline" role="alert" hidden>El Publisher se cerró. Ábrelo de nuevo con su acceso directo y recarga esta página.</div>
 
     <header class="topbar">
@@ -28,6 +29,7 @@
             <button class="tab" data-tab="launcher">Launcher</button>
         </nav>
         <div class="health" id="health" role="status"></div>
+        <button class="icon-btn" id="lifeBtn" aria-pressed="true" aria-label="Movimiento del fondo" title="Movimiento" data-icon="wave"></button>
         <button class="icon-btn" id="settingsBtn" aria-label="Ajustes" title="Ajustes" data-icon="sliders"></button>
     </header>
 
@@ -139,6 +141,7 @@
     </dialog>
 
     <div id="toast" class="toast" role="status" hidden></div>
+    <script src="/life.js"></script>
     <script src="/app.js"></script>
 </body>
 </html>
