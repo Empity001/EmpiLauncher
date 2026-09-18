@@ -150,7 +150,7 @@ async function send(config, options, log, step) {
     const repoRoot = config.empiPacksRepoPath
     const compiled = loadState().packsCompile
     if (!compiled) throw new Error('Primero pulsa "Compilar".')
-    if (compiled.fingerprint !== fingerprint(config)) throw new Error('Hiciste cambios despues de compilar. Vuelve a pulsar "Compilar".')
+    if (compiled.fingerprint !== fingerprint(config)) throw new Error('Hiciste cambios después de compilar. Vuelve a pulsar "Compilar".')
 
     step('Subiendo los archivos grandes a Releases')
     const root = nebula.rootPath(config)

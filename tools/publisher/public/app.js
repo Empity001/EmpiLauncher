@@ -65,9 +65,9 @@ function icon(name) {
     svg.setAttribute('viewBox', '0 0 24 24')
     svg.setAttribute('fill', 'none')
     svg.setAttribute('stroke', 'currentColor')
-    svg.setAttribute('stroke-width', '1.75')
-    svg.setAttribute('stroke-linecap', 'round')
-    svg.setAttribute('stroke-linejoin', 'round')
+    svg.setAttribute('stroke-width', '1.5')
+    svg.setAttribute('stroke-linecap', 'square')
+    svg.setAttribute('stroke-linejoin', 'miter')
     svg.setAttribute('class', 'i')
     svg.setAttribute('aria-hidden', 'true')
     svg.innerHTML = ICONS[name] // static, authored strings only
@@ -93,6 +93,14 @@ function h(tag, attrs, ...children) {
 }
 
 const withIcon = (name, label) => [icon(name), label]
+
+/** Replays the 260 ms glitch on an element; used only when something happens (a step, a failure, a new selection). */
+function tear(el) {
+    if (!el) return
+    el.classList.remove('tear')
+    void el.offsetWidth
+    el.classList.add('tear')
+}
 
 async function api(path, { method = 'GET', body, raw } = {}) {
     const res = await fetch(path, {
@@ -171,6 +179,11 @@ function renderSteps() {
         }
         return h('li', { class: cls }, h('span', { class: 'step-icon' }, mark), step)
     }))
+    const total = activity.steps.length
+    const resolve = $('#activityResolve')
+    const progress = activity.finished && !activity.failed ? 1 : Math.min(0.9, 1 - 1 / (1 + total * 0.5))
+    resolve.style.setProperty('--p', progress.toFixed(2))
+    resolve.classList.toggle('failed', !!activity.failed)
 }
 
 function showBanner(kind, text, action) {
@@ -219,6 +232,7 @@ function attachJob(jobId, title, onSuccess, startedAt) {
         else if (data.step) {
             activity.steps.push(data.step)
             renderSteps()
+            tear($('#activitySteps li:last-child .step-icon'))
         } else if (data.done) {
             finished = true
             source.close()
@@ -242,6 +256,7 @@ function finishJob(data, onSuccess) {
     $('#activitySub').textContent = `${data.error ? 'Se detuvo' : 'Terminado'} · ${elapsed()}`
     if (data.error) {
         showBanner('err', data.error)
+        tear($('#activityBanner'))
         $('#logWrap').open = true
     } else {
         $('#logWrap').open = false
@@ -387,6 +402,7 @@ async function selectPack(id) {
     state.visuals = null
     try { state.pack = await api(`/api/packs/${encodeURIComponent(id)}`) } catch (err) { toast(err.message, true) }
     render()
+    tear($('.pack-head h1'))
 }
 
 function renderPackDetail() {
@@ -397,9 +413,11 @@ function renderPackDetail() {
         return
     }
     if (!pack) {
-        box.replaceChildren(h('div', { class: 'prose' },
-            h('h1', {}, 'Empieza creando un modpack'),
-            h('p', { class: 'muted', style: 'margin-top:8px' }, 'Pulsa “Nuevo”, elige la versión de Minecraft y el loader, y yo preparo todo por detrás.')))
+        box.replaceChildren(h('div', { class: 'empty-hero' },
+            h('div', { class: 'prose' },
+                h('h1', {}, 'Empieza creando un modpack'),
+                h('p', { class: 'muted' }, 'Pulsa “Nuevo”, elige la versión de Minecraft y el loader, y yo preparo todo por detrás.')),
+            h('img', { src: '/art/flower.png', alt: '', width: '651', height: '655', decoding: 'async' })))
         return
     }
 
@@ -501,7 +519,7 @@ function settingsForm(pack) {
                             onclick: () => { imageInput.value = pack.defaultDiscordImage; discord.largeImageKey = pack.defaultDiscordImage; state.draft.discord = { ...discord }; markDirty() }
                         }, 'Usar el icono del pack'))))),
         h('div', { class: 'form-actions' },
-            h('button', { class: 'btn primary', id: 'saveMeta', type: 'submit', disabled: !dirty() }, 'Guardar cambios'),
+            h('button', { class: 'btn paper', id: 'saveMeta', type: 'submit', disabled: !dirty() }, 'Guardar cambios'),
             h('span', { class: `hint-line${dirty() ? ' dirty' : ''}`, id: 'saveHint' }, dirty() ? 'Cambios sin guardar' : 'Todo guardado. Cuando termines, pulsa Compilar abajo.')))
 }
 
@@ -679,7 +697,7 @@ function appearanceView(pack) {
             h('p', { class: 'muted' }, 'Tiñe los botones y detalles del launcher mientras este modpack está seleccionado.'),
             h('div', { class: 'color-row' },
                 colorInput, hexInput, sample,
-                h('button', { class: 'btn small primary', type: 'button', onclick: () => saveAccent(hexInput.value.trim()) }, 'Guardar color'),
+                h('button', { class: 'btn small paper', type: 'button', onclick: () => saveAccent(hexInput.value.trim()) }, 'Guardar color'),
                 accent ? h('button', { class: 'btn small', type: 'button', onclick: () => saveAccent('') }, 'Quitar') : null)),
         h('div', { id: 'visualsBox' }, h('div', { class: 'skeleton', style: 'height:160px' })))
 }
@@ -947,7 +965,7 @@ function filesView(pack) {
             h('b', {}, 'configuraciones, resource packs, shaders, options.txt, servers.dat'),
             '… Todo lo que pongas en la carpeta “files” se copia al Minecraft de cada jugador.'),
         h('div', { class: 'form-actions' },
-            h('button', { class: 'btn primary', onclick: () => openFolder('files') }, withIcon('folder', 'Abrir carpeta “files”')),
+            h('button', { class: 'btn paper', onclick: () => openFolder('files') }, withIcon('folder', 'Abrir carpeta “files”')),
             h('span', { class: 'hint-line' }, 'Cuando termines de copiar cosas, vuelve aquí y pulsa Compilar.')),
         h('h3', { style: 'margin-top:32px' }, 'Contenido actual'),
         h('div', { class: 'entries' }, pack.filesEntries.length ? pack.filesEntries.map((name) => h('span', { class: 'entry' }, name)) : h('span', { class: 'muted' }, 'La carpeta está vacía.')))
@@ -1255,6 +1273,7 @@ $('#mainTabs').addEventListener('click', (event) => {
     const button = event.target.closest('.tab')
     if (!button) return
     state.tab = button.dataset.tab
+    document.body.dataset.view = state.tab
     for (const tab of $('#mainTabs').children) {
         if (tab === button) tab.setAttribute('aria-current', 'page')
         else tab.removeAttribute('aria-current')

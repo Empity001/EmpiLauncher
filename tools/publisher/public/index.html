@@ -11,7 +11,18 @@
     <div id="offline" class="offline" role="alert" hidden>El Publisher se cerró. Ábrelo de nuevo con su acceso directo y recarga esta página.</div>
 
     <header class="topbar">
-        <div class="brand"><span class="logo" aria-hidden="true">E</span><span>Empi Publisher</span></div>
+        <div class="brand">
+            <!-- a dot-matrix E; one row slipped sideways, one dot lit -->
+            <svg class="logo" viewBox="0 0 20 28" aria-hidden="true" fill="currentColor">
+                <g><circle cx="2" cy="2" r="1.6"/><circle cx="6" cy="2" r="1.6"/><circle cx="10" cy="2" r="1.6"/><circle cx="14" cy="2" r="1.6"/><circle cx="18" cy="2" r="1.6"/>
+                <circle cx="2" cy="6" r="1.6"/><circle cx="2" cy="10" r="1.6"/>
+                <circle cx="2" cy="14" r="1.6"/><circle cx="6" cy="14" r="1.6"/><circle cx="10" cy="14" r="1.6"/><circle cx="14" cy="14" r="1.6"/>
+                <circle cx="2" cy="18" r="1.6"/><circle cx="2" cy="22" r="1.6"/>
+                <circle cx="2" cy="26" r="1.6"/><circle cx="6" cy="26" r="1.6"/><circle cx="10" cy="26" r="1.6"/><circle cx="14" cy="26" r="1.6"/></g>
+                <circle cx="18" cy="26" r="1.6" fill="#ff3d8b"/>
+            </svg>
+            <span>Empi Publisher</span>
+        </div>
         <nav class="tabs" id="mainTabs" aria-label="Secciones">
             <button class="tab active" data-tab="packs" aria-current="page">Modpacks</button>
             <button class="tab" data-tab="launcher">Launcher</button>
@@ -26,7 +37,7 @@
             <aside class="sidebar" aria-label="Modpacks">
                 <div class="side-head">
                     <h2>Mis modpacks</h2>
-                    <button class="btn primary small" id="newPackBtn"><span data-icon="plus"></span>Nuevo</button>
+                    <button class="btn paper small" id="newPackBtn"><span data-icon="plus"></span>Nuevo</button>
                 </div>
                 <div id="packList" class="pack-list"></div>
             </aside>
@@ -72,7 +83,7 @@
                     </div>
 
                     <div class="form-actions">
-                        <button type="submit" class="btn primary" id="npCreate">Crear modpack</button>
+                        <button type="submit" class="btn paper" id="npCreate">Crear modpack</button>
                         <button type="button" class="btn" id="npCancel">Cancelar</button>
                     </div>
                 </form>
@@ -100,6 +111,7 @@
             </div>
         </div>
         <ol class="steps" id="activitySteps" aria-live="polite"></ol>
+        <div class="resolve" id="activityResolve" aria-hidden="true"></div>
         <div class="banner" id="activityBanner" role="status" hidden></div>
         <details class="log-wrap" id="logWrap" open>
             <summary>Detalle técnico</summary>
@@ -121,7 +133,7 @@
             <label>Archivos grandes: a Release desde (MB) <input id="largeFileThresholdMb" type="number" min="5"></label>
             <div class="dialog-actions">
                 <button type="button" class="btn" id="settingsCancel">Cancelar</button>
-                <button type="submit" class="btn primary">Guardar</button>
+                <button type="submit" class="btn paper">Guardar</button>
             </div>
         </form>
     </dialog>

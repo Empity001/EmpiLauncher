@@ -18,7 +18,7 @@ const { capture, runInJob, killTree } = require('./lib/exec')
 const PORT = Number(process.env.PUBLISHER_PORT) || 4848
 const HOST = '127.0.0.1'
 const PUBLIC_DIR = path.join(__dirname, 'public')
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png' }
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' }
 const ALLOWED_HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`])
 
 // ------------------------------------------------------------------ jobs

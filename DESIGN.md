@@ -1,248 +1,287 @@
 ---
 name: Empi Publisher
-description: Un taller oscuro y en calma donde el autor prepara y publica modpacks sin miedo a equivocarse.
+description: A darkroom proof bench for publishing modpacks, in halftone black and paper-white with one electric pink marking the next action.
 colors:
-  creeper-green: "#6fbf3c"
-  creeper-green-bright: "#86d654"
-  creeper-ink: "#0c1804"
-  creeper-tint: "rgb(111 191 60 / .11)"
-  creeper-line: "rgb(111 191 60 / .45)"
-  moss-charcoal-well: "#0a0d0a"
-  moss-charcoal-deep: "#0e110e"
-  moss-charcoal: "#151915"
-  moss-charcoal-raised: "#1b201b"
-  moss-charcoal-lifted: "#232a23"
-  moss-line: "#262d26"
-  moss-line-strong: "#354035"
-  bone-white: "#e6ece6"
-  sage-mist: "#a3b09b"
-  sage-dim: "#7f8e77"
-  ember-red: "#ef7563"
-  ember-tint: "rgb(239 117 99 / .1)"
-  lantern-amber: "#e0b040"
+  well: "#060607"
+  bg: "#0b0b0d"
+  surface: "#111114"
+  surface-2: "#18181c"
+  surface-3: "#212127"
+  line: "#24242a"
+  line-strong: "#3b3b44"
+  dot: "#55555f"
+  paper: "#f1efe8"
+  paper-2: "#a5a598"
+  paper-3: "#8b8b81"
+  pink: "#ff3d8b"
+  pink-hover: "#ff6aa6"
+  pink-ink: "#16030c"
+  split-red: "#ff2a4a"
+  split-cyan: "#33e6ff"
+  danger: "#ff6a4d"
+  warn: "#ffb14a"
 typography:
+  display:
+    fontFamily: "Doto, Cascadia Mono, Consolas, monospace"
+    fontSize: "32px"
+    fontWeight: 700
+    lineHeight: 1.1
+    letterSpacing: "0"
+  drawer-title:
+    fontFamily: "Doto, Cascadia Mono, Consolas, monospace"
+    fontSize: "24px"
+    fontWeight: 700
+    lineHeight: 1.1
+  wordmark:
+    fontFamily: "Doto, Cascadia Mono, Consolas, monospace"
+    fontSize: "17px"
+    fontWeight: 800
+    lineHeight: 1
+    letterSpacing: "0.02em"
   headline:
-    fontFamily: "'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif"
-    fontSize: "20px"
-    fontWeight: 600
-    lineHeight: 1.25
-    letterSpacing: "-0.01em"
-  title:
-    fontFamily: "'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif"
+    fontFamily: "Segoe UI Variable Text, Segoe UI, system-ui, sans-serif"
     fontSize: "16px"
     fontWeight: 600
     lineHeight: 1.5
+  title:
+    fontFamily: "Segoe UI Variable Text, Segoe UI, system-ui, sans-serif"
+    fontSize: "14px"
+    fontWeight: 600
+    lineHeight: 1.5
   body:
-    fontFamily: "'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif"
+    fontFamily: "Segoe UI Variable Text, Segoe UI, system-ui, sans-serif"
     fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.5
   label:
-    fontFamily: "'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif"
+    fontFamily: "Segoe UI Variable Text, Segoe UI, system-ui, sans-serif"
     fontSize: "13px"
     fontWeight: 400
     lineHeight: 1.5
   caption:
-    fontFamily: "'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif"
+    fontFamily: "Segoe UI Variable Text, Segoe UI, system-ui, sans-serif"
     fontSize: "12px"
     fontWeight: 400
-    lineHeight: 1.4
+    lineHeight: 1.5
   code:
-    fontFamily: "'Cascadia Mono', Consolas, monospace"
+    fontFamily: "Cascadia Mono, Consolas, monospace"
     fontSize: "12px"
     fontWeight: 400
     lineHeight: 1.55
 rounded:
-  xs: "5px"
-  sm: "7px"
-  md: "10px"
-  lg: "12px"
-  xl: "14px"
-  full: "999px"
+  none: "0px"
 spacing:
-  xxs: "4px"
-  xs: "8px"
-  sm: "12px"
-  md: "16px"
-  lg: "24px"
-  xl: "40px"
+  xs: "6px"
+  sm: "8px"
+  md: "12px"
+  lg: "16px"
+  xl: "24px"
+  gutter: "40px"
 components:
-  button-default:
-    backgroundColor: "{colors.moss-charcoal-raised}"
-    textColor: "{colors.bone-white}"
-    rounded: "{rounded.sm}"
-    padding: "8px 16px"
-  button-default-hover:
-    backgroundColor: "{colors.moss-charcoal-lifted}"
   button-primary:
-    backgroundColor: "{colors.creeper-green}"
-    textColor: "{colors.creeper-ink}"
-    rounded: "{rounded.sm}"
+    backgroundColor: "{colors.pink}"
+    textColor: "{colors.pink-ink}"
+    rounded: "{rounded.none}"
     padding: "8px 16px"
   button-primary-hover:
-    backgroundColor: "{colors.creeper-green-bright}"
+    backgroundColor: "{colors.pink-hover}"
+  button-secondary:
+    backgroundColor: "{colors.surface-2}"
+    textColor: "{colors.paper}"
+    rounded: "{rounded.none}"
+    padding: "8px 16px"
+  button-secondary-hover:
+    backgroundColor: "{colors.surface-3}"
+  button-paper:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.bg}"
+    rounded: "{rounded.none}"
+    padding: "8px 16px"
   button-danger:
-    backgroundColor: "{colors.moss-charcoal-raised}"
-    textColor: "{colors.ember-red}"
-    rounded: "{rounded.sm}"
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.danger}"
+    rounded: "{rounded.none}"
     padding: "8px 16px"
   input:
-    backgroundColor: "{colors.moss-charcoal-deep}"
-    textColor: "{colors.bone-white}"
-    rounded: "{rounded.sm}"
+    backgroundColor: "{colors.well}"
+    textColor: "{colors.paper}"
+    rounded: "{rounded.none}"
     padding: "8px 10px"
     height: "36px"
-  pack-row-active:
-    backgroundColor: "{colors.creeper-tint}"
-    textColor: "{colors.bone-white}"
-    rounded: "{rounded.md}"
+  pack-card:
+    backgroundColor: "{colors.bg}"
+    textColor: "{colors.paper}"
+    rounded: "{rounded.none}"
     padding: "8px 10px"
-  badge-free:
-    textColor: "{colors.lantern-amber}"
-    rounded: "{rounded.full}"
-    padding: "2px 9px"
+  pack-card-active:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.bg}"
+  topbar:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.paper}"
+    height: "52px"
+  pipeline:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.paper}"
+    height: "84px"
+  activity-drawer:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.paper}"
+    padding: "20px 22px"
+    width: "520px"
+  pill:
+    backgroundColor: "{colors.bg}"
+    textColor: "{colors.paper-2}"
+    padding: "3px 10px 3px 8px"
 ---
 
 # Design System: Empi Publisher
 
-Este documento recoge el sistema visual de **Empi Publisher** (`tools/publisher`), la herramienta del autor. El launcher que usan los jugadores tiene su propia hoja de estilos heredada y no está descrito aquí.
-
 ## Overview
 
-**Creative North Star: "El taller ordenado"**
+**Creative North Star: "The Proof Bench"**
 
-Un banco de trabajo oscuro y en calma. El autor trabaja solo, a ratos largos, y lo que hace al final (pulsar Enviar) llega a otras personas: por eso la interfaz debe transmitir serenidad y precisión, no prisa. Cada herramienta está en su sitio, nada compite por la atención y siempre se ve qué está pasando: los pasos, el progreso y el detalle técnico están a un clic, nunca ocultos.
+A darkroom bench where a modpack is framed, developed and printed. Ground is near-black, marks are paper-white, and tone is made of halftone dots rather than gradients or shadows. The tool is still at rest: a glitch (a 260 ms scan-line tear with a red/cyan channel split) is how it speaks about change and failure, and one electric pink is reserved for the next thing the operator should do. Text and controls stay crisp and legible; the dithering, ribbing and glitch belong to the ground and to events, never to the words you work in.
 
-El sistema es plano y se construye por capas de tono, no por adornos. Todos los neutros se inclinan hacia el verde del acento (nada de gris puro ni negro puro), y el verde solo aparece cuando algo avanza, está seleccionado o salió bien. Las fuentes son las del sistema operativo: no hay nada que descargar, en línea con el principio de gastar lo mínimo de la máquina.
+The mood is precise, printed and slightly uncanny: dot-matrix headlines over a plain Windows UI face, square corners, dotted rules where other systems draw solid lines, and static halftone plates (flower, cloud, tear, field) as the only imagery. Density is that of a working tool: a 290px pack list beside a form column, with a fixed pipeline footer that always shows the current step. Low RAM and CPU are a product principle, so every texture is a pre-rendered raster or CSS gradient on a fixed layer and nothing loops except one LED while a task runs.
 
 **Key Characteristics:**
-- Tono sereno y preciso; controles silenciosos, con un único elemento que destaca: el siguiente paso.
-- Profundidad por tono (plano por capas), con líneas finas para separar; solo el panel de progreso lleva sombra.
-- Un acento verde reservado a la acción, la selección y el éxito.
-- Iconos dibujados con un solo trazo (rejilla de 24 px, 1,75 de grosor, extremos redondos); nunca emoji.
-- Movimiento corto (120–220 ms) y solo para comunicar un cambio de estado.
+- Black and paper-white plus exactly one pink; pink means "next action" or "focus".
+- Dotted rules (radial-gradient dots) divide sections, tabs, the topbar and the pipeline instead of solid hairlines.
+- Square corners everywhere; the primary button is notched, not rounded.
+- Doto dot-matrix for identity and numerals only; Segoe UI Variable for everything read or edited.
+- Motion is event-only: tear on new step, failure and pack selection; split on button hover.
+- Halftone plates are static, feathered by masks, height-capped and hidden at 900px and below.
 
 ## Colors
 
-Un solo verde vivo sobre una familia de carbones con un toque de musgo. Ámbar y rojo existen solo para avisar.
+A monochrome darkroom palette: warm-tinted near-blacks, three paper tones, a single hot pink, and two legibility exceptions for status.
 
 ### Primary
-- **Verde Creeper** (#6fbf3c, oklch(72.7% 0.182 136)): la acción que hace avanzar el trabajo (Compilar, Enviar, Guardar, Crear), la selección actual (pestaña activa, modpack elegido) y el éxito. Va relleno solo en botones; en los demás sitios aparece como línea (`creeper-line`) o tinte (`creeper-tint`).
-- **Verde Creeper Vivo** (#86d654): el estado hover del botón primario, el icono de "todo listo" y las marcas de paso completado.
-- **Tinta Creeper** (#0c1804): el texto sobre el verde (8,01:1 de contraste).
+- **Electric Pink** (#ff3d8b, `pink`): the one live color. Used for the next pipeline action (the Compilar primary button), the focus ring, the active-tab dot strip, the dashed current-step marker (step 2), the running-task LED (10px square spinner) and the single lit dot in the logo. It also drives the selection highlight, the text caret and the mod drop-zone hover (12% tint), which are focus-like states.
+- **Pink Hover** (#ff6aa6, `pink-hover`): primary button hover.
+- **Pink Ink** (#16030c, `pink-ink`): text on pink and on selected text.
+
+### Secondary
+- **Split Red** (#ff2a4a, `split-red`) and **Split Cyan** (#33e6ff, `split-cyan`): the two RGB channels. They exist only as text-shadow offsets inside the 260 ms `tear` flash and the 200 ms hover `split`. Never a fill, border or text color at rest.
 
 ### Neutral
-- **Carbón Musgo Profundo** (#0e110e): el lienzo de la aplicación y el fondo de los campos de texto.
-- **Carbón Musgo** (#151915): la barra superior, el pie de pasos y el panel de progreso (primer nivel elevado).
-- **Carbón Musgo Elevado** (#1b201b): filas al pasar el ratón y botones por defecto.
-- **Carbón Musgo Alzado** (#232a23): el control seleccionado dentro de un grupo y el estado pulsado.
-- **Pozo de Musgo** (#0a0d0a): los pozos de lectura (detalle técnico, comando que se va a ejecutar); es más oscuro que el lienzo a propósito.
-- **Línea Musgo** (#262d26) y **Línea Musgo Fuerte** (#354035): divisores de una sola línea y contornos de controles.
-- **Blanco Hueso** (#e6ece6): texto principal (14,81:1 sobre Carbón Musgo).
-- **Bruma de Salvia** (#a3b09b): texto secundario y descripciones (7,82:1).
-- **Salvia Apagada** (#7f8e77): marcadores de posición, pesos, tamaños y metadatos discretos (5,11:1; 4,76:1 sobre el nivel elevado).
+- **Well** (#060607): recessed wells; inputs, log, segmented tracks, command preview.
+- **Bench Black** (#0b0b0d, `bg`): page ground.
+- **Surface** (#111114): topbar, pipeline footer, drawer, dialogs.
+- **Surface 2 / 3** (#18181c / #212127): hover fills, secondary buttons, pack icon tiles.
+- **Line / Line Strong** (#24242a / #3b3b44): solid 1px borders on controls (inputs, buttons, segmented).
+- **Dot Grey** (#55555f, `dot`): the color of every dotted rule and dotted border.
+- **Paper** (#f1efe8): primary text, done markers, inverted selection and paper buttons.
+- **Paper 2** (#a5a598): secondary text and icons. **Paper 3** (#8b8b81): placeholders, tertiary metadata, disabled text.
 
-### Semantic
-- **Rojo Brasa** (#ef7563): errores, cancelar y acciones destructivas. Con su tinte para avisos de error.
-- **Ámbar Farol** (#e0b040): avisos y todo lo que sea "Libre" en la protección de archivos (la excepción que conviene ver).
+### Status (legibility exceptions)
+- **Danger Coral** (#ff6a4d, `danger`) and **Warn Amber** (#ffb14a, `warn`): persistent status colors for Libre badges (warn), the unsaved-changes hint, error banners and toasts, the failed step and failed resolve strip, the offline bar, and the Cancelar outline (danger). They sit outside the black/white/pink palette on purpose: status must be readable at a glance and must never be confused with the pink next-action signal.
 
 ### Named Rules
-**The Green Means Go Rule.** Verde Creeper es para lo que mueve el trabajo hacia delante, para la selección actual y para el éxito. Nunca decora, nunca marca un estado inactivo.
-
-**The Tinted Neutral Rule.** Ningún neutro es gris puro: todos se inclinan al matiz del acento (oklch ~145). Un gris frío en este sistema es un error.
+**The One Pink Rule.** Pink marks the next action and focus, nothing else. A second pink element competing on screen means one of them is wrong.
+**The Flash-Only Channels Rule.** Red and cyan appear only as 260 ms (or 200 ms hover) split flashes. They are never persistent.
+**The Status Exception Rule.** `danger` and `warn` are the only persistent colors outside black, white and pink, and only for status. Do not extend them to decoration or emphasis.
 
 ## Typography
 
-**Cuerpo y títulos:** Segoe UI Variable Text (con Segoe UI y la fuente del sistema como respaldo)
-**Código y rutas:** Cascadia Mono (con Consolas)
+**Display Font:** Doto (with Cascadia Mono, Consolas, monospace), self-hosted variable woff2 (weights 100 to 900, `font-display: swap`)
+**Body Font:** Segoe UI Variable Text (with Segoe UI, system-ui, sans-serif)
+**Label/Mono Font:** Cascadia Mono (with Consolas, monospace) for code, logs and paths
 
-**Character:** una sola familia del sistema que hace todo el trabajo; el peso 600 marca la jerarquía y la fuente monoespaciada se reserva para lo que de verdad es código, dato o ruta.
+**Character:** A dot-matrix face for what the tool calls itself and its big numerals, over the operating system's own UI face for everything you read or edit. The contrast is printout versus paper.
 
 ### Hierarchy
-- **Headline** (600, 20px, 1,25, -0,01em): el nombre del modpack o de la pantalla (una vez por pantalla).
-- **Title** (600, 16px, 1,5): el encabezado de una sección dentro de una pantalla.
-- **Body** (400, 14px, 1,5): el texto de trabajo. Los párrafos de explicación no pasan de unos 62 caracteres de ancho.
-- **Label** (400, 13px): etiquetas de campos y descripciones bajo un título, en Bruma de Salvia.
-- **Caption** (400, 12px): ayudas, tamaños, contadores y pistas; con cifras tabulares donde hay números.
-- **Code** (400, 12px, 1,55): detalle técnico, comando previsto y rutas de reglas.
+- **Display** (Doto 700, 32px, 1.1; 26px at 900px and below): page headline such as the selected pack title.
+- **Drawer Title** (Doto 700, 24px, 1.1): activity drawer title; also the version numerals in the launcher version choices.
+- **Wordmark** (Doto 800, 17px, 0.02em, uppercase): "Empi Publisher" in the topbar; hidden below 520px.
+- **Headline** (Segoe 600, 16px): section headings (h2).
+- **Title** (Segoe 600 to 700, 14px): h3, pack names (700), step titles (700), zone titles.
+- **Body** (Segoe 400, 14px, 1.5): everything else; prose capped at 62ch.
+- **Label** (Segoe 400, 13px, `paper-2`): form labels, hints, facts.
+- **Caption** (Segoe 400, 12px): sub-lines, counts, badges, metadata.
 
 ### Named Rules
-**The System Font Rule.** No se carga ninguna fuente. Lo que pide el sistema ya está instalado y no cuesta nada.
-
-**The Tabular Numbers Rule.** Versiones, tamaños, contadores y tiempos usan cifras tabulares para que no salten al cambiar.
+**The Dots Are Headlines Rule.** Doto is for the wordmark, headlines, the drawer title and version numerals. It is never body text, labels, buttons or inputs.
+**The Tabular Numerals Rule.** Counts, sizes, versions and progress use `tabular-nums`.
 
 ## Layout
 
-Dos estructuras. El **espacio de trabajo de modpacks** es una lista a la izquierda (290 px, fija al hacer scroll) y el contenido a la derecha, con 40 px entre columnas y un ancho máximo de 1240 px. Las **pantallas de una sola tarea** (Launcher) van en una columna de 760 px. Arriba, una barra fija de 52 px; abajo, el pie de pasos fijo, cuya altura se mide y se reserva para que nada quede tapado.
+A two-column workbench: a 290px sticky pack sidebar and a fluid content column (container max 1240px, 40px gutter, 28px/24px padding). Single-column surfaces (launcher tab, settings) are centred at 760px. Forms use a two-column grid (20px/24px gaps, max 820px); the mod zones use three equal columns with 16px gaps. Vertical rhythm steps through 6, 8, 12, 16, 24, with 28px above form actions. A fixed pipeline footer (min-height 84px, exposed as `--pipeline-h`) reserves bottom padding on `main`; the toast and the bottom-left plate both sit above it.
 
-Las secciones se separan con líneas finas y 24 px de aire, no con cajas: sin tarjetas dentro de tarjetas. Los formularios usan una rejilla de dos columnas (máximo 820 px) con 20 px de separación vertical y 24 px horizontal. El ritmo de espaciado es 4, 8, 12, 16, 24, 40; los grupos afines van juntos y los distintos, separados con generosidad.
+Halftone plates sit on the fixed ground: bottom-left (340px wide, height capped at `min(496px, 100vh - pipeline - 380px)` so it stays below the modpack list) and top-right (320 by 118px, rotated 180deg). On the launcher tab the left plate narrows to the margin beside the centred column. Both hide at 900px and below.
 
-En pantallas de hasta 900 px la lista de modpacks se vuelve una tira horizontal, las columnas pasan a una, la barra de estado se oculta y el pie de pasos se reduce a los dos botones (Compilar y Enviar). A partir de 520 px desaparece el nombre junto al logo.
+Responsive has one breakpoint at 900px: the sidebar becomes a horizontal pack strip, grids collapse to one column, the health pills and plates are hidden, the pipeline drops its numbered markers and connectors and its button goes full width, and the permissions rows stack. At 520px the wordmark text is hidden.
 
 ## Elevation & Depth
 
-Sistema plano por capas de tono. Los niveles son: lienzo (Carbón Musgo Profundo) → superficies fijas (Carbón Musgo) → hover y botones (Elevado) → seleccionado (Alzado), con una línea de una sola capa entre ellos. No hay sombras en tarjetas ni botones.
-
-### Shadow Vocabulary
-- **Panel de progreso** (`box-shadow: -16px 0 40px rgb(0 0 0 / .45)`): la única sombra del sistema, para separar del resto el panel lateral que aparece encima cuando hay una tarea en marcha.
-- **Anillo de selección** (`box-shadow: inset 0 0 0 1px rgb(111 191 60 / .45)`): no es sombra de profundidad sino un contorno interno que marca el elemento elegido dentro de un grupo.
-- **Telón de diálogos** (`rgb(0 0 0 / .6)`): oscurece lo que hay detrás mientras un diálogo pide atención.
+Flat by default. Depth comes from tone steps (well, bench, surface, surface 2, surface 3), dotted rules and the halftone plates behind content, not from shadows. The single shadow is the activity drawer's left cast (`box-shadow: -16px 0 40px rgb(0 0 0 / .55)`), which separates a slid-in overlay from the page. Dialogs separate by a 1px `paper-3` border and an 80% black backdrop. Selection is expressed by inversion (a paper block with crop marks), not lift.
 
 ### Named Rules
-**The Flat-By-Tone Rule.** La profundidad se expresa cambiando de tono, nunca añadiendo sombra. Si algo necesita destacar, sube de nivel de tono o gana una línea.
+**The Flat Ground Rule.** No hard offset shadows, glows or blurred card shadows. The drawer cast is the only shadow.
+**The Ribbed Glass Exception.** The topbar's `repeating-linear-gradient` of fine vertical paper lines (7% alpha, 1px lines on a 5px pitch, faded in from the left by a mask) is a deliberate part of the world (ribbed glass from the moodboard). It is an intentional advisory exception, not a defect: do not remove it, and do not spread it beyond the topbar.
+**The Static Raster Rule.** Every texture is a pre-rendered PNG or a CSS gradient on a fixed layer. No canvas, video, blur filters or continuously animated background.
 
 ## Shapes
 
-Esquinas suaves y discretas, en escala corta: 7 px para controles (botones, campos), 10 px para filas y contenedores, 12 px para iconos de modpack y 14 px para diálogos. Los distintivos, píldoras de estado y marcadores de paso son totalmente redondos (999 px y círculo). Los segmentos internos de un grupo usan 5 px. Los bordes son siempre de 1 px, sin biseles ni recortes decorativos.
+Square corners throughout (border-radius 0). Silhouette comes from rules, notches and inversion instead of rounding. Solid 1px `line-strong` borders on interactive controls; 1px dotted `dot` borders on containers, zones, pills, logs, trees and the drawer edge. The primary button has a 5-vertex clip-path polygon that cuts a 9px notch off the top-right corner; the notch is removed on `:focus-visible` so the focus ring stays whole. The active pack card and the selected version choice invert to paper; the active pack card also gains four L-shaped crop marks (7px arms, inset -4px, `paper-2`), like a frame picked on a proof sheet. Icons are 16px, square-capped, miter-joined 1.5px outline strokes.
 
 ## Components
 
 ### Buttons
-- **Shape:** esquinas suaves (7 px), 36 px de alto en tamaño normal; el tamaño grande (11 px 22 px, 15 px de texto) solo en el pie de pasos.
-- **Default:** fondo Carbón Musgo Elevado, contorno fuerte, texto Blanco Hueso; en hover sube a Alzado. Al pulsar se encoge un 2% (`scale(.98)`) en 120 ms.
-- **Primary:** relleno Verde Creeper con Tinta Creeper; hover a Verde Creeper Vivo. Un botón primario es la respuesta a "¿qué hago ahora?".
-- **Danger:** texto y contorno en Rojo Brasa; hover con su tinte.
-- **Disabled:** 40% de opacidad y cursor de no permitido.
+- **Shape:** square, 1px border, padding 8px 16px (small 5px 11px, big 11px 22px), weight 500.
+- **Primary:** pink fill, pink-ink text, 700, notched top-right corner. One per screen: the next pipeline action (Compilar). Hover lightens to pink-hover.
+- **Secondary:** Surface 2 fill, paper text, `line-strong` border. Hover: Surface 3 plus the `split` text-shadow flash (no transform, no clip-path). Active: inverts to paper.
+- **Paper:** paper fill, bench-black text, 700. Emphasis without pink (Nuevo, Guardar, Crear). Hover goes to white.
+- **Danger:** coral text and outline on Surface (Cancelar). Hover adds a 10% coral tint.
+- **Disabled:** ordered-stipple dither (`repeating-conic-gradient`, 3px cells, 14% paper), `paper-3` text, `line` border, not-allowed cursor, notch removed, no hover flash.
 
 ### Inputs / Fields
-- **Style:** fondo Carbón Musgo Profundo, contorno fuerte de 1 px, 7 px de esquina, 36 px de alto; las listas desplegables llevan una flecha dibujada.
-- **Focus:** anillo de 2 px en Verde Creeper hacia dentro del campo.
-- **Placeholder:** Salvia Apagada.
+- **Style:** Well fill, 1px `line-strong` border, 8px 10px padding, min-height 36px, square. Select uses a square-capped chevron. Checkboxes are 16px with a paper accent.
+- **Focus:** 2px pink outline drawn inside (-1px offset), border transparent. Caret is pink. Placeholder is `paper-3`.
+- **Segmented control:** Well track, the active segment inverts to paper.
+
+### Pack Card (sidebar)
+Transparent row with a 40px square icon tile, bold name and 12px sub-line. Hover: Surface 2. Active: paper block with bench-black text, a `#47473f` sub-line and crop marks. On selection the pack title fires one `tear`.
 
 ### Navigation
-- **Pestañas superiores:** texto en Bruma de Salvia; la activa pasa a Blanco Hueso y lleva una línea de 2 px en Verde Creeper bajo el texto.
-- **Subpestañas del modpack:** mismo patrón, con línea inferior en el divisor.
-- **Lista de modpacks:** filas de 10 px de esquina con icono de 40 px; la elegida lleva tinte y línea de Creeper.
+- **Topbar:** 52px, Surface, ribbed-glass overlay, dotted rule along the bottom, wordmark beside a dot-matrix E logo (one row slipped sideways, one pink dot at the bottom right). Tabs are `paper-2`; hover and current go to paper; the current tab and the current pack sub-tab carry a 4px strip of pink dots underneath. Sub-tabs sit on a dotted rule and fade at the right edge when they overflow.
+- **Health pills:** dotted-border chips with an icon; the `bad` state turns coral.
 
-### Pipeline Footer (pasos Editar → Compilar → Enviar)
-El corazón del producto. Tres pasos conectados con marcadores redondos (número o marca de completado) y una pista de una línea bajo cada botón. El siguiente paso posible lleva el botón primario; los completados, marca verde; los no disponibles, apagados.
+### Pipeline Footer (signature)
+Fixed bar (84px) with a dotted top rule: numbered 28px square markers joined by dotted connectors. Done: paper fill with a check. Current: 2px dashed pink outline with a pink numeral. Upcoming: grey outline. A new step marker tears once.
 
-### Activity Drawer
-Panel lateral de 520 px que aparece al ejecutar algo: título, tiempo transcurrido, lista de pasos con estado (marca, círculo girando, cruz), un aviso final (verde o rojo) y el "Detalle técnico" en un pozo de código plegable. Entra con un deslizamiento de 220 ms.
+### Activity Drawer (signature)
+520px right-hand drawer on Surface with a dotted left edge. The head carries the cloud plate on the right behind a left-to-transparent surface gradient; the title is Doto 24px. Steps: done in paper with a check, current bold with the pink 10px square LED spinner (1s `steps(1)` blink), failed in coral. Below sits the `resolve` strip: a 14px row of dots on a 12px pitch whose radius grows with progress (`--p`, 0 to 1 in the JS, radius = `--p` x 3.6px in CSS), paper when running and coral when failed. Banners: success has a dotted paper border; error has a coral border over the `tear.png` texture and tears once on appearance. The log is a Well block with a dotted border in the code face.
 
-### Protection Explorer (signature)
-Un explorador de archivos donde cada fila (carpeta o archivo) muestra su estado y un control de tres botones: Heredar, Protegido, Libre. Protegido es neutro con candado; Libre lleva ámbar con candado abierto, porque es la excepción que hay que ver. Las columnas están alineadas en todas las filas.
+### Zones, Permission Tree, Badges
+Mod zones have dotted borders (drop-over turns the border pink with a 12% tint). The permissions tree is a dotted-bordered list with dotted row separators; the `pctl` segmented control inverts its active option. Libre badges are amber dotted chips.
 
-### Badges and Status Pills
-Píldoras de 999 px con icono de 13 px. "Todo listo" lleva la marca verde; los avisos de la barra superior van en Rojo Brasa.
-
-### Dialogs and Toast
-Diálogos con 14 px de esquina que aparecen con un ligero ascenso de 200 ms; el aviso breve (toast) sube desde abajo, sobre el pie de pasos.
+### Empty State
+Two-column hero: headline and prose beside the dithered flower plate (`art/flower.png`), stacked at 900px and below.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** reservar Verde Creeper para la acción que hace avanzar el trabajo, la selección actual y el éxito.
-- **Do** mantener todo texto en al menos 4,5:1 sobre su fondo; Salvia Apagada solo para marcadores, tamaños y metadatos.
-- **Do** dibujar los iconos con el mismo trazo (rejilla de 24 px, grosor 1,75) y darles nombre accesible cuando son botones.
-- **Do** mostrar el progreso paso a paso y dejar el detalle técnico a un clic.
-- **Do** separar secciones con líneas finas y aire (24 px), y alinear en columnas todo lo que se compara (tamaños, estados, controles).
-- **Do** respetar `prefers-reduced-motion` y limitar el movimiento a 120–220 ms con la curva `cubic-bezier(.16, 1, .3, 1)`.
+- **Do** spend pink only on the next pipeline action, the focus ring, active-tab dots, the dashed current-step marker, the running LED and the logo dot.
+- **Do** invert to paper (`#f1efe8` on `#0b0b0d`) for selection and secondary emphasis: active pack card, selected version choice, Nuevo, Guardar, Crear.
+- **Do** divide with the dotted rule (`--dotted`, or `dot`-coloured dotted borders) instead of solid hairlines.
+- **Do** fire `tear` only on events (new step marker, failure banner, pack title after selecting a pack) and use the `split` text-shadow only for hover.
+- **Do** keep art static: `body::before` and `body::after` plates from `art/field.png` feathered with a mask and height-capped; cloud in the drawer head, tear behind error banners, flower in the empty state.
+- **Do** honour `prefers-reduced-motion` and keep raster layers fixed; minimum RAM and CPU is a hard product principle.
+- **Do** keep persistent `danger` and `warn` for status only (Libre badges, error banners, Cancelar outline, failed step). They are legibility exceptions to the black/white/pink palette.
 
 ### Don't:
-- **Don't** usar emoji como iconos ni mezclar familias de iconos.
-- **Don't** añadir sombras a tarjetas o botones para dar profundidad; sube de tono en su lugar.
-- **Don't** anidar tarjetas ni envolver cada sección en una caja.
-- **Don't** usar gris o negro puros: todo neutro se inclina al verde del acento.
-- **Don't** poner rojo o ámbar como decoración; existen para avisar.
-- **Don't** cargar fuentes externas ni recursos que cuesten memoria o red.
+- **Don't** add a second accent, gradient fills on controls or colored glows.
+- **Don't** show red or cyan at rest; they exist only inside the 260 ms tear and 200 ms split flashes.
+- **Don't** set Doto on body text, labels, buttons or inputs.
+- **Don't** round corners or add card shadows or hard offset shadows.
+- **Don't** animate hover with `transform` or `clip-path`; hover uses only `text-shadow` (split) and color transitions.
+- **Don't** add continuously animated backgrounds, blur filters, video or canvas. The only looping motion is the running-task LED (plus the short-lived loading skeleton).
+- **Don't** remove the topbar's ribbed-glass repeating gradient as a defect; it is a deliberate advisory exception. Don't reuse it as a general pattern either.
+- **Don't** let a halftone plate end in a hard edge or sit at full strength behind list text.
+- **Don't** use `danger` or `warn` for decoration or emphasis; they are for status only.
+
+## Assets
+
+Four procedural halftone rasters live in `tools/publisher/public/art/` (`cloud.png`, `flower.png`, `tear.png`, `field.png`), generated by `tools/publisher/scripts/make-art.js`. Provenance for each is embedded in its PNG tEXt chunk by `impeccable embed-prompt`. Doto (`fonts/Doto.woff2`, licence in `Doto-LICENSE.txt`) is the only web font.

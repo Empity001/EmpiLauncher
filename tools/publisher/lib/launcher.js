@@ -101,7 +101,7 @@ async function send(config, options, log, step) {
     if (!state) throw new Error('Primero pulsa "Compilar".')
     const build = readBuild(config, state.version)
     if (!build) throw new Error('No encuentro el instalador compilado. Vuelve a pulsar "Compilar".')
-    if (readPackage(config).version !== state.version) throw new Error('La version cambio despues de compilar. Vuelve a pulsar "Compilar".')
+    if (readPackage(config).version !== state.version) throw new Error('La versión cambió después de compilar. Vuelve a pulsar "Compilar".')
 
     const tag = `v${state.version}`
     const notes = (options.notes != null ? options.notes : state.notes) || ''

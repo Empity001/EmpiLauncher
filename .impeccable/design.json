@@ -1,387 +1,174 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-18T20:17:44.599Z",
+  "generatedAt": "2026-09-18T21:00:00.000Z",
   "title": "Design System: Empi Publisher",
   "extensions": {
     "colorMeta": {
-      "creeper-green": {
-        "role": "primary",
-        "displayName": "Verde Creeper",
-        "canonical": "oklch(72.7% 0.182 136)",
-        "tonalRamp": [
-          "#021000",
-          "#122d01",
-          "#244e01",
-          "#387207",
-          "#4f9815",
-          "#6dbd3a",
-          "#91e362",
-          "#d2febc"
-        ]
-      },
-      "creeper-green-bright": {
-        "role": "primary",
-        "displayName": "Verde Creeper Vivo",
-        "canonical": "oklch(79.8% 0.182 135)",
-        "tonalRamp": [
-          "#020f00",
-          "#122d01",
-          "#244e00",
-          "#397205",
-          "#509713",
-          "#6ebd38",
-          "#92e361",
-          "#d0ffb8"
-        ]
-      },
-      "moss-charcoal-deep": {
-        "role": "neutral",
-        "displayName": "Carbón Musgo Profundo",
-        "canonical": "oklch(17.3% 0.008 145)",
-        "tonalRamp": [
-          "#090c09",
-          "#232623",
-          "#3f433f",
-          "#5f625f",
-          "#7f847f",
-          "#a2a6a2",
-          "#c6cac6",
-          "#ebf0eb"
-        ]
-      },
-      "moss-charcoal": {
-        "role": "neutral",
-        "displayName": "Carbón Musgo",
-        "canonical": "oklch(20.8% 0.010 145)",
-        "tonalRamp": [
-          "#090c09",
-          "#222622",
-          "#3f433f",
-          "#5e635e",
-          "#7f847f",
-          "#a1a7a1",
-          "#c5cbc5",
-          "#ebf0ea"
-        ]
-      },
-      "moss-charcoal-raised": {
-        "role": "neutral",
-        "displayName": "Carbón Musgo Elevado",
-        "canonical": "oklch(23.7% 0.012 145)",
-        "tonalRamp": [
-          "#080d08",
-          "#222722",
-          "#3e443e",
-          "#5d635d",
-          "#7e847e",
-          "#a1a7a0",
-          "#c4cbc4",
-          "#eaf1ea"
-        ]
-      },
-      "moss-charcoal-lifted": {
-        "role": "neutral",
-        "displayName": "Carbón Musgo Alzado",
-        "canonical": "oklch(27.6% 0.016 145)",
-        "tonalRamp": [
-          "#070d07",
-          "#202720",
-          "#3d443d",
-          "#5c645c",
-          "#7d857d",
-          "#9fa89f",
-          "#c3ccc3",
-          "#e8f2e8"
-        ]
-      },
-      "moss-line-strong": {
-        "role": "neutral",
-        "displayName": "Línea Musgo Fuerte",
-        "canonical": "oklch(35.8% 0.024 145)",
-        "tonalRamp": [
-          "#050e06",
-          "#1e281e",
-          "#3a453a",
-          "#596559",
-          "#7a867a",
-          "#9ca99c",
-          "#c0cdc0",
-          "#e5f3e5"
-        ]
-      },
-      "bone-white": {
-        "role": "neutral",
-        "displayName": "Blanco Hueso",
-        "canonical": "oklch(93.7% 0.010 145)",
-        "tonalRamp": [
-          "#090c09",
-          "#222622",
-          "#3f433f",
-          "#5e635e",
-          "#7f847f",
-          "#a1a7a1",
-          "#c5cbc5",
-          "#eaf0ea"
-        ]
-      },
-      "sage-mist": {
-        "role": "neutral",
-        "displayName": "Bruma de Salvia",
-        "canonical": "oklch(74.1% 0.033 133)",
-        "tonalRamp": [
-          "#060e02",
-          "#1f2918",
-          "#3b4634",
-          "#5a6652",
-          "#7b8773",
-          "#9daa95",
-          "#c1ceb9",
-          "#e6f4dd"
-        ]
-      },
-      "sage-dim": {
-        "role": "neutral",
-        "displayName": "Salvia Apagada",
-        "canonical": "oklch(62.8% 0.038 135)",
-        "tonalRamp": [
-          "#050e01",
-          "#1d2916",
-          "#394732",
-          "#586651",
-          "#798871",
-          "#9bab93",
-          "#bfcfb6",
-          "#e4f5db"
-        ]
-      },
-      "ember-red": {
-        "role": "semantic",
-        "displayName": "Rojo Brasa",
-        "canonical": "oklch(70.1% 0.154 30)",
-        "tonalRamp": [
-          "#210000",
-          "#4c0200",
-          "#7d0e05",
-          "#a73326",
-          "#ce5847",
-          "#f67b69",
-          "#fdb4a7",
-          "#fee9e5"
-        ]
-      },
-      "lantern-amber": {
-        "role": "semantic",
-        "displayName": "Ámbar Farol",
-        "canonical": "oklch(78.1% 0.137 85)",
-        "tonalRamp": [
-          "#120900",
-          "#312200",
-          "#553e00",
-          "#7b5c01",
-          "#a47b0e",
-          "#cc9d27",
-          "#f2c254",
-          "#feedc8"
-        ]
-      }
+      "well": { "role": "neutral", "displayName": "Well", "canonical": "#060607", "tonalRamp": ["#060607", "#0b0b0d", "#111114", "#18181c", "#212127", "#24242a", "#3b3b44", "#55555f"] },
+      "bg": { "role": "neutral", "displayName": "Bench Black", "canonical": "#0b0b0d", "tonalRamp": ["#060607", "#0b0b0d", "#111114", "#18181c", "#212127", "#24242a", "#3b3b44", "#55555f"] },
+      "surface": { "role": "neutral", "displayName": "Surface", "canonical": "#111114", "tonalRamp": ["#060607", "#0b0b0d", "#111114", "#18181c", "#212127", "#24242a", "#3b3b44", "#55555f"] },
+      "paper": { "role": "neutral", "displayName": "Paper", "canonical": "#f1efe8", "tonalRamp": ["#55555f", "#8b8b81", "#a5a598", "#c4c3b9", "#dcdad2", "#f1efe8", "#f7f6f1", "#ffffff"] },
+      "pink": { "role": "primary", "displayName": "Electric Pink", "canonical": "#ff3d8b", "tonalRamp": ["#16030c", "#5c1636", "#a3245f", "#d62f78", "#ff3d8b", "#ff6aa6", "#ff9cc4", "#ffd1e2"] },
+      "split-red": { "role": "secondary", "displayName": "Split Red (flash only)", "canonical": "#ff2a4a", "tonalRamp": ["#3a0810", "#68101f", "#9a172e", "#cc203c", "#ff2a4a", "#ff6a80", "#ff9fae", "#ffd0d7"] },
+      "split-cyan": { "role": "secondary", "displayName": "Split Cyan (flash only)", "canonical": "#33e6ff", "tonalRamp": ["#04303a", "#08505f", "#0c7387", "#1499b0", "#33e6ff", "#7aeeff", "#a8f3ff", "#d6f9ff"] },
+      "danger": { "role": "status", "displayName": "Danger Coral (legibility exception)", "canonical": "#ff6a4d", "tonalRamp": ["#1a0703", "#4d1e14", "#7f3222", "#b04a33", "#ff6a4d", "#ff8f78", "#ffb5a5", "#ffd9d1"] },
+      "warn": { "role": "status", "displayName": "Warn Amber (legibility exception)", "canonical": "#ffb14a", "tonalRamp": ["#2a1a05", "#59390e", "#875a17", "#b57a20", "#ffb14a", "#ffc577", "#ffd9a3", "#ffecd1"] }
     },
     "typographyMeta": {
-      "headline": {
-        "displayName": "Headline",
-        "purpose": "El nombre del modpack o de la pantalla, una vez por pantalla."
-      },
-      "title": {
-        "displayName": "Title",
-        "purpose": "Encabezado de una sección dentro de una pantalla."
-      },
-      "body": {
-        "displayName": "Body",
-        "purpose": "El texto de trabajo; los párrafos no pasan de ~62 caracteres."
-      },
-      "label": {
-        "displayName": "Label",
-        "purpose": "Etiquetas de campos y descripciones bajo un título."
-      },
-      "caption": {
-        "displayName": "Caption",
-        "purpose": "Ayudas, tamaños, contadores y pistas, con cifras tabulares."
-      },
-      "code": {
-        "displayName": "Code",
-        "purpose": "Detalle técnico, comando previsto y rutas de reglas."
-      }
+      "display": { "displayName": "Display (Doto)", "purpose": "Selected pack title; dot-matrix headline. Never body text." },
+      "drawer-title": { "displayName": "Drawer Title (Doto)", "purpose": "Activity drawer title and launcher version numerals." },
+      "wordmark": { "displayName": "Wordmark (Doto)", "purpose": "Uppercase Empi Publisher in the topbar." },
+      "headline": { "displayName": "Headline", "purpose": "Section h2 in Segoe UI Variable." },
+      "body": { "displayName": "Body", "purpose": "Everything read or edited; prose capped at 62ch." },
+      "code": { "displayName": "Code", "purpose": "Logs, paths, command preview in Cascadia Mono." }
     },
     "shadows": [
-      {
-        "name": "progress-drawer",
-        "value": "-16px 0 40px rgb(0 0 0 / .45)",
-        "purpose": "La única sombra del sistema: separa el panel de progreso del resto."
-      },
-      {
-        "name": "selection-ring",
-        "value": "inset 0 0 0 1px rgb(111 191 60 / .45)",
-        "purpose": "Contorno interno que marca el elemento elegido dentro de un grupo."
-      },
-      {
-        "name": "dialog-scrim",
-        "value": "rgb(0 0 0 / .6)",
-        "purpose": "Telón que oscurece lo de atrás mientras un diálogo pide atención."
-      }
+      { "name": "drawer-cast", "value": "-16px 0 40px rgb(0 0 0 / .55)", "purpose": "The only shadow: separates the slid-in activity drawer from the page." }
     ],
     "motion": [
-      {
-        "name": "ease-out-expo",
-        "value": "cubic-bezier(.16, 1, .3, 1)",
-        "purpose": "Curva de todas las transiciones de estado."
-      },
-      {
-        "name": "state-change",
-        "value": "120ms–220ms",
-        "purpose": "Duración de hover, foco, deslizamiento del panel y aparición de diálogos."
-      },
-      {
-        "name": "reduced-motion",
-        "value": "prefers-reduced-motion: reduce",
-        "purpose": "Las animaciones se recortan; el indicador de carga sigue girando más despacio."
-      }
+      { "name": "tear", "value": "260ms steps(1, end) 1; keyframes 0/15/30/45/60/80/100% translateX -3,4,-2,2,-1px with clip-path inset bands and text-shadow 2px red/cyan split", "purpose": "Event-only glitch: new step marker, failure banner, pack title after selecting a pack. Replayed by JS tear(el)." },
+      { "name": "split", "value": "200ms steps(1, end) 1; text-shadow 2px/-2px/1px red and cyan offsets only", "purpose": "Button hover. No clip-path, no transform." },
+      { "name": "led", "value": "1s steps(1, end) infinite; opacity 1 to .2 at 50%", "purpose": "10px pink square spinner, the one lit indicator, only while a task runs. Disabled under reduced motion." },
+      { "name": "resolve", "value": "radial-gradient dots on 12px pitch, dot radius = --p x 3.6px, --p 0..1", "purpose": "Dot-progress strip in the drawer. --p derives from step count (capped at 0.9) until finished; turns coral when failed. Static raster, no animation." },
+      { "name": "ease", "value": "cubic-bezier(.2, .9, .2, 1)", "purpose": "Color and background transitions (.1s to .12s); drawer slide .18s, dialog pop .16s, toast rise .16s." },
+      { "name": "reduced-motion", "value": "animation-duration and transition-duration .01ms; spinner animation none", "purpose": "prefers-reduced-motion is respected globally." }
     ],
     "breakpoints": [
-      {
-        "name": "compact",
-        "value": "520px"
-      },
-      {
-        "name": "narrow",
-        "value": "900px"
-      }
+      { "name": "narrow", "value": "900px", "purpose": "Single column, plates hidden, pipeline compact, sidebar becomes a horizontal strip." },
+      { "name": "tiny", "value": "520px", "purpose": "Wordmark text hidden." }
+    ],
+    "tokens": [
+      { "name": "dotted", "value": "radial-gradient(circle, #55555f 1px, transparent 1.4px) 0 0 / 7px 3px repeat-x", "purpose": "The dotted rule used for topbar, subtabs, pipeline, section dividers." },
+      { "name": "pipeline-h", "value": "84px (set at runtime from the measured footer height)", "purpose": "Reserves bottom space and positions the toast and bottom-left plate." },
+      { "name": "plates", "value": "art/field.png at 340px, opacity .6 (bottom-left) and .5 rotated 180deg (top-right 320x118), masked to feather", "purpose": "Static halftone ground; hidden at 900px and below." }
+    ],
+    "assets": [
+      { "name": "art", "value": "tools/publisher/public/art/{cloud,flower,tear,field}.png", "purpose": "Procedural halftone rasters from tools/publisher/scripts/make-art.js; provenance embedded in PNG tEXt chunks by impeccable embed-prompt." },
+      { "name": "Doto", "value": "tools/publisher/public/fonts/Doto.woff2 (licence: Doto-LICENSE.txt)", "purpose": "Only web font." }
     ]
   },
   "components": [
     {
-      "name": "Default Button",
+      "name": "Primary Button (Compilar)",
       "kind": "button",
-      "refersTo": "btn",
-      "description": "Acción secundaria: discreta, nunca compite con el siguiente paso.",
-      "html": "<button class=\"ds-btn\">Abrir carpeta</button>",
-      "css": ".ds-btn{font:500 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;padding:8px 16px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:background .15s cubic-bezier(.16,1,.3,1),border-color .15s cubic-bezier(.16,1,.3,1),transform .12s cubic-bezier(.16,1,.3,1);background:#1b201b;color:#e6ece6;border:1px solid #354035}.ds-btn:hover{background:#232a23}.ds-btn:active{transform:scale(.98)}.ds-btn:focus-visible{outline:2px solid #6fbf3c;outline-offset:2px}"
+      "refersTo": "button-primary",
+      "description": "The one pink action: the next pipeline step. Notched top-right; notch removed on focus.",
+      "html": "<button class=\"ds-btn ds-primary\">Compilar</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font: 500 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; padding: 8px 16px; background: #18181c; color: #f1efe8; border: 1px solid #3b3b44; cursor: pointer; } .ds-primary { background: #ff3d8b; color: #16030c; border-color: #ff3d8b; font-weight: 700; clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%); } .ds-primary:hover { background: #ff6aa6; border-color: #ff6aa6; } .ds-primary:focus-visible { clip-path: none; outline: 2px solid #ff3d8b; outline-offset: 2px; }"
     },
     {
-      "name": "Primary Button",
+      "name": "Secondary Button",
       "kind": "button",
-      "refersTo": "btn-primary",
-      "description": "La respuesta a \"¿qué hago ahora?\": Compilar, Enviar, Guardar, Crear.",
-      "html": "<button class=\"ds-btn-primary\">Compilar</button>",
-      "css": ".ds-btn-primary{font:500 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;padding:8px 16px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:background .15s cubic-bezier(.16,1,.3,1),border-color .15s cubic-bezier(.16,1,.3,1),transform .12s cubic-bezier(.16,1,.3,1);font-weight:600;background:#6fbf3c;color:#0c1804;border:1px solid #6fbf3c}.ds-btn-primary:hover{background:#86d654;border-color:#86d654}.ds-btn-primary:active{transform:scale(.98)}.ds-btn-primary:focus-visible{outline:2px solid #6fbf3c;outline-offset:2px}"
+      "refersTo": "button-secondary",
+      "description": "Default action. Hover flashes a red/cyan text split.",
+      "html": "<button class=\"ds-btn2\">Cancelar</button>",
+      "css": "@keyframes ds-split { 0%,100% { text-shadow: none; } 25% { text-shadow: 2px 0 #ff2a4a, -2px 0 #33e6ff; } 50% { text-shadow: -2px 0 #ff2a4a, 2px 0 #33e6ff; } 75% { text-shadow: 1px 0 #ff2a4a, -1px 0 #33e6ff; } } .ds-btn2 { font: 500 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; padding: 8px 16px; background: #18181c; color: #f1efe8; border: 1px solid #3b3b44; cursor: pointer; } .ds-btn2:hover { background: #212127; border-color: #8b8b81; animation: ds-split .2s steps(1, end) 1; } .ds-btn2:active { background: #f1efe8; color: #0b0b0d; } .ds-btn2:focus-visible { outline: 2px solid #ff3d8b; outline-offset: 2px; }"
     },
     {
-      "name": "Danger Button",
+      "name": "Paper Button",
       "kind": "button",
-      "refersTo": "btn-danger",
-      "description": "Cancelar una tarea o quitar algo. Rojo solo en texto y contorno.",
-      "html": "<button class=\"ds-btn-danger\">Cancelar</button>",
-      "css": ".ds-btn-danger{font:500 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;padding:8px 16px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:background .15s cubic-bezier(.16,1,.3,1),border-color .15s cubic-bezier(.16,1,.3,1),transform .12s cubic-bezier(.16,1,.3,1);background:#1b201b;color:#ef7563;border:1px solid rgba(239,117,99,.35)}.ds-btn-danger:hover{background:rgba(239,117,99,.1)}.ds-btn-danger:focus-visible{outline:2px solid #6fbf3c;outline-offset:2px}"
+      "refersTo": "button-paper",
+      "description": "Inverted emphasis without pink: Nuevo, Guardar, Crear.",
+      "html": "<button class=\"ds-paper\">Guardar</button>",
+      "css": ".ds-paper { font: 700 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; padding: 8px 16px; background: #f1efe8; color: #0b0b0d; border: 1px solid #f1efe8; cursor: pointer; } .ds-paper:hover { background: #fff; border-color: #fff; } .ds-paper:focus-visible { outline: 2px solid #ff3d8b; outline-offset: 2px; }"
     },
     {
-      "name": "Text Field",
+      "name": "Disabled Button (stipple)",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Ordered-stipple dither means not available.",
+      "html": "<button class=\"ds-off\" disabled>Publicar</button>",
+      "css": ".ds-off { font: 500 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; padding: 8px 16px; color: #8b8b81; background-color: #111114; border: 1px solid #24242a; cursor: not-allowed; background-image: repeating-conic-gradient(rgb(241 239 232 / .14) 0% 25%, transparent 0% 50%); background-size: 3px 3px; }"
+    },
+    {
+      "name": "Text Input",
       "kind": "input",
       "refersTo": "input",
-      "description": "Campo de texto sobre el lienzo más oscuro; el foco lo marca el anillo verde.",
-      "html": "<label class=\"ds-field\"><span>Nombre que ven los jugadores</span><input class=\"ds-input\" value=\"PanolisSMP\"></label>",
-      "css": ".ds-field{display:flex;flex-direction:column;gap:6px;font:400 13px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;color:#a3b09b}.ds-input{font:400 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;color:#e6ece6;background:#0e110e;border:1px solid #354035;border-radius:7px;padding:8px 10px;min-height:36px;width:260px}.ds-input:hover{border-color:#4a584a}.ds-input:focus-visible{outline:2px solid #6fbf3c;outline-offset:-1px;border-color:transparent}"
+      "description": "Recessed well field; the focus ring is pink and drawn inside.",
+      "html": "<input class=\"ds-input\" placeholder=\"Nombre del modpack\">",
+      "css": ".ds-input { width: 240px; font: 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; color: #f1efe8; background: #060607; border: 1px solid #3b3b44; padding: 8px 10px; min-height: 36px; caret-color: #ff3d8b; } .ds-input::placeholder { color: #8b8b81; opacity: 1; } .ds-input:hover { border-color: #8b8b81; } .ds-input:focus-visible { outline: 2px solid #ff3d8b; outline-offset: -1px; border-color: transparent; }"
     },
     {
-      "name": "Segmented Control",
-      "kind": "chip",
-      "refersTo": "segmented",
-      "description": "Elegir una opción entre pocas; la elegida sube de tono y lleva un anillo verde interno.",
-      "html": "<div class=\"ds-seg\" role=\"radiogroup\"><button class=\"ds-seg-on\" role=\"radio\" aria-checked=\"true\">Protegido</button><button role=\"radio\" aria-checked=\"false\">Libre</button></div>",
-      "css": ".ds-seg{display:inline-flex;background:#0e110e;border:1px solid #354035;border-radius:7px;padding:3px;gap:2px}.ds-seg button{background:none;border:0;color:#a3b09b;font:400 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;padding:6px 16px;border-radius:5px;cursor:pointer}.ds-seg button:hover{color:#e6ece6}.ds-seg .ds-seg-on{background:#232a23;color:#e6ece6;font-weight:600;box-shadow:inset 0 0 0 1px rgba(111,191,60,.45)}"
-    },
-    {
-      "name": "Modpack Row",
+      "name": "Tabs with dot strip",
       "kind": "nav",
-      "refersTo": "pack-row-active",
-      "description": "Fila de la lista de modpacks; la elegida lleva tinte y línea de Creeper.",
-      "html": "<button class=\"ds-pack ds-pack-on\"><span class=\"ds-pack-icon\">P</span><span><b>PanolisSMP</b><small>Fabric · MC 1.21.11 · v1.2.1</small></span></button>",
-      "css": ".ds-pack{display:flex;gap:12px;align-items:center;text-align:left;width:280px;background:transparent;border:1px solid transparent;border-radius:10px;padding:8px 10px;color:#e6ece6;font:400 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;cursor:pointer;transition:background .15s cubic-bezier(.16,1,.3,1)}.ds-pack:hover{background:#1b201b}.ds-pack-on,.ds-pack-on:hover{background:rgba(111,191,60,.11);border-color:rgba(111,191,60,.45)}.ds-pack-icon{width:40px;height:40px;border-radius:9px;background:#232a23;display:grid;place-items:center;color:#7f8e77;font-weight:700}.ds-pack b{display:block;font-weight:600}.ds-pack small{color:#a3b09b;font-size:12px}"
+      "refersTo": "topbar",
+      "description": "Current tab is paper text over a 4px strip of pink dots.",
+      "html": "<nav class=\"ds-tabs\"><button class=\"ds-tab\" aria-current=\"page\">Modpacks</button><button class=\"ds-tab\">Launcher</button></nav>",
+      "css": ".ds-tabs { display: flex; gap: 2px; background: #111114; height: 52px; } .ds-tab { position: relative; background: none; border: 0; color: #a5a598; padding: 0 14px; font: 14px 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; cursor: pointer; } .ds-tab:hover, .ds-tab[aria-current] { color: #f1efe8; } .ds-tab[aria-current]::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 0; height: 4px; background: radial-gradient(circle, #ff3d8b 1px, transparent 1.5px) 0 50% / 6px 4px repeat-x; } .ds-tab:focus-visible { outline: 2px solid #ff3d8b; outline-offset: -2px; }"
     },
     {
-      "name": "Pipeline Step",
+      "name": "Pack Card (active)",
+      "kind": "card",
+      "refersTo": "pack-card-active",
+      "description": "Inverted paper block with four crop marks, like a frame picked on a proof sheet.",
+      "html": "<div class=\"ds-pack\"><div class=\"ds-icon\"></div><div><div class=\"ds-name\">Empi Craft</div><div class=\"ds-sub\">1.20.1 &middot; Forge</div></div></div>",
+      "css": ".ds-pack { position: relative; display: flex; gap: 12px; align-items: center; width: 270px; padding: 8px 10px; background: #f1efe8; color: #0b0b0d; } .ds-icon { width: 40px; height: 40px; background: #212127; flex: none; } .ds-name { font-weight: 700; } .ds-sub { font-size: 12px; color: #47473f; } .ds-pack::after { content: ''; position: absolute; inset: -4px; pointer-events: none; --m: #a5a598; background: linear-gradient(var(--m),var(--m)) 0 0/7px 1px no-repeat, linear-gradient(var(--m),var(--m)) 0 0/1px 7px no-repeat, linear-gradient(var(--m),var(--m)) 100% 0/7px 1px no-repeat, linear-gradient(var(--m),var(--m)) 100% 0/1px 7px no-repeat, linear-gradient(var(--m),var(--m)) 0 100%/7px 1px no-repeat, linear-gradient(var(--m),var(--m)) 0 100%/1px 7px no-repeat, linear-gradient(var(--m),var(--m)) 100% 100%/7px 1px no-repeat, linear-gradient(var(--m),var(--m)) 100% 100%/1px 7px no-repeat; }"
+    },
+    {
+      "name": "Health Pill",
+      "kind": "chip",
+      "refersTo": "pill",
+      "description": "Dotted-border status chip; bad turns coral.",
+      "html": "<span class=\"ds-pill\">Java 17</span> <span class=\"ds-pill ds-bad\">Git</span>",
+      "css": ".ds-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; font: 12px 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; border: 1px dotted #55555f; color: #a5a598; background: #0b0b0d; } .ds-bad { color: #ff6a4d; border-color: #ff6a4d; }"
+    },
+    {
+      "name": "Pipeline Step Marker",
       "kind": "custom",
-      "refersTo": "pipeline-step",
-      "description": "Un paso del pie Editar → Compilar → Enviar: marcador redondo, botón y una pista de una línea.",
-      "html": "<div class=\"ds-step\"><span class=\"ds-num\"><svg viewBox=\"0 0 24 24\" width=\"15\" height=\"15\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 6 9 17l-5-5\"/></svg></span><div><button class=\"ds-step-btn\">Compilar de nuevo</button><small>Compilado hace 3 min</small></div></div>",
-      "css": ".ds-step{display:flex;align-items:center;gap:12px;font:400 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif}.ds-num{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#6fbf3c;color:#0c1804;flex:none}.ds-step>div{display:flex;flex-direction:column;align-items:flex-start;gap:4px}.ds-step-btn{font:500 15px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;padding:11px 22px;border-radius:7px;background:#1b201b;color:#e6ece6;border:1px solid #354035;cursor:pointer}.ds-step-btn:hover{background:#232a23}.ds-step small{font-size:12px;color:#a3b09b}"
+      "refersTo": "pipeline",
+      "description": "Numbered square markers on dotted connectors; done is paper, current is a dashed pink outline.",
+      "html": "<div class=\"ds-steps\"><span class=\"ds-n ds-done\">1</span><span class=\"ds-conn\"></span><span class=\"ds-n ds-cur\">2</span><span class=\"ds-conn ds-off2\"></span><span class=\"ds-n\">3</span></div>",
+      "css": ".ds-steps { display: flex; align-items: center; gap: 16px; padding: 12px 24px; background: #111114; } .ds-n { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid #8b8b81; color: #a5a598; font: 700 13px 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; } .ds-done { background: #f1efe8; border-color: #f1efe8; color: #0b0b0d; } .ds-cur { border: 2px dashed #ff3d8b; color: #ff3d8b; } .ds-conn { width: 36px; height: 4px; background: radial-gradient(circle, #f1efe8 1px, transparent 1.5px) 0 50% / 6px 4px repeat-x; } .ds-off2 { background: radial-gradient(circle, #55555f 1px, transparent 1.5px) 0 50% / 6px 4px repeat-x; }"
     },
     {
-      "name": "Protection Badge: Protegido",
-      "kind": "chip",
-      "refersTo": "badge-locked",
-      "description": "El estado por defecto de un archivo: el launcher lo restaura. Neutro, con candado.",
-      "html": "<span class=\"ds-badge\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"/></svg>Protegido</span>",
-      "css": ".ds-badge{display:inline-flex;align-items:center;gap:5px;font:400 12px/1.4 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;padding:2px 9px 2px 7px;border-radius:999px;border:1px solid #354035;color:#a3b09b;white-space:nowrap}"
-    },
-    {
-      "name": "Protection Badge: Libre",
-      "kind": "chip",
-      "refersTo": "badge-free",
-      "description": "La excepción que hay que ver: el jugador puede cambiar el archivo. Ámbar, con candado abierto.",
-      "html": "<span class=\"ds-badge-free\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 9.9-1\"/></svg>Libre</span>",
-      "css": ".ds-badge-free{display:inline-flex;align-items:center;gap:5px;font:400 12px/1.4 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;padding:2px 9px 2px 7px;border-radius:999px;border:1px solid rgba(224,176,64,.45);background:rgba(224,176,64,.08);color:#e0b040;white-space:nowrap}"
+      "name": "Resolve Strip and LED",
+      "kind": "custom",
+      "refersTo": "activity-drawer",
+      "description": "Dot-progress strip whose dot radius scales with --p (0 to 1) plus the 10px pink LED spinner.",
+      "html": "<div class=\"ds-led-row\"><span class=\"ds-led\"></span> Compilando</div><div class=\"ds-resolve\" style=\"--p:.6\"></div>",
+      "css": "@keyframes ds-led { 50% { opacity: .2; } } .ds-led-row { display: flex; align-items: center; gap: 12px; color: #f1efe8; font: 700 14px 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; margin-bottom: 12px; } .ds-led { width: 10px; height: 10px; background: #ff3d8b; animation: ds-led 1s steps(1, end) infinite; } .ds-resolve { height: 14px; width: 320px; background: radial-gradient(circle, #f1efe8 calc(var(--p) * 3.6px), transparent calc(var(--p) * 3.6px + .6px)) 0 50% / 12px 14px repeat-x; }"
     }
   ],
   "narrative": {
-    "northStar": "El taller ordenado",
-    "overview": "Un banco de trabajo oscuro y en calma. El autor trabaja solo, a ratos largos, y lo que hace al final (pulsar Enviar) llega a otras personas: por eso la interfaz debe transmitir serenidad y precisión, no prisa. Cada herramienta está en su sitio, nada compite por la atención y siempre se ve qué está pasando: los pasos, el progreso y el detalle técnico están a un clic, nunca ocultos.\n\nEl sistema es plano y se construye por capas de tono, no por adornos. Todos los neutros se inclinan hacia el verde del acento (nada de gris puro ni negro puro), y el verde solo aparece cuando algo avanza, está seleccionado o salió bien. Las fuentes son las del sistema operativo: no hay nada que descargar, en línea con el principio de gastar lo mínimo de la máquina.",
+    "northStar": "The Proof Bench",
+    "overview": "A darkroom bench where a modpack is framed, developed and printed. Ground is near-black, marks are paper-white, and tone is made of halftone dots rather than gradients or shadows. The tool is still at rest: a glitch (a 260 ms scan-line tear with a red/cyan channel split) is how it speaks about change and failure, and one electric pink is reserved for the next thing the operator should do. Text and controls stay crisp and legible; the dithering, ribbing and glitch belong to the ground and to events, never to the words you work in.\n\nThe mood is precise, printed and slightly uncanny: dot-matrix headlines over a plain Windows UI face, square corners, dotted rules where other systems draw solid lines, and static halftone plates (flower, cloud, tear, field) as the only imagery. Density is that of a working tool: a 290px pack list beside a form column, with a fixed pipeline footer that always shows the current step. Low RAM and CPU are a product principle, so every texture is a pre-rendered raster or CSS gradient on a fixed layer and nothing loops except one LED while a task runs.",
     "keyCharacteristics": [
-      "Tono sereno y preciso; controles silenciosos, con un único elemento que destaca: el siguiente paso.",
-      "Profundidad por tono (plano por capas), con líneas finas para separar; solo el panel de progreso lleva sombra.",
-      "Un acento verde reservado a la acción, la selección y el éxito.",
-      "Iconos dibujados con un solo trazo (rejilla de 24 px, 1,75 de grosor, extremos redondos); nunca emoji.",
-      "Movimiento corto (120–220 ms) y solo para comunicar un cambio de estado."
+      "Black and paper-white plus exactly one pink; pink means \"next action\" or \"focus\".",
+      "Dotted rules (radial-gradient dots) divide sections, tabs, the topbar and the pipeline instead of solid hairlines.",
+      "Square corners everywhere; the primary button is notched, not rounded.",
+      "Doto dot-matrix for identity and numerals only; Segoe UI Variable for everything read or edited.",
+      "Motion is event-only: tear on new step, failure and pack selection; split on button hover.",
+      "Halftone plates are static, feathered by masks, height-capped and hidden at 900px and below."
     ],
     "rules": [
-      {
-        "name": "The Green Means Go Rule",
-        "body": "Verde Creeper es para lo que mueve el trabajo hacia delante, para la selección actual y para el éxito. Nunca decora, nunca marca un estado inactivo.",
-        "section": "colors"
-      },
-      {
-        "name": "The Tinted Neutral Rule",
-        "body": "Ningún neutro es gris puro: todos se inclinan al matiz del acento (oklch ~145). Un gris frío en este sistema es un error.",
-        "section": "colors"
-      },
-      {
-        "name": "The System Font Rule",
-        "body": "No se carga ninguna fuente. Lo que pide el sistema ya está instalado y no cuesta nada.",
-        "section": "typography"
-      },
-      {
-        "name": "The Tabular Numbers Rule",
-        "body": "Versiones, tamaños, contadores y tiempos usan cifras tabulares para que no salten al cambiar.",
-        "section": "typography"
-      },
-      {
-        "name": "The Flat-By-Tone Rule",
-        "body": "La profundidad se expresa cambiando de tono, nunca añadiendo sombra. Si algo necesita destacar, sube de nivel de tono o gana una línea.",
-        "section": "elevation"
-      }
+      { "name": "The One Pink Rule", "body": "Pink marks the next action and focus, nothing else. A second pink element competing on screen means one of them is wrong.", "section": "colors" },
+      { "name": "The Flash-Only Channels Rule", "body": "Red and cyan appear only as 260 ms (or 200 ms hover) split flashes. They are never persistent.", "section": "colors" },
+      { "name": "The Status Exception Rule", "body": "danger and warn are the only persistent colors outside black, white and pink, and only for status. Do not extend them to decoration or emphasis.", "section": "colors" },
+      { "name": "The Dots Are Headlines Rule", "body": "Doto is for the wordmark, headlines, the drawer title and version numerals. It is never body text, labels, buttons or inputs.", "section": "typography" },
+      { "name": "The Tabular Numerals Rule", "body": "Counts, sizes, versions and progress use tabular-nums.", "section": "typography" },
+      { "name": "The Flat Ground Rule", "body": "No hard offset shadows, glows or blurred card shadows. The drawer cast is the only shadow.", "section": "elevation" },
+      { "name": "The Ribbed Glass Exception", "body": "The topbar's repeating-linear-gradient of fine vertical paper lines is a deliberate part of the world (ribbed glass from the moodboard). It is an intentional advisory exception, not a defect: do not remove it, and do not spread it beyond the topbar.", "section": "elevation" },
+      { "name": "The Static Raster Rule", "body": "Every texture is a pre-rendered PNG or a CSS gradient on a fixed layer. No canvas, video, blur filters or continuously animated background.", "section": "elevation" }
     ],
     "dos": [
-      "**Do** reservar Verde Creeper para la acción que hace avanzar el trabajo, la selección actual y el éxito.",
-      "**Do** mantener todo texto en al menos 4,5:1 sobre su fondo; Salvia Apagada solo para marcadores, tamaños y metadatos.",
-      "**Do** dibujar los iconos con el mismo trazo (rejilla de 24 px, grosor 1,75) y darles nombre accesible cuando son botones.",
-      "**Do** mostrar el progreso paso a paso y dejar el detalle técnico a un clic.",
-      "**Do** separar secciones con líneas finas y aire (24 px), y alinear en columnas todo lo que se compara (tamaños, estados, controles).",
-      "**Do** respetar `prefers-reduced-motion` y limitar el movimiento a 120–220 ms con la curva `cubic-bezier(.16, 1, .3, 1)`."
+      "Do spend pink only on the next pipeline action, the focus ring, active-tab dots, the dashed current-step marker, the running LED and the logo dot.",
+      "Do invert to paper (#f1efe8 on #0b0b0d) for selection and secondary emphasis: active pack card, selected version choice, Nuevo, Guardar, Crear.",
+      "Do divide with the dotted rule (--dotted, or dot-coloured dotted borders) instead of solid hairlines.",
+      "Do fire tear only on events (new step marker, failure banner, pack title after selecting a pack) and use the split text-shadow only for hover.",
+      "Do keep art static: body::before and body::after plates from art/field.png feathered with a mask and height-capped; cloud in the drawer head, tear behind error banners, flower in the empty state.",
+      "Do honour prefers-reduced-motion and keep raster layers fixed; minimum RAM and CPU is a hard product principle.",
+      "Do keep persistent danger and warn for status only (Libre badges, error banners, Cancelar outline, failed step). They are legibility exceptions to the black/white/pink palette."
     ],
     "donts": [
-      "**Don't** usar emoji como iconos ni mezclar familias de iconos.",
-      "**Don't** añadir sombras a tarjetas o botones para dar profundidad; sube de tono en su lugar.",
-      "**Don't** anidar tarjetas ni envolver cada sección en una caja.",
-      "**Don't** usar gris o negro puros: todo neutro se inclina al verde del acento.",
-      "**Don't** poner rojo o ámbar como decoración; existen para avisar.",
-      "**Don't** cargar fuentes externas ni recursos que cuesten memoria o red."
+      "Don't add a second accent, gradient fills on controls or colored glows.",
+      "Don't show red or cyan at rest; they exist only inside the 260 ms tear and 200 ms split flashes.",
+      "Don't set Doto on body text, labels, buttons or inputs.",
+      "Don't round corners or add card shadows or hard offset shadows.",
+      "Don't animate hover with transform or clip-path; hover uses only text-shadow (split) and color transitions.",
+      "Don't add continuously animated backgrounds, blur filters, video or canvas. The only looping motion is the running-task LED (plus the short-lived loading skeleton).",
+      "Don't remove the topbar's ribbed-glass repeating gradient as a defect; it is a deliberate advisory exception. Don't reuse it as a general pattern either.",
+      "Don't let a halftone plate end in a hard edge or sit at full strength behind list text.",
+      "Don't use danger or warn for decoration or emphasis; they are for status only."
     ]
   }
 }
