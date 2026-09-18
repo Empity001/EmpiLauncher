@@ -69,18 +69,26 @@ async function commit(cwd, message, log) {
     await run('git', ['commit', '-m', message], { cwd }, log)
 }
 
+/** `-u origin HEAD` also works on a branch that has no upstream yet (a plain `git push` stops there with code 128). */
 async function push(cwd, log) {
-    withLog(log, 'git', ['push'])
-    await run('git', ['push'], { cwd }, log)
+    const args = ['push', '-u', 'origin', 'HEAD']
+    withLog(log, 'git', args)
+    await run('git', args, { cwd }, log)
 }
 
 /** True when the local branch has commits the remote doesn't (for "nothing to send" checks after a failed push). */
 async function unpushedCount(cwd) {
+    const count = async (range) => Number(await capture('git', ['rev-list', '--count', range], { cwd })) || 0
     try {
-        const out = await capture('git', ['rev-list', '--count', '@{u}..HEAD'], { cwd })
-        return Number(out) || 0
+        return await count('@{u}..HEAD')
     } catch {
-        return 0
+        // No upstream configured: compare with the same-named branch on origin instead.
+        try {
+            const branch = await capture('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd })
+            return await count(`origin/${branch}..HEAD`)
+        } catch {
+            return 0
+        }
     }
 }
 
