@@ -7,6 +7,7 @@ const zlib = require('zlib')
 
 const OUT = path.join(__dirname, '..', 'public', 'art')
 const PAPER = [242, 240, 232]
+const INK = [5, 5, 6]
 const RED = [255, 42, 74]
 const CYAN = [51, 230, 255]
 
@@ -220,10 +221,47 @@ function tear() {
     return canvas
 }
 
+
+/**
+ * Launcher: a black 45-degree dot screen that darkens the modpack's artwork where the interface must be read.
+ * Integer lattice (rows P/2 apart, alternate rows shifted P/2), so the strip tiles seamlessly along its long side.
+ * `across` is the coordinate that runs from full black (the edge) to nothing.
+ */
+function screenStrip(long, deep, horizontal) {
+    const P = 8
+    const w = horizontal ? long : deep, h = horizontal ? deep : long
+    const canvas = new Canvas(w, h)
+    const fbm = noise2(horizontal ? 34 : 35)
+    for (let row = 0; row * (P / 2) < h + P; row++) {
+        for (let col = 0; col * P < w + P; col++) {
+            const x = col * P + (row % 2) * (P / 2) + P / 4, y = row * (P / 2) + P / 4
+            const across = horizontal ? y / deep : x / deep   // 1 at the edge that touches the frame (bottom / right), 0 at the far side
+            const density = clamp(Math.pow(clamp(across), 1.6) * 1.25 + (fbm(x / 90, y / 90) - 0.5) * 0.35 - 0.04)
+            if (density < 0.05) continue
+            const r = P * 0.53 * Math.sqrt(density)
+            // draw the four wrap copies so the seam carries whole dots
+            for (const dx of horizontal ? [-w, 0, w] : [0]) for (const dy of horizontal ? [0] : [-h, 0, h]) canvas.dot(x + dx, y + dy, r, INK)
+        }
+    }
+    return canvas
+}
+function screenBottom() { return screenStrip(640, 360, true) }
+function screenRight() { return screenStrip(640, 300, false) }
+
 fs.mkdirSync(OUT, { recursive: true })
 for (const [name, make] of Object.entries({ cloud, flower, tear, field })) {
     const file = path.join(OUT, `${name}.png`)
     const art = make()
     fs.writeFileSync(file, (name === 'tear' || name === 'field' ? art : art.trim()).png())
     console.log(`${name}.png`, `${(fs.statSync(file).size / 1024).toFixed(1)} KB`)
+}
+
+// The launcher ships its own copy of what it uses: the plate from above, plus the two black screens.
+const LAUNCHER = path.join(__dirname, '..', '..', '..', 'app', 'assets', 'images', 'identity')
+fs.mkdirSync(LAUNCHER, { recursive: true })
+for (const name of ['field']) fs.copyFileSync(path.join(OUT, `${name}.png`), path.join(LAUNCHER, `${name}.png`))
+for (const [name, make] of Object.entries({ 'screen-bottom': screenBottom, 'screen-right': screenRight })) {
+    const file = path.join(LAUNCHER, `${name}.png`)
+    fs.writeFileSync(file, make().png())
+    console.log(`launcher/${name}.png`, `${(fs.statSync(file).size / 1024).toFixed(1)} KB`)
 }

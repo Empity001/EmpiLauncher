@@ -1,50 +1,92 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-18T21:00:00.000Z",
-  "title": "Design System: Empi Publisher",
+  "generatedAt": "2026-09-18T23:00:00.000Z",
+  "title": "Design System: Empi Proof Bench (Publisher and Launcher)",
   "extensions": {
     "colorMeta": {
       "well": { "role": "neutral", "displayName": "Well", "canonical": "#060607", "tonalRamp": ["#060607", "#0b0b0d", "#111114", "#18181c", "#212127", "#24242a", "#3b3b44", "#55555f"] },
       "bg": { "role": "neutral", "displayName": "Bench Black", "canonical": "#0b0b0d", "tonalRamp": ["#060607", "#0b0b0d", "#111114", "#18181c", "#212127", "#24242a", "#3b3b44", "#55555f"] },
       "surface": { "role": "neutral", "displayName": "Surface", "canonical": "#111114", "tonalRamp": ["#060607", "#0b0b0d", "#111114", "#18181c", "#212127", "#24242a", "#3b3b44", "#55555f"] },
       "paper": { "role": "neutral", "displayName": "Paper", "canonical": "#f1efe8", "tonalRamp": ["#55555f", "#8b8b81", "#a5a598", "#c4c3b9", "#dcdad2", "#f1efe8", "#f7f6f1", "#ffffff"] },
-      "pink": { "role": "primary", "displayName": "Electric Pink", "canonical": "#ff3d8b", "tonalRamp": ["#16030c", "#5c1636", "#a3245f", "#d62f78", "#ff3d8b", "#ff6aa6", "#ff9cc4", "#ffd1e2"] },
+      "paper-ink": { "role": "neutral", "displayName": "Paper Ink (sub-line on paper blocks)", "canonical": "#47473f", "tonalRamp": ["#0b0b0d", "#1c1c19", "#2d2d28", "#47473f", "#5f5f56", "#8b8b81", "#a5a598", "#f1efe8"] },
+      "mask-black": { "role": "utility", "displayName": "Mask Black (alpha mask only, never painted)", "canonical": "#000000", "tonalRamp": ["#000000"] },
+      "pink": { "role": "primary", "displayName": "Electric Pink (Publisher accent; launcher default accent)", "canonical": "#ff3d8b", "tonalRamp": ["#16030c", "#5c1636", "#a3245f", "#d62f78", "#ff3d8b", "#ff6aa6", "#ff9cc4", "#ffd1e2"] },
       "split-red": { "role": "secondary", "displayName": "Split Red (flash only)", "canonical": "#ff2a4a", "tonalRamp": ["#3a0810", "#68101f", "#9a172e", "#cc203c", "#ff2a4a", "#ff6a80", "#ff9fae", "#ffd0d7"] },
       "split-cyan": { "role": "secondary", "displayName": "Split Cyan (flash only)", "canonical": "#33e6ff", "tonalRamp": ["#04303a", "#08505f", "#0c7387", "#1499b0", "#33e6ff", "#7aeeff", "#a8f3ff", "#d6f9ff"] },
       "danger": { "role": "status", "displayName": "Danger Coral (legibility exception)", "canonical": "#ff6a4d", "tonalRamp": ["#1a0703", "#4d1e14", "#7f3222", "#b04a33", "#ff6a4d", "#ff8f78", "#ffb5a5", "#ffd9d1"] },
-      "warn": { "role": "status", "displayName": "Warn Amber (legibility exception)", "canonical": "#ffb14a", "tonalRamp": ["#2a1a05", "#59390e", "#875a17", "#b57a20", "#ffb14a", "#ffc577", "#ffd9a3", "#ffecd1"] }
+      "warn": { "role": "status", "displayName": "Warn Amber (legibility exception)", "canonical": "#ffb14a", "tonalRamp": ["#2a1a05", "#59390e", "#875a17", "#b57a20", "#ffb14a", "#ffc577", "#ffd9a3", "#ffecd1"] },
+      "launcher-ink": { "role": "neutral", "displayName": "Launcher Ink (label on accent, text on paper)", "canonical": "#050506", "tonalRamp": ["#050506"] },
+      "launcher-surface": { "role": "neutral", "displayName": "Launcher Surface (solid panel)", "canonical": "#0c0c0f", "tonalRamp": ["#060607", "#0c0c0f", "#151519"] },
+      "launcher-surface-2": { "role": "neutral", "displayName": "Launcher Surface 2 (hover, toggle track)", "canonical": "#151519", "tonalRamp": ["#060607", "#0c0c0f", "#151519"] },
+      "launcher-text-2": { "role": "neutral", "displayName": "Launcher Text 2", "canonical": "#bdbab1", "tonalRamp": ["#8d8a82", "#bdbab1", "#f1efe8"] },
+      "launcher-text-3": { "role": "neutral", "displayName": "Launcher Text 3", "canonical": "#8d8a82", "tonalRamp": ["#55555f", "#8d8a82", "#bdbab1"] },
+      "launcher-danger": { "role": "status", "displayName": "Launcher Danger (DETENER, login errors; legibility exception)", "canonical": "#ff5a67", "tonalRamp": ["#2a0a0e", "#661a24", "#a82b3a", "#ff5a67", "#ff8a93", "#ffb9bf"] }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display (Doto)", "purpose": "Selected pack title; dot-matrix headline. Never body text." },
+      "display": { "displayName": "Display (Doto)", "purpose": "Publisher selected pack title. Never body text." },
       "drawer-title": { "displayName": "Drawer Title (Doto)", "purpose": "Activity drawer title and launcher version numerals." },
       "wordmark": { "displayName": "Wordmark (Doto)", "purpose": "Uppercase Empi Publisher in the topbar." },
       "headline": { "displayName": "Headline", "purpose": "Section h2 in Segoe UI Variable." },
-      "body": { "displayName": "Body", "purpose": "Everything read or edited; prose capped at 62ch." },
-      "code": { "displayName": "Code", "purpose": "Logs, paths, command preview in Cascadia Mono." }
+      "body": { "displayName": "Body", "purpose": "Publisher: everything read or edited; prose capped at 62ch." },
+      "code": { "displayName": "Code", "purpose": "Logs, paths, command preview in Cascadia Mono." },
+      "launcher-title-32": { "displayName": "Launcher Title 32 (Doto)", "purpose": "Settings tab headers." },
+      "launcher-title-30": { "displayName": "Launcher Title 30 (Doto)", "purpose": "Welcome header, login options heading, settings nav header." },
+      "launcher-title-22": { "displayName": "Launcher Title 22 (Doto)", "purpose": "Login subheader." },
+      "launcher-title-20": { "displayName": "Launcher Title 20 (Doto, uppercase)", "purpose": "Version rail title. 20px is the smallest size Doto appears at in the launcher." },
+      "launcher-launch-label": { "displayName": "Launch Label (Doto)", "purpose": "The launch button label, the one Doto exception below 20px." },
+      "launcher-label": { "displayName": "Launcher Label (Avenir Medium)", "purpose": "13px labels: progress label, player name, updater title. Avenir is the launcher's existing body face and stays." },
+      "launcher-help": { "displayName": "Launcher Help (Avenir)", "purpose": "11px floor for help text and progress stats." },
+      "launcher-chip": { "displayName": "Launcher Chip (Avenir)", "purpose": "10px floor for chips and small labels." }
     },
     "shadows": [
-      { "name": "drawer-cast", "value": "-16px 0 40px rgb(0 0 0 / .55)", "purpose": "The only shadow: separates the slid-in activity drawer from the page." }
+      { "name": "drawer-cast", "value": "-16px 0 40px rgb(0 0 0 / .55)", "purpose": "The only shadow (Publisher): separates the slid-in activity drawer. The launcher has none." },
+      { "name": "input-underline", "value": "inset 0 -3px 0 var(--accent)", "purpose": "Publisher input focus: a 3px accent line at the bottom edge, not a glow." }
     ],
     "motion": [
-      { "name": "tear", "value": "260ms steps(1, end) 1; keyframes 0/15/30/45/60/80/100% translateX -3,4,-2,2,-1px with clip-path inset bands and text-shadow 2px red/cyan split", "purpose": "Event-only glitch: new step marker, failure banner, pack title after selecting a pack. Replayed by JS tear(el)." },
-      { "name": "split", "value": "200ms steps(1, end) 1; text-shadow 2px/-2px/1px red and cyan offsets only", "purpose": "Button hover. No clip-path, no transform." },
-      { "name": "led", "value": "1s steps(1, end) infinite; opacity 1 to .2 at 50%", "purpose": "10px pink square spinner, the one lit indicator, only while a task runs. Disabled under reduced motion." },
-      { "name": "resolve", "value": "radial-gradient dots on 12px pitch, dot radius = --p x 3.6px, --p 0..1", "purpose": "Dot-progress strip in the drawer. --p derives from step count (capped at 0.9) until finished; turns coral when failed. Static raster, no animation." },
-      { "name": "ease", "value": "cubic-bezier(.2, .9, .2, 1)", "purpose": "Color and background transitions (.1s to .12s); drawer slide .18s, dialog pop .16s, toast rise .16s." },
-      { "name": "reduced-motion", "value": "animation-duration and transition-duration .01ms; spinner animation none", "purpose": "prefers-reduced-motion is respected globally." }
+      { "name": "publisher-doctrine", "value": "alive but budgeted", "purpose": "The Publisher moves at rest within a budget; every movement says where you are, what changed or what to do next. Switch: Vivo / Tranquilo, localStorage empi.motion, data-motion on root; reduced-motion starts calm." },
+      { "name": "publisher-fps-focused", "value": "24 fps (41 ms frame gap)", "purpose": "Canvas dot ground while the window has focus." },
+      { "name": "publisher-fps-unfocused", "value": "10 fps (100 ms frame gap); 0 when the tab is hidden", "purpose": "Canvas dot ground without focus; cancelled on visibilitychange hidden." },
+      { "name": "publisher-canvas-density", "value": "1 canvas pixel per CSS pixel; 45-degree hex lattice, pitch 24px", "purpose": "Keeps raster cost flat on dense screens." },
+      { "name": "publisher-degrade", "value": "smoothed frame cost > 9 ms for 90 frames, or frames > 2.2x late for 45 frames: pitch +6px up to 36px, then calm", "purpose": "Frame-cost and delivered-frame-rate degradation; the field thins out and finally stops." },
+      { "name": "publisher-measured", "value": "about 7-10% of one core alive, about 0% calm; canvas frame cost about 1 ms (headless Edge, software raster)", "purpose": "Measured budget, not a guarantee on other hardware." },
+      { "name": "publisher-animated-properties", "value": "transform and opacity only", "purpose": "Arrivals, springs, hover physics, pops, beats. The pre-existing tear and the arrival reveal also use clip-path (see drift)." },
+      { "name": "publisher-infinite-allowed", "value": "skeleton pulse 1.4s steps(2) and running-job LED 1s steps(1) only", "purpose": "All other Publisher CSS animations are finite or replayed on a timer (beat every 10 s, ambient glitch every 6-14 s, both only when focused and alive)." },
+      { "name": "ease-out", "value": "cubic-bezier(.16, 1, .3, 1)", "purpose": "Spring-like movement: drawer slide .5s, dialog pop .38s, toast rise .42s, ink slide .5s, card lean .4s, button lift .35s, arrivals .6s." },
+      { "name": "ease", "value": "cubic-bezier(.2, .9, .2, 1)", "purpose": "Colour and background transitions (.12s to .15s)." },
+      { "name": "ink", "value": "4px strip of accent dots; transform and width .5s ease-out", "purpose": "Slides under the current tab or sub-tab: where you are." },
+      { "name": "arrivals", "value": "rise-in .6s ease-out, delay calc(var(--i) * 45ms); topbar drop .6s, pipeline lift .7s", "purpose": "Staggered entrance on load and on pack or tab change." },
+      { "name": "pipeline-motion", "value": "pop-mark .55s on change; beat 1.6s x2 on the current step; march .9s x4 on finished connectors", "purpose": "What changed and what to do next." },
+      { "name": "hover-physics", "value": "pack card translateX(4px); button translateY(-1px) then scale(.97) on press; choice translateY(-2px); primary leans up to 6x4px toward the pointer and a 100deg highlight sweeps .8s", "purpose": "Things answer the hand." },
+      { "name": "dot-field-cues", "value": "pointer push, click ripples (1.3s), hover halo on the hovered control, pink glow around the next action, faster while a job runs, ring through the field when a job finishes", "purpose": "Ground responds to the person and to work." },
+      { "name": "tear", "value": "260ms steps(1, end) 1; keyframes 0/15/30/45/60/80/100% translateX -3,4,-2,2,-1px with clip-path bands and text-shadow 2px red/cyan split", "purpose": "Event glitch, both surfaces: new step, failure, pack title after selecting (Publisher); a view opening, launch button state change, updater state change, update notice (launcher)." },
+      { "name": "split", "value": "200ms (Publisher) / 260ms (launcher) steps(1, end) 1; text-shadow 2px/-2px/1px red and cyan only", "purpose": "Hover flash on buttons." },
+      { "name": "led", "value": "1s steps(1, end) infinite; opacity 1 to .2 at 50%", "purpose": "10px accent square spinner, only while a Publisher task runs." },
+      { "name": "resolve", "value": "radial-gradient dots on 12px pitch, dot radius = --p x 3.6px, --p 0..1", "purpose": "Dot-progress strip in the Publisher drawer. Static raster." },
+      { "name": "launcher-doctrine", "value": "event-only", "purpose": "The launcher does not move at rest. Nothing loops, no canvas, no blur, no banner breath." },
+      { "name": "launcher-tear-triggers", "value": "a view opens (welcome, login, login options, waiting, landing, settings title); launch button data-state changes; launcher-update indicator data-state changes; update-ready notice becomes visible", "purpose": "Only real state changes fire empi-tear, via MutationObservers with no polling; class removed after 400 ms." },
+      { "name": "launcher-pause", "value": "skipped under html[data-empi-inactive]; plates hidden and tears off under html[data-empi-performance-mode]; disabled under prefers-reduced-motion", "purpose": "Respects the launcher's RAM-saving mode and pause-on-blur." },
+      { "name": "launcher-progress", "value": "accent dots rise in #launch_button_fill (6px pitch) while updating or launching", "purpose": "The launch button is the progress meter; real progress, not decoration." }
     ],
     "breakpoints": [
-      { "name": "narrow", "value": "900px", "purpose": "Single column, plates hidden, pipeline compact, sidebar becomes a horizontal strip." },
-      { "name": "tiny", "value": "520px", "purpose": "Wordmark text hidden." }
+      { "name": "narrow", "value": "900px", "purpose": "Publisher: single column, plates hidden, pipeline compact, sidebar becomes a horizontal strip. Launcher: static halftone plates hidden." },
+      { "name": "tiny", "value": "520px", "purpose": "Publisher: wordmark text hidden." }
     ],
     "tokens": [
-      { "name": "dotted", "value": "radial-gradient(circle, #55555f 1px, transparent 1.4px) 0 0 / 7px 3px repeat-x", "purpose": "The dotted rule used for topbar, subtabs, pipeline, section dividers." },
-      { "name": "pipeline-h", "value": "84px (set at runtime from the measured footer height)", "purpose": "Reserves bottom space and positions the toast and bottom-left plate." },
-      { "name": "plates", "value": "art/field.png at 340px, opacity .6 (bottom-left) and .5 rotated 180deg (top-right 320x118), masked to feather", "purpose": "Static halftone ground; hidden at 900px and below." }
+      { "name": "dotted", "value": "radial-gradient(circle, #55555f 1px, transparent 1.4px) 0 0 / 7px 3px repeat-x", "purpose": "Publisher dotted rule for topbar, subtabs, pipeline, dividers. The launcher uses 1px dotted borders in rgb(241 239 232 / .4) and .2." },
+      { "name": "pipeline-h", "value": "84px (set at runtime from the measured footer height)", "purpose": "Reserves bottom space and positions the toast." },
+      { "name": "topbar-fill", "value": "rgb(17 17 20 / .86); footer rgb(17 17 20 / .9)", "purpose": "Translucent so the living ground shows; no blur." },
+      { "name": "plate-mask", "value": "mask-image: linear-gradient(to top, #000 35%, transparent 100%), linear-gradient(to right, #000 60%, transparent 100%)", "purpose": "Feathers the halftone plates on both surfaces. #000 is an alpha mask stop (opaque), never a painted colour." },
+      { "name": "plates", "value": "art/field.png 340px (bottom-left) and 320x118 rotated 180deg (top-right); Publisher: no-JS fallback only, hidden when data-motion is set; launcher: shown on views without artwork, hidden at 900px and in performance mode", "purpose": "Static halftone ground." },
+      { "name": "launcher-accent", "value": "--empi-accent (per version, default #ff3d8b), --empi-accent-rgb, --empi-accent-contrast (#050506 or #ffffff by WCAG contrast ratio)", "purpose": "The one colour of the launcher, set by landing.js from the modpack's accent." },
+      { "name": "launcher-screens", "value": "images/identity/screen-bottom.png (640x360, repeat-x, bottom-left) and screen-right.png (300x640, repeat-y, right)", "purpose": "Black halftone dot screens over each modpack's untouched background and banner, darkening the edges where the interface is read." },
+      { "name": "launcher-notch", "value": "clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%); removed on focus-visible", "purpose": "Launch button notch (Publisher primary uses 9px)." },
+      { "name": "stipple", "value": "repeating-conic-gradient(rgb(241 239 232 / .14) 0% 25%, transparent 0% 50%) 0 0 / 3px 3px", "purpose": "Disabled and locked (.16 on required-mod toggles), both surfaces." }
     ],
     "assets": [
-      { "name": "art", "value": "tools/publisher/public/art/{cloud,flower,tear,field}.png", "purpose": "Procedural halftone rasters from tools/publisher/scripts/make-art.js; provenance embedded in PNG tEXt chunks by impeccable embed-prompt." },
-      { "name": "Doto", "value": "tools/publisher/public/fonts/Doto.woff2 (licence: Doto-LICENSE.txt)", "purpose": "Only web font." }
+      { "name": "art", "value": "tools/publisher/public/art/{cloud,flower,tear,field}.png", "purpose": "Procedural halftone rasters from tools/publisher/scripts/make-art.js; provenance in PNG tEXt chunks. field.png is only the no-JS fallback." },
+      { "name": "identity", "value": "app/assets/images/identity/{field,screen-bottom,screen-right}.png", "purpose": "Launcher rasters." },
+      { "name": "Doto", "value": "tools/publisher/public/fonts/Doto.woff2 and app/assets/fonts/Doto.woff2 (licence: Doto-LICENSE.txt)", "purpose": "Added web font of each surface." },
+      { "name": "Avenir", "value": "app/assets/fonts/Avenir-*.ttf (Medium, Book bundled)", "purpose": "The launcher's existing body face; stays." }
     ]
   },
   "components": [
@@ -52,23 +94,23 @@
       "name": "Primary Button (Compilar)",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "The one pink action: the next pipeline step. Notched top-right; notch removed on focus.",
+      "description": "Publisher: the one pink action, the next pipeline step. Notched top-right; notch removed on focus. Lifts on hover.",
       "html": "<button class=\"ds-btn ds-primary\">Compilar</button>",
-      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font: 500 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; padding: 8px 16px; background: #18181c; color: #f1efe8; border: 1px solid #3b3b44; cursor: pointer; } .ds-primary { background: #ff3d8b; color: #16030c; border-color: #ff3d8b; font-weight: 700; clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%); } .ds-primary:hover { background: #ff6aa6; border-color: #ff6aa6; } .ds-primary:focus-visible { clip-path: none; outline: 2px solid #ff3d8b; outline-offset: 2px; }"
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font: 500 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; padding: 8px 16px; background: #18181c; color: #f1efe8; border: 1px solid #3b3b44; cursor: pointer; transition: background .12s, transform .3s cubic-bezier(.16,1,.3,1); } .ds-primary { background: #ff3d8b; color: #16030c; border-color: #ff3d8b; font-weight: 700; clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%); } .ds-primary:hover { background: #ff6aa6; border-color: #ff6aa6; transform: translateY(-1px); } .ds-primary:active { transform: scale(.97); } .ds-primary:focus-visible { clip-path: none; outline: 2px solid #ff3d8b; outline-offset: 2px; }"
     },
     {
       "name": "Secondary Button",
       "kind": "button",
       "refersTo": "button-secondary",
-      "description": "Default action. Hover flashes a red/cyan text split.",
+      "description": "Publisher default action. Hover flashes a red/cyan text split and lifts 1px.",
       "html": "<button class=\"ds-btn2\">Cancelar</button>",
-      "css": "@keyframes ds-split { 0%,100% { text-shadow: none; } 25% { text-shadow: 2px 0 #ff2a4a, -2px 0 #33e6ff; } 50% { text-shadow: -2px 0 #ff2a4a, 2px 0 #33e6ff; } 75% { text-shadow: 1px 0 #ff2a4a, -1px 0 #33e6ff; } } .ds-btn2 { font: 500 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; padding: 8px 16px; background: #18181c; color: #f1efe8; border: 1px solid #3b3b44; cursor: pointer; } .ds-btn2:hover { background: #212127; border-color: #8b8b81; animation: ds-split .2s steps(1, end) 1; } .ds-btn2:active { background: #f1efe8; color: #0b0b0d; } .ds-btn2:focus-visible { outline: 2px solid #ff3d8b; outline-offset: 2px; }"
+      "css": "@keyframes ds-split { 0%,100% { text-shadow: none; } 25% { text-shadow: 2px 0 #ff2a4a, -2px 0 #33e6ff; } 50% { text-shadow: -2px 0 #ff2a4a, 2px 0 #33e6ff; } 75% { text-shadow: 1px 0 #ff2a4a, -1px 0 #33e6ff; } } .ds-btn2 { font: 500 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; padding: 8px 16px; background: #18181c; color: #f1efe8; border: 1px solid #3b3b44; cursor: pointer; transition: background .12s, transform .35s cubic-bezier(.16,1,.3,1); } .ds-btn2:hover { background: #212127; border-color: #8b8b81; transform: translateY(-1px); animation: ds-split .2s steps(1, end) 1; } .ds-btn2:active { background: #f1efe8; color: #0b0b0d; transform: scale(.97); } .ds-btn2:focus-visible { outline: 2px solid #ff3d8b; outline-offset: 2px; }"
     },
     {
       "name": "Paper Button",
       "kind": "button",
       "refersTo": "button-paper",
-      "description": "Inverted emphasis without pink: Nuevo, Guardar, Crear.",
+      "description": "Inverted emphasis without accent: Nuevo, Guardar, Crear.",
       "html": "<button class=\"ds-paper\">Guardar</button>",
       "css": ".ds-paper { font: 700 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; padding: 8px 16px; background: #f1efe8; color: #0b0b0d; border: 1px solid #f1efe8; cursor: pointer; } .ds-paper:hover { background: #fff; border-color: #fff; } .ds-paper:focus-visible { outline: 2px solid #ff3d8b; outline-offset: 2px; }"
     },
@@ -76,7 +118,7 @@
       "name": "Disabled Button (stipple)",
       "kind": "button",
       "refersTo": "button-secondary",
-      "description": "Ordered-stipple dither means not available.",
+      "description": "Ordered-stipple dither means not available (both surfaces).",
       "html": "<button class=\"ds-off\" disabled>Publicar</button>",
       "css": ".ds-off { font: 500 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; padding: 8px 16px; color: #8b8b81; background-color: #111114; border: 1px solid #24242a; cursor: not-allowed; background-image: repeating-conic-gradient(rgb(241 239 232 / .14) 0% 25%, transparent 0% 50%); background-size: 3px 3px; }"
     },
@@ -84,23 +126,23 @@
       "name": "Text Input",
       "kind": "input",
       "refersTo": "input",
-      "description": "Recessed well field; the focus ring is pink and drawn inside.",
+      "description": "Publisher recessed well field; the focus ring is pink, drawn inside, with a 3px bottom line.",
       "html": "<input class=\"ds-input\" placeholder=\"Nombre del modpack\">",
-      "css": ".ds-input { width: 240px; font: 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; color: #f1efe8; background: #060607; border: 1px solid #3b3b44; padding: 8px 10px; min-height: 36px; caret-color: #ff3d8b; } .ds-input::placeholder { color: #8b8b81; opacity: 1; } .ds-input:hover { border-color: #8b8b81; } .ds-input:focus-visible { outline: 2px solid #ff3d8b; outline-offset: -1px; border-color: transparent; }"
+      "css": ".ds-input { width: 240px; font: 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; color: #f1efe8; background: #060607; border: 1px solid #3b3b44; padding: 8px 10px; min-height: 36px; caret-color: #ff3d8b; transition: border-color .15s, box-shadow .3s cubic-bezier(.16,1,.3,1); } .ds-input::placeholder { color: #8b8b81; opacity: 1; } .ds-input:hover { border-color: #8b8b81; } .ds-input:focus-visible { outline: 2px solid #ff3d8b; outline-offset: -1px; border-color: transparent; box-shadow: inset 0 -3px 0 #ff3d8b; }"
     },
     {
-      "name": "Tabs with dot strip",
+      "name": "Tabs with sliding ink",
       "kind": "nav",
       "refersTo": "topbar",
-      "description": "Current tab is paper text over a 4px strip of pink dots.",
-      "html": "<nav class=\"ds-tabs\"><button class=\"ds-tab\" aria-current=\"page\">Modpacks</button><button class=\"ds-tab\">Launcher</button></nav>",
-      "css": ".ds-tabs { display: flex; gap: 2px; background: #111114; height: 52px; } .ds-tab { position: relative; background: none; border: 0; color: #a5a598; padding: 0 14px; font: 14px 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; cursor: pointer; } .ds-tab:hover, .ds-tab[aria-current] { color: #f1efe8; } .ds-tab[aria-current]::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 0; height: 4px; background: radial-gradient(circle, #ff3d8b 1px, transparent 1.5px) 0 50% / 6px 4px repeat-x; } .ds-tab:focus-visible { outline: 2px solid #ff3d8b; outline-offset: -2px; }"
+      "description": "Current tab is paper text; one 4px strip of pink dots slides under it (Publisher). Without JS the strip is static under the current tab.",
+      "html": "<nav class=\"ds-tabs\"><button class=\"ds-tab\" aria-current=\"page\">Modpacks</button><button class=\"ds-tab\">Launcher</button><span class=\"ds-ink\"></span></nav>",
+      "css": ".ds-tabs { position: relative; display: flex; gap: 2px; background: rgb(17 17 20 / .86); height: 52px; } .ds-tab { position: relative; background: none; border: 0; color: #a5a598; padding: 0 14px; font: 14px 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; cursor: pointer; } .ds-tab:hover, .ds-tab[aria-current] { color: #f1efe8; } .ds-ink { position: absolute; left: 10px; bottom: 0; height: 4px; width: 84px; pointer-events: none; background: radial-gradient(circle, #ff3d8b 1px, transparent 1.5px) 0 50% / 6px 4px repeat-x; transition: transform .5s cubic-bezier(.16,1,.3,1), width .5s cubic-bezier(.16,1,.3,1); } .ds-tab:focus-visible { outline: 2px solid #ff3d8b; outline-offset: -2px; }"
     },
     {
       "name": "Pack Card (active)",
       "kind": "card",
       "refersTo": "pack-card-active",
-      "description": "Inverted paper block with four crop marks, like a frame picked on a proof sheet.",
+      "description": "Publisher: inverted paper block with four crop marks, like a frame picked on a proof sheet.",
       "html": "<div class=\"ds-pack\"><div class=\"ds-icon\"></div><div><div class=\"ds-name\">Empi Craft</div><div class=\"ds-sub\">1.20.1 &middot; Forge</div></div></div>",
       "css": ".ds-pack { position: relative; display: flex; gap: 12px; align-items: center; width: 270px; padding: 8px 10px; background: #f1efe8; color: #0b0b0d; } .ds-icon { width: 40px; height: 40px; background: #212127; flex: none; } .ds-name { font-weight: 700; } .ds-sub { font-size: 12px; color: #47473f; } .ds-pack::after { content: ''; position: absolute; inset: -4px; pointer-events: none; --m: #a5a598; background: linear-gradient(var(--m),var(--m)) 0 0/7px 1px no-repeat, linear-gradient(var(--m),var(--m)) 0 0/1px 7px no-repeat, linear-gradient(var(--m),var(--m)) 100% 0/7px 1px no-repeat, linear-gradient(var(--m),var(--m)) 100% 0/1px 7px no-repeat, linear-gradient(var(--m),var(--m)) 0 100%/7px 1px no-repeat, linear-gradient(var(--m),var(--m)) 0 100%/1px 7px no-repeat, linear-gradient(var(--m),var(--m)) 100% 100%/7px 1px no-repeat, linear-gradient(var(--m),var(--m)) 100% 100%/1px 7px no-repeat; }"
     },
@@ -108,7 +150,7 @@
       "name": "Health Pill",
       "kind": "chip",
       "refersTo": "pill",
-      "description": "Dotted-border status chip; bad turns coral.",
+      "description": "Publisher dotted-border status chip; bad turns coral.",
       "html": "<span class=\"ds-pill\">Java 17</span> <span class=\"ds-pill ds-bad\">Git</span>",
       "css": ".ds-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; font: 12px 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; border: 1px dotted #55555f; color: #a5a598; background: #0b0b0d; } .ds-bad { color: #ff6a4d; border-color: #ff6a4d; }"
     },
@@ -116,59 +158,90 @@
       "name": "Pipeline Step Marker",
       "kind": "custom",
       "refersTo": "pipeline",
-      "description": "Numbered square markers on dotted connectors; done is paper, current is a dashed pink outline.",
+      "description": "Publisher numbered square markers on dotted connectors; done is paper, current is a dashed pink outline that beats twice.",
       "html": "<div class=\"ds-steps\"><span class=\"ds-n ds-done\">1</span><span class=\"ds-conn\"></span><span class=\"ds-n ds-cur\">2</span><span class=\"ds-conn ds-off2\"></span><span class=\"ds-n\">3</span></div>",
-      "css": ".ds-steps { display: flex; align-items: center; gap: 16px; padding: 12px 24px; background: #111114; } .ds-n { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid #8b8b81; color: #a5a598; font: 700 13px 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; } .ds-done { background: #f1efe8; border-color: #f1efe8; color: #0b0b0d; } .ds-cur { border: 2px dashed #ff3d8b; color: #ff3d8b; } .ds-conn { width: 36px; height: 4px; background: radial-gradient(circle, #f1efe8 1px, transparent 1.5px) 0 50% / 6px 4px repeat-x; } .ds-off2 { background: radial-gradient(circle, #55555f 1px, transparent 1.5px) 0 50% / 6px 4px repeat-x; }"
+      "css": "@keyframes ds-beat { 0%,100% { transform: none; } 50% { transform: scale(1.14); } } .ds-steps { display: flex; align-items: center; gap: 16px; padding: 12px 24px; background: rgb(17 17 20 / .9); } .ds-n { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid #8b8b81; color: #a5a598; font: 700 13px 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; } .ds-done { background: #f1efe8; border-color: #f1efe8; color: #0b0b0d; } .ds-cur { border: 2px dashed #ff3d8b; color: #ff3d8b; animation: ds-beat 1.6s cubic-bezier(.16,1,.3,1) 2; } .ds-conn { width: 36px; height: 4px; background: radial-gradient(circle, #f1efe8 1px, transparent 1.5px) 0 50% / 6px 4px repeat-x; } .ds-off2 { background: radial-gradient(circle, #55555f 1px, transparent 1.5px) 0 50% / 6px 4px repeat-x; }"
     },
     {
       "name": "Resolve Strip and LED",
       "kind": "custom",
       "refersTo": "activity-drawer",
-      "description": "Dot-progress strip whose dot radius scales with --p (0 to 1) plus the 10px pink LED spinner.",
+      "description": "Publisher dot-progress strip whose dot radius scales with --p (0 to 1) plus the 10px pink LED spinner.",
       "html": "<div class=\"ds-led-row\"><span class=\"ds-led\"></span> Compilando</div><div class=\"ds-resolve\" style=\"--p:.6\"></div>",
       "css": "@keyframes ds-led { 50% { opacity: .2; } } .ds-led-row { display: flex; align-items: center; gap: 12px; color: #f1efe8; font: 700 14px 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; margin-bottom: 12px; } .ds-led { width: 10px; height: 10px; background: #ff3d8b; animation: ds-led 1s steps(1, end) infinite; } .ds-resolve { height: 14px; width: 320px; background: radial-gradient(circle, #f1efe8 calc(var(--p) * 3.6px), transparent calc(var(--p) * 3.6px + .6px)) 0 50% / 12px 14px repeat-x; }"
+    },
+    {
+      "name": "Launcher Rail Entry",
+      "kind": "card",
+      "refersTo": "launcher-rail-entry-selected",
+      "description": "Launcher version list row on a solid panel: dotted divider, Surface 2 on hover, selected inverted to paper with an ink name, paper-ink description and crop marks inset 3px.",
+      "html": "<div class=\"ds-rail\"><div class=\"ds-rail-row\"><b>Panolis Lite</b><span>Fabric 1.21.11</span></div><div class=\"ds-rail-row ds-sel\"><b>PanolisSMP</b><span>Fabric 1.21.11 con mods y shaders para la comunidad</span><i class=\"ds-chip\">Principal</i></div></div>",
+      "css": ".ds-rail { width: 300px; background: #0c0c0f; border: 1px dotted rgb(241 239 232 / .4); font-family: 'Avenir Medium','Avenir Book',sans-serif; color: #f1efe8; } .ds-rail-row { position: relative; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-bottom: 1px dotted rgb(241 239 232 / .2); cursor: pointer; } .ds-rail-row b { font-size: 13px; } .ds-rail-row span { font-size: 11px; color: #bdbab1; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; } .ds-rail-row:hover { background: #151519; } .ds-sel, .ds-sel:hover { background: #f1efe8; color: #050506; border-bottom-color: transparent; } .ds-sel span { color: #47473f; } .ds-chip { align-self: flex-start; font: normal 10px 'Avenir Medium','Avenir Book',sans-serif; padding: 2px 6px; background: #050506; color: #f1efe8; border: 1px solid #050506; } .ds-sel::after { content: ''; position: absolute; inset: 3px; pointer-events: none; --m: #050506; background: linear-gradient(var(--m),var(--m)) 0 0/7px 1px no-repeat, linear-gradient(var(--m),var(--m)) 0 0/1px 7px no-repeat, linear-gradient(var(--m),var(--m)) 100% 0/7px 1px no-repeat, linear-gradient(var(--m),var(--m)) 100% 0/1px 7px no-repeat, linear-gradient(var(--m),var(--m)) 0 100%/7px 1px no-repeat, linear-gradient(var(--m),var(--m)) 0 100%/1px 7px no-repeat, linear-gradient(var(--m),var(--m)) 100% 100%/7px 1px no-repeat, linear-gradient(var(--m),var(--m)) 100% 100%/1px 7px no-repeat; }"
+    },
+    {
+      "name": "Launcher Launch Button (states)",
+      "kind": "button",
+      "refersTo": "launcher-launch-button",
+      "description": "The one action of the launcher and its progress meter: accent notched play; dark plate with rising accent dots while working; red outlined DETENER while running; stipple when disabled.",
+      "html": "<div class=\"ds-launch-stack\"><button class=\"ds-launch\">JUGAR</button><button class=\"ds-launch ds-working\"><span>ACTUALIZANDO</span></button><button class=\"ds-launch ds-running\">DETENER</button><button class=\"ds-launch ds-disabled\" disabled>JUGAR</button></div>",
+      "css": ".ds-launch-stack { display: flex; flex-direction: column; gap: 10px; width: 360px; --empi-accent: #ff3d8b; } .ds-launch { height: 56px; border: 0; cursor: pointer; font: 800 18px 'Doto','Avenir Medium',sans-serif; letter-spacing: .14em; background: var(--empi-accent); color: #050506; clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%); } .ds-launch:focus-visible { clip-path: none; outline: 2px solid var(--empi-accent); outline-offset: -2px; } .ds-working { background: radial-gradient(circle at 3px 3px, var(--empi-accent) 0 1.9px, transparent 2.3px) 0 100% / 6px 6px repeat-x, #0c0c0f; color: #f1efe8; clip-path: none; outline: 1px dotted var(--empi-accent); outline-offset: -1px; } .ds-working span { background: #050506; padding: 3px 14px; } .ds-running { background: #0c0c0f; color: #ff5a67; border: 2px solid #ff5a67; clip-path: none; } .ds-running:hover { background: #ff5a67; color: #050506; } .ds-disabled { background-color: #0c0c0f; background-image: repeating-conic-gradient(rgb(241 239 232 / .14) 0% 25%, transparent 0% 50%); background-size: 3px 3px; color: #8d8a82; clip-path: none; cursor: not-allowed; }"
+    },
+    {
+      "name": "Launcher Settings Toggle",
+      "kind": "custom",
+      "refersTo": "launcher-toggle-on",
+      "description": "Off: Surface 2 track with dotted border and paper knob. On: accent track with ink knob. Locked (required mod) or disabled: ordered stipple, never a tinted accent.",
+      "html": "<div class=\"ds-toggles\"><span class=\"ds-tg\"><i></i></span><span class=\"ds-tg ds-on\"><i></i></span><span class=\"ds-tg ds-lock\"><i></i></span></div>",
+      "css": ".ds-toggles { display: flex; gap: 16px; --empi-accent: #ff3d8b; } .ds-tg { position: relative; width: 40px; height: 20px; background: #151519; border: 1px dotted rgb(241 239 232 / .4); } .ds-tg i { position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; background: #f1efe8; } .ds-on { background: var(--empi-accent); border-color: var(--empi-accent); } .ds-on i { left: 23px; background: #050506; } .ds-lock { background: #151519 repeating-conic-gradient(rgb(241 239 232 / .16) 0% 25%, transparent 0% 50%) 0 0 / 3px 3px; } .ds-lock i { left: 23px; background: #8d8a82; }"
     }
   ],
   "narrative": {
     "northStar": "The Proof Bench",
-    "overview": "A darkroom bench where a modpack is framed, developed and printed. Ground is near-black, marks are paper-white, and tone is made of halftone dots rather than gradients or shadows. The tool is still at rest: a glitch (a 260 ms scan-line tear with a red/cyan channel split) is how it speaks about change and failure, and one electric pink is reserved for the next thing the operator should do. Text and controls stay crisp and legible; the dithering, ribbing and glitch belong to the ground and to events, never to the words you work in.\n\nThe mood is precise, printed and slightly uncanny: dot-matrix headlines over a plain Windows UI face, square corners, dotted rules where other systems draw solid lines, and static halftone plates (flower, cloud, tear, field) as the only imagery. Density is that of a working tool: a 290px pack list beside a form column, with a fixed pipeline footer that always shows the current step. Low RAM and CPU are a product principle, so every texture is a pre-rendered raster or CSS gradient on a fixed layer and nothing loops except one LED while a task runs.",
+    "overview": "A darkroom bench where a modpack is framed, developed and printed. Ground is near-black, marks are paper-white, and tone is made of halftone dots rather than gradients or shadows. Glitch (a 260 ms scan-line tear with a red/cyan channel split) is how the world speaks about change and failure, and one accent colour is reserved for the next thing the person should do. Text and controls stay crisp and legible; the dithering, ribbing and glitch belong to the ground and to events, never to the words you work in.\n\nThe mood is precise, printed and slightly uncanny: dot-matrix headlines over a plain UI face, square corners, dotted rules where other systems draw solid lines, and halftone dots as the only imagery the system itself supplies. Both surfaces spend motion by doctrine, and the doctrines differ. The Publisher is alive but budgeted: a canvas of dots breathes behind the work at 24 fps focused, and every movement must say something (where you are, what changed, what to do next). The launcher is event-only: nothing moves at rest, one short tear marks a real state change. Low RAM and CPU stay a product principle in both.",
     "keyCharacteristics": [
-      "Black and paper-white plus exactly one pink; pink means \"next action\" or \"focus\".",
-      "Dotted rules (radial-gradient dots) divide sections, tabs, the topbar and the pipeline instead of solid hairlines.",
-      "Square corners everywhere; the primary button is notched, not rounded.",
-      "Doto dot-matrix for identity and numerals only; Segoe UI Variable for everything read or edited.",
-      "Motion is event-only: tear on new step, failure and pack selection; split on button hover.",
-      "Halftone plates are static, feathered by masks, height-capped and hidden at 900px and below."
+      "Black and paper-white plus exactly one accent. Publisher: pink. Launcher: the modpack's own accent, pink when a pack sets none. The accent means \"next action\" or \"focus\".",
+      "Dotted rules divide sections, tabs, bars and panels instead of solid hairlines.",
+      "Square corners everywhere; the primary action is notched at one corner, not rounded.",
+      "Doto dot-matrix for identity and large headings; a plain UI face for everything read or edited.",
+      "Selection is inversion: a paper block, with crop marks on the selected pack or version.",
+      "Disabled and locked are ordered stipple, never a faded fill.",
+      "Publisher motion is alive at rest but budgeted; launcher motion is a tear when something happens."
     ],
     "rules": [
-      { "name": "The One Pink Rule", "body": "Pink marks the next action and focus, nothing else. A second pink element competing on screen means one of them is wrong.", "section": "colors" },
-      { "name": "The Flash-Only Channels Rule", "body": "Red and cyan appear only as 260 ms (or 200 ms hover) split flashes. They are never persistent.", "section": "colors" },
-      { "name": "The Status Exception Rule", "body": "danger and warn are the only persistent colors outside black, white and pink, and only for status. Do not extend them to decoration or emphasis.", "section": "colors" },
-      { "name": "The Dots Are Headlines Rule", "body": "Doto is for the wordmark, headlines, the drawer title and version numerals. It is never body text, labels, buttons or inputs.", "section": "typography" },
+      { "name": "The One Accent Rule", "body": "The accent marks the next action and focus, nothing else. A second accent element competing on screen means one of them is wrong.", "section": "colors" },
+      { "name": "The Flash-Only Channels Rule", "body": "Red and cyan appear only as short split flashes (260 ms tear, 200 ms Publisher hover split, 260 ms launcher hover split). They are never persistent.", "section": "colors" },
+      { "name": "The Status Exception Rule", "body": "Status colours are the only persistent colours outside black, white and the accent, and only for status. Do not extend them to decoration or emphasis.", "section": "colors" },
+      { "name": "The Paper Ink Rule", "body": "Text on a paper block is #050506 or #0b0b0d for the main line and #47473f for the sub-line; never paper-2 or paper-3, which fail on paper.", "section": "colors" },
+      { "name": "The Dots Are Headlines Rule", "body": "Doto is for wordmark, headlines, the drawer title, version numerals and the launch label. It is never body text, labels, buttons (other than the launch label), or inputs, and in the launcher never below 20px.", "section": "typography" },
+      { "name": "The Small-Type Floor Rule", "body": "Launcher text is never below 10px (chips and labels) or 11px (help text and progress). Do not shrink further to fit.", "section": "typography" },
       { "name": "The Tabular Numerals Rule", "body": "Counts, sizes, versions and progress use tabular-nums.", "section": "typography" },
-      { "name": "The Flat Ground Rule", "body": "No hard offset shadows, glows or blurred card shadows. The drawer cast is the only shadow.", "section": "elevation" },
-      { "name": "The Ribbed Glass Exception", "body": "The topbar's repeating-linear-gradient of fine vertical paper lines is a deliberate part of the world (ribbed glass from the moodboard). It is an intentional advisory exception, not a defect: do not remove it, and do not spread it beyond the topbar.", "section": "elevation" },
-      { "name": "The Static Raster Rule", "body": "Every texture is a pre-rendered PNG or a CSS gradient on a fixed layer. No canvas, video, blur filters or continuously animated background.", "section": "elevation" }
+      { "name": "The Flat Ground Rule", "body": "No hard offset shadows, glows or blurred card shadows. The drawer cast is the only shadow. The pink glow around the next action lives in the dot field (dots swell and turn pink), not in a box-shadow.", "section": "elevation" },
+      { "name": "The Ribbed Glass Exception", "body": "The Publisher topbar's repeating-linear-gradient of fine vertical paper lines is a deliberate part of the world (ribbed glass from the moodboard). It is an intentional advisory exception: do not remove it, and do not spread it beyond the topbar.", "section": "elevation" },
+      { "name": "The Budgeted Life Rule", "body": "The Publisher may move at rest only within its budget (24 fps focused, 10 unfocused, paused hidden, one canvas pixel per CSS pixel, transform and opacity only). Backdrop blur, WebGL, video and animated CSS filters stay out.", "section": "elevation" },
+      { "name": "The Says-Something Rule", "body": "A Publisher movement that does not tell you where you are, what changed or what to do next is removed.", "section": "motion" },
+      { "name": "The Calm Fallback Rule", "body": "Every alive movement has a calm equivalent: the same information with no motion, reached by the switch, reduced-motion, or automatic degradation.", "section": "motion" }
     ],
     "dos": [
-      "Do spend pink only on the next pipeline action, the focus ring, active-tab dots, the dashed current-step marker, the running LED and the logo dot.",
-      "Do invert to paper (#f1efe8 on #0b0b0d) for selection and secondary emphasis: active pack card, selected version choice, Nuevo, Guardar, Crear.",
-      "Do divide with the dotted rule (--dotted, or dot-coloured dotted borders) instead of solid hairlines.",
-      "Do fire tear only on events (new step marker, failure banner, pack title after selecting a pack) and use the split text-shadow only for hover.",
-      "Do keep art static: body::before and body::after plates from art/field.png feathered with a mask and height-capped; cloud in the drawer head, tear behind error banners, flower in the empty state.",
-      "Do honour prefers-reduced-motion and keep raster layers fixed; minimum RAM and CPU is a hard product principle.",
-      "Do keep persistent danger and warn for status only (Libre badges, error banners, Cancelar outline, failed step). They are legibility exceptions to the black/white/pink palette."
+      "Do spend the accent only on the next action, the focus ring, the current tab underline, the dashed current-step marker, the running LED and the logo dot (Publisher); on the launch button, focus ring and switched-on toggles (launcher).",
+      "Do invert to paper (#f1efe8 on #0b0b0d) for selection and secondary emphasis, with #47473f for the sub-line.",
+      "Do divide with dotted rules instead of solid hairlines.",
+      "Do make every Publisher movement say where you are, what changed or what to do next, animate only transform and opacity, and stay inside the budget (24 fps focused, 10 unfocused, paused hidden, one canvas pixel per CSS pixel).",
+      "Do keep the visible Vivo / Tranquilo switch, the empi.motion persistence and the reduced-motion calm start.",
+      "Do fire the tear only on events, and use the split text-shadow only for hover.",
+      "Do keep the launcher's per-pack accent, choose its label ink by contrast, and let banner and background stay untouched material behind the black halftone screens.",
+      "Do keep persistent status colours for status only."
     ],
     "donts": [
-      "Don't add a second accent, gradient fills on controls or colored glows.",
-      "Don't show red or cyan at rest; they exist only inside the 260 ms tear and 200 ms split flashes.",
-      "Don't set Doto on body text, labels, buttons or inputs.",
+      "Don't add a second accent, gradient fills on controls or coloured glows.",
+      "Don't show red or cyan at rest; they exist only inside tear and split flashes.",
+      "Don't set Doto on body text, labels, buttons (except the launch label) or inputs, or below 20px in the launcher.",
       "Don't round corners or add card shadows or hard offset shadows.",
-      "Don't animate hover with transform or clip-path; hover uses only text-shadow (split) and color transitions.",
-      "Don't add continuously animated backgrounds, blur filters, video or canvas. The only looping motion is the running-task LED (plus the short-lived loading skeleton).",
-      "Don't remove the topbar's ribbed-glass repeating gradient as a defect; it is a deliberate advisory exception. Don't reuse it as a general pattern either.",
-      "Don't let a halftone plate end in a hard edge or sit at full strength behind list text.",
-      "Don't use danger or warn for decoration or emphasis; they are for status only."
+      "Don't add backdrop blur, WebGL, video, animated filters or new infinite CSS animations to the Publisher, and no motion at rest in the launcher.",
+      "Don't use the accent for DETENER or other stopping actions; the way out is red and outlined.",
+      "Don't tint locked or disabled controls with the accent; use the stipple.",
+      "Don't remove the topbar's ribbed-glass gradient as a defect, or reuse it elsewhere.",
+      "Don't let a halftone plate or the dot field sit at full strength behind list text or end in a hard edge.",
+      "Don't use status colours for decoration or emphasis."
     ]
   }
 }

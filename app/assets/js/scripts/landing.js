@@ -1166,7 +1166,7 @@ function escapeLandingText(value){
 }
 
 
-const DEFAULT_LANDING_ACCENT = '#ffffff'
+const DEFAULT_LANDING_ACCENT = '#ff3d8b'
 let landingThemeRequest = 0
 
 function normalizeAccentColor(value){
@@ -1186,11 +1186,16 @@ function accentDetails(color){
     const red = Number.parseInt(normalized.slice(1, 3), 16)
     const green = Number.parseInt(normalized.slice(3, 5), 16)
     const blue = Number.parseInt(normalized.slice(5, 7), 16)
-    const luminance = (0.2126 * red) + (0.7152 * green) + (0.0722 * blue)
+    // WCAG relative luminance; the label ink is whichever of near-black / white reads better on the accent.
+    const linear = channel => {
+        const value = channel / 255
+        return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4)
+    }
+    const luminance = (0.2126 * linear(red)) + (0.7152 * linear(green)) + (0.0722 * linear(blue))
     return {
         color: normalized,
         rgb: `${red}, ${green}, ${blue}`,
-        contrast: luminance > 158 ? '#050505' : '#ffffff'
+        contrast: (luminance + 0.05) / 0.0027 >= 1.05 / (luminance + 0.05) ? '#050506' : '#ffffff'
     }
 }
 

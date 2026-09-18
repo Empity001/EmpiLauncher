@@ -1,0 +1,1052 @@
+/* ==========================================================================
+   EmpiLauncher identity: the proof bench (see DESIGN.md).
+   Loaded after launcher.css. Appearance only: no IDs, markup or logic change.
+
+   Halftone dots are tone, a short tear is feedback when something happens,
+   black and white plus ONE colour: the modpack's own accent (--empi-accent,
+   set per version by landing.js), electric pink when a pack sets none.
+   Nothing here animates at rest, blurs the backdrop or draws a canvas.
+   ========================================================================== */
+
+@font-face {
+    font-family: 'Doto';
+    src: url('../fonts/Doto.woff2') format('woff2');
+    font-weight: 100 900;
+    font-display: swap;
+}
+
+:root {
+    --paper: #f1efe8;
+    --ink: #050506;
+    --well: #060607;
+    --surface: #0c0c0f;
+    --surface-2: #151519;
+    --rule: rgb(241 239 232 / 0.2);
+    --rule-strong: rgb(241 239 232 / 0.4);
+    --text: #f1efe8;
+    --text-2: #bdbab1;
+    --text-3: #8d8a82;
+    --danger: #ff5a67;
+    --split-r: #ff2a4a;
+    --split-c: #33e6ff;
+    --font-title: 'Doto', 'Avenir Medium', sans-serif;
+
+    /* One colour. A version's accent replaces it at runtime. */
+    --empi-accent: #ff3d8b;
+    --empi-accent-rgb: 255, 61, 139;
+    --empi-accent-contrast: #050506;
+    --empi-accent-soft: rgb(var(--empi-accent-rgb) / 0.16);
+    --empi-accent-glow: transparent;
+    --empi-grid-line: transparent;
+    --empi-grid-line-strong: transparent;
+
+    /* Re-point the older monochrome layer at the new tones. */
+    --mono-bg: var(--well);
+    --mono-bg-soft: var(--surface);
+    --mono-panel: var(--surface);
+    --mono-panel-solid: var(--surface);
+    --mono-panel-hover: var(--surface-2);
+    --mono-elevated: var(--surface-2);
+    --mono-line: var(--rule);
+    --mono-line-strong: var(--rule-strong);
+    --mono-text: var(--text);
+    --mono-text-soft: var(--text-2);
+    --mono-text-muted: var(--text-3);
+    --mono-white: var(--text);
+    --mono-black: var(--ink);
+    --mono-radius-sm: 0;
+    --mono-radius-md: 0;
+    --mono-radius-lg: 0;
+    --mono-shadow: none;
+    --mono-shadow-high: none;
+    --mono-focus: 0 0 0 2px var(--empi-accent);
+}
+
+/* ------------------------------------------------------------------ ground */
+
+html {
+    background: var(--well) !important;
+}
+
+html,
+body {
+    background-image: none !important;
+    color: var(--text);
+}
+
+body {
+    background-color: transparent !important;
+}
+
+#main {
+    background: transparent !important;
+}
+
+::selection {
+    background: var(--paper);
+    color: var(--ink);
+}
+
+/* Two static halftone plates, feathered on their open sides so they never end in a hard edge.
+   They live on the views that have no artwork of their own; the landing's picture covers them. */
+body::before,
+body::after {
+    content: '';
+    position: fixed;
+    z-index: 0;
+    pointer-events: none;
+    background: url('../images/identity/field.png') left bottom / 340px auto no-repeat;
+    opacity: 0.55;
+    -webkit-mask-image: linear-gradient(to top, #000 35%, transparent 100%), linear-gradient(to right, #000 60%, transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to top, #000 35%, transparent 100%), linear-gradient(to right, #000 60%, transparent 100%);
+    mask-composite: intersect;
+}
+
+body::before {
+    left: 0;
+    bottom: 0;
+    width: 340px;
+    height: min(496px, 56vh);
+}
+
+body::after {
+    top: 30px;
+    right: 0;
+    width: 320px;
+    height: 118px;
+    transform: rotate(180deg);
+    opacity: 0.45;
+}
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(241 239 232 / 0.32) transparent;
+}
+
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: rgb(241 239 232 / 0.3);
+    border-radius: 0;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: var(--paper);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--empi-accent) !important;
+    outline-offset: -2px;
+}
+
+input,
+textarea {
+    caret-color: var(--empi-accent);
+}
+
+/* ---------------------------------------------------------------- square corners */
+
+#main *,
+#main *::before,
+#main *::after,
+#settingsScreenshotPreview *,
+#empiUpdateReadyNotice,
+#empiUpdateReadyNotice * {
+    border-radius: 0 !important;
+}
+
+#main .circle-loader,
+#main .waitingSpinner {
+    border-radius: 50% !important;
+}
+
+/* --------------------------------------------------------------- frame bar */
+
+#frameBar {
+    background: var(--well) !important;
+    background-image: none !important;
+    border-bottom: 1px dotted var(--rule-strong) !important;
+}
+
+#frameTitleText {
+    font-family: 'Avenir Medium', 'Avenir Book', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    letter-spacing: 0.2em !important;
+    text-transform: uppercase !important;
+    color: var(--text) !important;
+}
+
+/* ------------------------------------------------- welcome / login / options */
+
+#welcomeContent,
+#loginForm,
+#waitingContent,
+#loginOptionsContent {
+    background: var(--surface) !important;
+    background-image: none !important;
+    border: 1px dotted var(--rule-strong) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+#welcomeImageSeal,
+#loginImageSeal {
+    border: 1px dotted var(--rule-strong) !important;
+    box-shadow: none !important;
+}
+
+#welcomeHeader,
+#loginOptionsContent h2,
+#waitingTextContainer h2 {
+    font-family: var(--font-title) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.04em !important;
+    color: var(--text) !important;
+    text-shadow: none !important;
+}
+
+#loginSubheader {
+    font-family: var(--font-title) !important;
+    font-weight: 700 !important;
+    font-size: 22px !important;
+    letter-spacing: 0.04em !important;
+    color: var(--text) !important;
+    text-shadow: none !important;
+}
+
+#welcomeHeader {
+    font-size: 30px !important;
+    line-height: 1.15 !important;
+}
+
+#loginOptionsContent h2 {
+    font-size: 30px !important;
+}
+
+#welcomeDescription,
+#welcomeDescCTA,
+.loginSpanDim,
+.loginSpanDim a {
+    color: var(--text-2) !important;
+}
+
+#welcomeButton,
+#loginButton {
+    background: var(--paper) !important;
+    color: var(--ink) !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    font-family: 'Avenir Medium', 'Avenir Book', sans-serif !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.16em !important;
+}
+
+#welcomeButton:hover,
+#welcomeButton:focus,
+#loginButton:hover,
+#loginButton:focus {
+    background: var(--paper) !important;
+    color: var(--ink) !important;
+    text-shadow: none !important;
+    animation: empiSplit 0.26s steps(1, end) 1;
+}
+
+#welcomeSVG .arrowLine {
+    stroke: var(--ink) !important;
+}
+
+#loginButton:disabled {
+    color: var(--text-3) !important;
+    background-color: var(--surface-2) !important;
+    background-image: repeating-conic-gradient(rgb(241 239 232 / 0.14) 0% 25%, transparent 0% 50%) !important;
+    background-size: 3px 3px !important;
+    cursor: not-allowed;
+}
+
+.loginOptionButton,
+#loginOptionCancelButton,
+#loginCancelButton {
+    background: transparent !important;
+    border: 1px dotted var(--rule-strong) !important;
+    box-shadow: none !important;
+    color: var(--text) !important;
+}
+
+.loginOptionButton:hover,
+.loginOptionButton:focus,
+#loginOptionCancelButton:hover,
+#loginCancelButton:hover {
+    background: var(--paper) !important;
+    border-color: var(--paper) !important;
+    color: var(--ink) !important;
+    animation: empiSplit 0.26s steps(1, end) 1;
+}
+
+.loginOptionButton:hover span,
+.loginOptionButton:focus span {
+    color: var(--ink) !important;
+}
+
+.loginField {
+    background: var(--well) !important;
+    border: 1px dotted var(--rule-strong) !important;
+    box-shadow: none !important;
+    color: var(--text) !important;
+}
+
+.loginField:focus {
+    border: 1px solid var(--empi-accent) !important;
+    outline: 0 !important;
+}
+
+.loginErrorSpan {
+    color: var(--danger) !important;
+}
+
+/* ------------------------------------------------------------------ landing */
+
+/* The picture is the print; a black dot screen darkens its edges where the interface has to be read. */
+#landingVersionBackdrop {
+    background: rgb(5 5 6 / 0.2) !important;
+}
+
+#landingVersionBackdropShade {
+    background:
+        url('../images/identity/screen-bottom.png') left bottom / 640px 360px repeat-x,
+        url('../images/identity/screen-right.png') right top / 300px 640px repeat-y !important;
+}
+
+#landingVersionBanner,
+#landingVersionBannerCanvas {
+    animation: none !important;
+    filter: none !important;
+    transform: none !important;
+    will-change: auto !important;
+}
+
+/* Index of versions: a proof sheet, not a glass card. */
+#landingServerRail {
+    background: var(--surface) !important;
+    border: 1px dotted var(--rule-strong) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+#landingServerRailTitle {
+    font-family: var(--font-title) !important;
+    font-weight: 700 !important;
+    font-size: 20px !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    text-shadow: none !important;
+    color: var(--text) !important;
+}
+
+#landingServerRailHint {
+    color: var(--text-3) !important;
+}
+
+#landingServerRailFade {
+    background: linear-gradient(180deg, transparent, var(--surface) 70%) !important;
+    filter: none !important;
+}
+
+.landingServerRailEntry {
+    position: relative;
+    background: transparent !important;
+    border: 0 !important;
+    border-bottom: 1px dotted var(--rule) !important;
+    box-shadow: none !important;
+}
+
+.landingServerRailEntry:hover,
+.landingServerRailEntry:focus {
+    background: var(--surface-2) !important;
+    border-bottom-color: var(--rule-strong) !important;
+}
+
+.landingServerRailEntry[selected],
+.landingServerRailEntry[selected]:hover {
+    background: var(--paper) !important;
+    border-bottom-color: transparent !important;
+    box-shadow: none !important;
+}
+
+.landingServerRailEntry[selected] .landingServerRailIcon,
+.landingServerRailMeta .landingServerRailMain {
+    box-shadow: none !important;
+}
+
+.landingServerRailEntry[selected] .landingServerRailName {
+    color: var(--ink) !important;
+}
+
+.landingServerRailEntry[selected] .landingServerRailDescription {
+    color: #47473f !important;
+}
+
+.landingServerRailEntry[selected]::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    pointer-events: none;
+    --m: var(--ink);
+    background:
+        linear-gradient(var(--m), var(--m)) 0 0 / 7px 1px no-repeat, linear-gradient(var(--m), var(--m)) 0 0 / 1px 7px no-repeat,
+        linear-gradient(var(--m), var(--m)) 100% 0 / 7px 1px no-repeat, linear-gradient(var(--m), var(--m)) 100% 0 / 1px 7px no-repeat,
+        linear-gradient(var(--m), var(--m)) 0 100% / 7px 1px no-repeat, linear-gradient(var(--m), var(--m)) 0 100% / 1px 7px no-repeat,
+        linear-gradient(var(--m), var(--m)) 100% 100% / 7px 1px no-repeat, linear-gradient(var(--m), var(--m)) 100% 100% / 1px 7px no-repeat;
+}
+
+.landingServerRailIcon {
+    background: var(--surface-2) !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+.landingServerRailMeta span {
+    background: transparent !important;
+    color: var(--text-2) !important;
+    border: 1px dotted var(--rule-strong) !important;
+}
+
+.landingServerRailMeta .landingServerRailMain {
+    background: var(--paper) !important;
+    color: var(--ink) !important;
+    border-color: var(--paper) !important;
+}
+
+.landingServerRailMeta .landingServerRailWhitelist {
+    color: var(--text) !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+
+.landingServerRailEntry[selected] .landingServerRailMeta span {
+    color: var(--ink) !important;
+    border-color: rgb(5 5 6 / 0.5) !important;
+}
+
+.landingServerRailEntry[selected] .landingServerRailMeta .landingServerRailMain {
+    background: var(--ink) !important;
+    color: var(--paper) !important;
+    border-color: var(--ink) !important;
+}
+
+/* The one action: the accent, notched at one corner. */
+#launch_button {
+    --launch-state-color: var(--empi-accent);
+    background: var(--empi-accent) !important;
+    color: var(--empi-accent-contrast) !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    transform: none !important;
+    font-family: var(--font-title) !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.14em !important;
+    clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+}
+
+#launch_button:focus-visible {
+    clip-path: none;
+}
+
+#launch_button_fill {
+    box-shadow: none !important;
+    background: radial-gradient(circle at 3px 3px, var(--empi-accent) 0 1.9px, transparent 2.3px) 0 0 / 6px 6px !important;
+}
+
+#launch_button[data-state='play'],
+#launch_button[data-state='update'] {
+    animation: none;
+}
+
+#launch_button[data-state='play']:hover,
+#launch_button[data-state='play']:focus-visible,
+#launch_button[data-state='update']:hover,
+#launch_button[data-state='update']:focus-visible {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+#launch_button[data-state='play']:hover #launch_button_fill,
+#launch_button[data-state='play']:focus-visible #launch_button_fill {
+    height: 0 !important;
+}
+
+#launch_button[data-state='play']:hover #launch_button_label,
+#launch_button[data-state='update']:hover #launch_button_label {
+    animation: empiSplit 0.26s steps(1, end) 1;
+}
+
+/* Working: dark plate, accent dots rise from the bottom as it advances. */
+#launch_button[data-state='updating'],
+#launch_button[data-state='launching'] {
+    background: var(--surface) !important;
+    color: var(--text) !important;
+    clip-path: none;
+    outline: 1px dotted var(--empi-accent);
+    outline-offset: -1px;
+}
+
+#launch_button[data-state='updating'] #launch_button_label,
+#launch_button[data-state='launching'] #launch_button_label {
+    background: var(--ink);
+    padding: 3px 14px;
+    text-shadow: none !important;
+}
+
+/* Playing: the way out is red, outlined, never the accent. */
+#launch_button[data-state='running'],
+#launch_button[data-state='stopping'] {
+    --launch-state-color: var(--danger);
+    background: var(--surface) !important;
+    color: var(--danger) !important;
+    border: 2px solid var(--danger) !important;
+    clip-path: none;
+}
+
+#launch_button[data-state='running'] #launch_button_fill,
+#launch_button[data-state='stopping'] #launch_button_fill {
+    background: var(--danger) !important;
+}
+
+#launch_button[data-state='running']:hover,
+#launch_button[data-state='running']:focus-visible {
+    color: var(--ink) !important;
+    box-shadow: none !important;
+}
+
+/* Not available: ordered stipple. */
+#launch_button[data-state='disabled'] {
+    background-color: var(--surface) !important;
+    background-image: repeating-conic-gradient(rgb(241 239 232 / 0.14) 0% 25%, transparent 0% 50%) !important;
+    background-size: 3px 3px !important;
+    color: var(--text-3) !important;
+    clip-path: none;
+    cursor: not-allowed;
+}
+
+#launch_progress_label {
+    font-family: 'Avenir Medium', 'Avenir Book', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 13px !important;
+    color: var(--text) !important;
+}
+
+/* The details block is exactly as wide as the button, with one left edge for both rows. */
+#launch_details {
+    width: min(100%, 360px) !important;
+    min-width: 0 !important;
+    max-width: 360px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    box-sizing: border-box !important;
+}
+
+#launch_progress_header,
+#launch_progress_stats {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: baseline !important;
+    padding: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+#launch_details_text {
+    text-align: left !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+#launch_details_text,
+#launch_progress_bytes,
+#launch_progress_speed {
+    color: var(--text-2) !important;
+}
+
+/* The name sits on a solid ink cell, so it stays readable over any modpack artwork. */
+#user_text {
+    font-family: 'Avenir Medium', 'Avenir Book', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 13px !important;
+    letter-spacing: 0.06em !important;
+    color: var(--text) !important;
+    text-shadow: none !important;
+    background: rgb(5 5 6 / 0.88);
+    border: 1px dotted var(--rule-strong);
+    padding: 5px 10px;
+}
+
+#avatarContainer {
+    background-color: var(--surface) !important;
+    border: 1px dotted var(--rule-strong) !important;
+    box-shadow: none !important;
+}
+
+.mediaSVG {
+    fill: var(--text-2);
+}
+
+.mediaContainer:hover .mediaSVG,
+.mediaButton:hover .mediaSVG {
+    fill: var(--paper);
+}
+
+/* Bottom band: three dotted cells. */
+#lower {
+    background: var(--well) !important;
+    background-image: none !important;
+    border-top: 1px dotted var(--rule-strong) !important;
+    box-shadow: none !important;
+}
+
+#server_status_wrapper,
+#mojangStatusWrapper,
+#performance_mode_toggle {
+    background: transparent !important;
+    border: 1px dotted var(--rule-strong) !important;
+    box-shadow: none !important;
+}
+
+#performance_mode_toggle.active {
+    background: var(--paper) !important;
+    border-color: var(--paper) !important;
+}
+
+#performance_mode_toggle.active #performance_mode_icon,
+#performance_mode_toggle.active #performance_mode_label {
+    color: var(--ink) !important;
+}
+
+#empiUpdateReadyNotice {
+    background: var(--surface) !important;
+    border: 1px dotted var(--rule-strong) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+}
+
+#empiUpdateInstallButton {
+    background: var(--paper) !important;
+    color: var(--ink) !important;
+    border: 0 !important;
+    font-family: 'Avenir Medium', 'Avenir Book', sans-serif !important;
+    font-weight: 700 !important;
+}
+
+/* ------------------------------------------------------------- launcher update */
+
+/* Checking / available / downloading / ready: no green, no glow, no looping motion.
+   Paper marks the states; the ring and percent still show real progress. */
+#empiUpdateMediaContainer #empiUpdateMediaButton,
+#empiUpdateMediaContainer[data-state] #empiUpdateMediaButton {
+    animation: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    border: 1px dotted var(--rule-strong) !important;
+}
+
+#empiUpdateMediaContainer #empiUpdateSVG,
+#empiUpdateMediaContainer[data-state] #empiUpdateSVG {
+    animation: none !important;
+    filter: none !important;
+    fill: var(--text-2) !important;
+}
+
+#empiUpdateMediaContainer[data-state='available'] #empiUpdateMediaButton,
+#empiUpdateMediaContainer[data-state='downloading'] #empiUpdateMediaButton {
+    border: 1px solid var(--paper) !important;
+}
+
+#empiUpdateMediaContainer[data-state='available'] #empiUpdateSVG,
+#empiUpdateMediaContainer[data-state='downloading'] #empiUpdateSVG {
+    fill: var(--paper) !important;
+}
+
+#empiUpdateMediaContainer[data-state='ready'] #empiUpdateMediaButton {
+    background: var(--paper) !important;
+    border: 1px solid var(--paper) !important;
+}
+
+#empiUpdateMediaContainer[data-state='ready'] #empiUpdateSVG {
+    fill: var(--ink) !important;
+}
+
+#empiUpdateBadge {
+    background: var(--paper) !important;
+    color: var(--ink) !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    font-size: 10px !important;
+    padding: 3px 6px !important;
+}
+
+#empiUpdateTooltip {
+    background: var(--well) !important;
+    border: 1px dotted var(--rule-strong) !important;
+    box-shadow: none !important;
+    font-size: 11px !important;
+}
+
+#empiUpdateReadyNotice {
+    background: var(--surface) !important;
+    border: 1px dotted var(--rule-strong) !important;
+    box-shadow: none !important;
+    animation: none !important;
+}
+
+#empiUpdateReadyEyebrow {
+    display: none !important;
+}
+
+#empiUpdateReadyTitle {
+    font-size: 13px !important;
+    color: var(--text) !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+}
+
+#empiUpdateReadyDescription {
+    font-size: 11px !important;
+    color: var(--text-2) !important;
+}
+
+#empiUpdateInstallButton {
+    font-size: 11px !important;
+}
+
+/* ------------------------------------------------------------------ small type */
+
+.landingServerRailDescription {
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal !important;
+    overflow: hidden !important;
+}
+
+#landingServerRailHint,
+.landingServerRailDescription,
+#settingsMemoryDesc,
+.settingsSwitchServerButton,
+.serverListingVersion,
+.serverListingRevision,
+.settingsModVersion,
+#settingsDropinRefreshNote,
+#settingsShaderpackDesc,
+.settingsFileSelDesc,
+.settingsFileSelDesc *,
+#settingsJavaReqDesc,
+#settingsJVMOptsDesc,
+#settingsJvmOptsLink,
+#settingsMaxRAMLabel,
+#settingsMinRAMLabel {
+    font-size: 11px !important;
+}
+
+.landingServerRailMeta span,
+.serverListingMainBadge,
+.serverListingWhitelist,
+.settingsMemoryStatusTitle,
+#landingPlayerLabel,
+.bot_label,
+#performance_mode_label,
+.loginDisclaimerText,
+#loginEmailError,
+#loginPasswordError {
+    font-size: 10px !important;
+}
+
+#player_count,
+#launch_progress_stats,
+#launch_progress_bytes,
+#launch_progress_speed {
+    font-size: 11px !important;
+}
+
+/* ----------------------------------------------------------------- settings */
+
+#settingsContainerLeft {
+    background: var(--well) !important;
+    border-right: 1px dotted var(--rule-strong) !important;
+}
+
+#settingsContainerRight,
+#settingsContainer {
+    background: transparent !important;
+}
+
+#settingsNavHeaderText,
+.settingsTabHeaderText,
+#settingsAboutTitle,
+#settingsUpdateTitle,
+#serverSelectHeader {
+    font-family: var(--font-title) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.04em !important;
+    color: var(--text) !important;
+    text-shadow: none !important;
+}
+
+#settingsNavHeaderText {
+    font-size: 30px !important;
+}
+
+.settingsTabHeaderText {
+    font-size: 32px !important;
+}
+
+.settingsTabHeaderDesc {
+    color: var(--text-2) !important;
+}
+
+.settingsNavItem {
+    background: transparent !important;
+    color: var(--text-2) !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+.settingsNavItem:hover {
+    color: var(--text) !important;
+    background: var(--surface-2) !important;
+}
+
+.settingsNavItem[selected] {
+    background: var(--paper) !important;
+    color: var(--ink) !important;
+}
+
+.settingsNavItem[selected]::before {
+    background: var(--ink) !important;
+}
+
+#settingsNavDone {
+    background: var(--paper) !important;
+    color: var(--ink) !important;
+    border: 0 !important;
+    font-family: 'Avenir Medium', 'Avenir Book', sans-serif !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase;
+}
+
+.settingsAddAuthAccount,
+.settingsAuthAccountSelect[selected] {
+    color: var(--text) !important;
+    text-decoration: underline dotted;
+    text-underline-offset: 4px;
+}
+
+.settingsSelServContainer,
+#settingsMemoryContainer,
+#settingsReqModsContent,
+#settingsOptModsContent,
+#settingsDropinFileSystemButton,
+#settingsDropinModsContent,
+#settingsShaderpackButton,
+#settingsScreenshotsState,
+.settingsMemoryStatusContainer {
+    background: var(--surface) !important;
+    border: 1px dotted var(--rule-strong) !important;
+    box-shadow: none !important;
+}
+
+/* Rows keep their own padding; only the divider between them turns dotted. */
+.settingsFieldContainer {
+    border: 0 !important;
+    border-bottom: 1px dotted var(--rule) !important;
+    box-shadow: none !important;
+}
+
+.settingsFileSelContainer {
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+#settingsContainerRight,
+.settingsTab {
+    overflow-x: hidden !important;
+}
+
+.settingsSelServContainer::before {
+    display: none !important;
+}
+
+.serverListingImg {
+    border: 1px dotted var(--rule-strong) !important;
+    box-shadow: none !important;
+}
+
+.serverListingMainBadge {
+    background: var(--paper) !important;
+    color: var(--ink) !important;
+    border-color: var(--paper) !important;
+    box-shadow: none !important;
+}
+
+.serverListingWhitelist {
+    background: transparent !important;
+    color: var(--text) !important;
+    border: 1px dotted var(--rule-strong) !important;
+    box-shadow: none !important;
+}
+
+#settingsMaxRAMLabel,
+#settingsMinRAMLabel {
+    background: var(--well) !important;
+    border: 1px dotted var(--rule-strong) !important;
+    box-shadow: none !important;
+    color: var(--text) !important;
+}
+
+#settingsMemoryTitle,
+.settingsMemoryLabel {
+    color: var(--text) !important;
+}
+
+.settingsSwitchServerButton,
+.settingsFileSelButton,
+.settingsAboutButton,
+#settingsScreenshotsRefresh,
+#settingsScreenshotsOpenFolder {
+    background: transparent !important;
+    color: var(--text) !important;
+    border: 1px dotted var(--rule-strong) !important;
+    box-shadow: none !important;
+}
+
+.settingsSwitchServerButton:hover,
+.settingsSwitchServerButton:focus,
+.settingsFileSelButton:hover,
+.settingsAboutButton:hover,
+#settingsScreenshotsRefresh:hover,
+#settingsScreenshotsOpenFolder:hover {
+    background: var(--paper) !important;
+    color: var(--ink) !important;
+    border-color: var(--paper) !important;
+}
+
+.settingsFileSelVal,
+#settingsJVMOptsVal,
+#settingsGameWidth,
+#settingsGameHeight {
+    background: var(--well) !important;
+    border: 1px dotted var(--rule-strong) !important;
+    color: var(--text) !important;
+}
+
+.toggleSwitchSlider {
+    background: var(--surface-2) !important;
+    border: 1px dotted var(--rule-strong) !important;
+}
+
+.toggleSwitch input:checked + .toggleSwitchSlider,
+input:checked + .toggleSwitchSlider {
+    background: var(--empi-accent) !important;
+    border-color: var(--empi-accent) !important;
+}
+
+.rangeSlider {
+    background: repeating-linear-gradient(90deg, rgb(241 239 232 / 0.3) 0 2px, transparent 2px 6px) !important;
+}
+
+.rangeSliderTrack {
+    background: var(--paper) !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+.toggleSwitchSlider::before {
+    background: var(--paper) !important;
+}
+
+/* Locked (required) switches: ordered stipple, never a tinted accent. Higher specificity than the checked rule above. */
+.toggleSwitch[reqmod] {
+    filter: none !important;
+}
+
+.toggleSwitch[reqmod] input + .toggleSwitchSlider,
+.toggleSwitch input:disabled:checked + .toggleSwitchSlider,
+.toggleSwitch input:disabled + .toggleSwitchSlider {
+    background: var(--surface-2) repeating-conic-gradient(rgb(241 239 232 / 0.16) 0% 25%, transparent 0% 50%) 0 0 / 3px 3px !important;
+    border: 1px dotted var(--rule-strong) !important;
+    opacity: 1 !important;
+}
+
+.toggleSwitch[reqmod] input + .toggleSwitchSlider::before,
+.toggleSwitch input:disabled:checked + .toggleSwitchSlider::before,
+.toggleSwitch input:disabled + .toggleSwitchSlider::before {
+    background: var(--text-3) !important;
+}
+
+.toggleSwitch input:checked + .toggleSwitchSlider::before {
+    background: var(--ink) !important;
+}
+
+/* --------------------------------------------------------------------- motion */
+
+/* One short tear when something happens (a state changes, a login fails). Still at rest. */
+@keyframes empiTear {
+    0%   { transform: none; clip-path: inset(0); text-shadow: none; }
+    15%  { transform: translateX(-3px); clip-path: inset(0 0 62% 0); text-shadow: 2px 0 var(--split-r), -2px 0 var(--split-c); }
+    30%  { transform: translateX(4px); clip-path: inset(38% 0 30% 0); }
+    45%  { transform: translateX(-2px); clip-path: inset(70% 0 0 0); text-shadow: -2px 0 var(--split-r), 2px 0 var(--split-c); }
+    60%  { transform: translateX(2px); clip-path: inset(12% 0 55% 0); }
+    80%  { transform: translateX(-1px); clip-path: inset(0); text-shadow: 1px 0 var(--split-r), -1px 0 var(--split-c); }
+    100% { transform: none; clip-path: inset(0); text-shadow: none; }
+}
+
+@keyframes empiSplit {
+    0%, 100% { text-shadow: none; }
+    25% { text-shadow: 2px 0 var(--split-r), -2px 0 var(--split-c); }
+    50% { text-shadow: -2px 0 var(--split-r), 2px 0 var(--split-c); }
+    75% { text-shadow: 1px 0 var(--split-r), -1px 0 var(--split-c); }
+}
+
+.empi-tear {
+    animation: empiTear 0.26s steps(1, end) 1 !important;
+}
+
+html[data-empi-performance-mode] body::before,
+html[data-empi-performance-mode] body::after {
+    display: none !important;
+}
+
+html[data-empi-performance-mode] .empi-tear {
+    animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .empi-tear,
+    #welcomeButton:hover,
+    .loginOptionButton:hover,
+    #launch_button:hover #launch_button_label {
+        animation: none !important;
+    }
+}
+
+@media (max-width: 900px) {
+    body::before,
+    body::after {
+        display: none;
+    }
+}
