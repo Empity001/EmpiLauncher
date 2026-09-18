@@ -1,0 +1,387 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-18T20:17:44.599Z",
+  "title": "Design System: Empi Publisher",
+  "extensions": {
+    "colorMeta": {
+      "creeper-green": {
+        "role": "primary",
+        "displayName": "Verde Creeper",
+        "canonical": "oklch(72.7% 0.182 136)",
+        "tonalRamp": [
+          "#021000",
+          "#122d01",
+          "#244e01",
+          "#387207",
+          "#4f9815",
+          "#6dbd3a",
+          "#91e362",
+          "#d2febc"
+        ]
+      },
+      "creeper-green-bright": {
+        "role": "primary",
+        "displayName": "Verde Creeper Vivo",
+        "canonical": "oklch(79.8% 0.182 135)",
+        "tonalRamp": [
+          "#020f00",
+          "#122d01",
+          "#244e00",
+          "#397205",
+          "#509713",
+          "#6ebd38",
+          "#92e361",
+          "#d0ffb8"
+        ]
+      },
+      "moss-charcoal-deep": {
+        "role": "neutral",
+        "displayName": "Carbón Musgo Profundo",
+        "canonical": "oklch(17.3% 0.008 145)",
+        "tonalRamp": [
+          "#090c09",
+          "#232623",
+          "#3f433f",
+          "#5f625f",
+          "#7f847f",
+          "#a2a6a2",
+          "#c6cac6",
+          "#ebf0eb"
+        ]
+      },
+      "moss-charcoal": {
+        "role": "neutral",
+        "displayName": "Carbón Musgo",
+        "canonical": "oklch(20.8% 0.010 145)",
+        "tonalRamp": [
+          "#090c09",
+          "#222622",
+          "#3f433f",
+          "#5e635e",
+          "#7f847f",
+          "#a1a7a1",
+          "#c5cbc5",
+          "#ebf0ea"
+        ]
+      },
+      "moss-charcoal-raised": {
+        "role": "neutral",
+        "displayName": "Carbón Musgo Elevado",
+        "canonical": "oklch(23.7% 0.012 145)",
+        "tonalRamp": [
+          "#080d08",
+          "#222722",
+          "#3e443e",
+          "#5d635d",
+          "#7e847e",
+          "#a1a7a0",
+          "#c4cbc4",
+          "#eaf1ea"
+        ]
+      },
+      "moss-charcoal-lifted": {
+        "role": "neutral",
+        "displayName": "Carbón Musgo Alzado",
+        "canonical": "oklch(27.6% 0.016 145)",
+        "tonalRamp": [
+          "#070d07",
+          "#202720",
+          "#3d443d",
+          "#5c645c",
+          "#7d857d",
+          "#9fa89f",
+          "#c3ccc3",
+          "#e8f2e8"
+        ]
+      },
+      "moss-line-strong": {
+        "role": "neutral",
+        "displayName": "Línea Musgo Fuerte",
+        "canonical": "oklch(35.8% 0.024 145)",
+        "tonalRamp": [
+          "#050e06",
+          "#1e281e",
+          "#3a453a",
+          "#596559",
+          "#7a867a",
+          "#9ca99c",
+          "#c0cdc0",
+          "#e5f3e5"
+        ]
+      },
+      "bone-white": {
+        "role": "neutral",
+        "displayName": "Blanco Hueso",
+        "canonical": "oklch(93.7% 0.010 145)",
+        "tonalRamp": [
+          "#090c09",
+          "#222622",
+          "#3f433f",
+          "#5e635e",
+          "#7f847f",
+          "#a1a7a1",
+          "#c5cbc5",
+          "#eaf0ea"
+        ]
+      },
+      "sage-mist": {
+        "role": "neutral",
+        "displayName": "Bruma de Salvia",
+        "canonical": "oklch(74.1% 0.033 133)",
+        "tonalRamp": [
+          "#060e02",
+          "#1f2918",
+          "#3b4634",
+          "#5a6652",
+          "#7b8773",
+          "#9daa95",
+          "#c1ceb9",
+          "#e6f4dd"
+        ]
+      },
+      "sage-dim": {
+        "role": "neutral",
+        "displayName": "Salvia Apagada",
+        "canonical": "oklch(62.8% 0.038 135)",
+        "tonalRamp": [
+          "#050e01",
+          "#1d2916",
+          "#394732",
+          "#586651",
+          "#798871",
+          "#9bab93",
+          "#bfcfb6",
+          "#e4f5db"
+        ]
+      },
+      "ember-red": {
+        "role": "semantic",
+        "displayName": "Rojo Brasa",
+        "canonical": "oklch(70.1% 0.154 30)",
+        "tonalRamp": [
+          "#210000",
+          "#4c0200",
+          "#7d0e05",
+          "#a73326",
+          "#ce5847",
+          "#f67b69",
+          "#fdb4a7",
+          "#fee9e5"
+        ]
+      },
+      "lantern-amber": {
+        "role": "semantic",
+        "displayName": "Ámbar Farol",
+        "canonical": "oklch(78.1% 0.137 85)",
+        "tonalRamp": [
+          "#120900",
+          "#312200",
+          "#553e00",
+          "#7b5c01",
+          "#a47b0e",
+          "#cc9d27",
+          "#f2c254",
+          "#feedc8"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "El nombre del modpack o de la pantalla, una vez por pantalla."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Encabezado de una sección dentro de una pantalla."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "El texto de trabajo; los párrafos no pasan de ~62 caracteres."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Etiquetas de campos y descripciones bajo un título."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Ayudas, tamaños, contadores y pistas, con cifras tabulares."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "Detalle técnico, comando previsto y rutas de reglas."
+      }
+    },
+    "shadows": [
+      {
+        "name": "progress-drawer",
+        "value": "-16px 0 40px rgb(0 0 0 / .45)",
+        "purpose": "La única sombra del sistema: separa el panel de progreso del resto."
+      },
+      {
+        "name": "selection-ring",
+        "value": "inset 0 0 0 1px rgb(111 191 60 / .45)",
+        "purpose": "Contorno interno que marca el elemento elegido dentro de un grupo."
+      },
+      {
+        "name": "dialog-scrim",
+        "value": "rgb(0 0 0 / .6)",
+        "purpose": "Telón que oscurece lo de atrás mientras un diálogo pide atención."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out-expo",
+        "value": "cubic-bezier(.16, 1, .3, 1)",
+        "purpose": "Curva de todas las transiciones de estado."
+      },
+      {
+        "name": "state-change",
+        "value": "120ms–220ms",
+        "purpose": "Duración de hover, foco, deslizamiento del panel y aparición de diálogos."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce",
+        "purpose": "Las animaciones se recortan; el indicador de carga sigue girando más despacio."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact",
+        "value": "520px"
+      },
+      {
+        "name": "narrow",
+        "value": "900px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Default Button",
+      "kind": "button",
+      "refersTo": "btn",
+      "description": "Acción secundaria: discreta, nunca compite con el siguiente paso.",
+      "html": "<button class=\"ds-btn\">Abrir carpeta</button>",
+      "css": ".ds-btn{font:500 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;padding:8px 16px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:background .15s cubic-bezier(.16,1,.3,1),border-color .15s cubic-bezier(.16,1,.3,1),transform .12s cubic-bezier(.16,1,.3,1);background:#1b201b;color:#e6ece6;border:1px solid #354035}.ds-btn:hover{background:#232a23}.ds-btn:active{transform:scale(.98)}.ds-btn:focus-visible{outline:2px solid #6fbf3c;outline-offset:2px}"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "btn-primary",
+      "description": "La respuesta a \"¿qué hago ahora?\": Compilar, Enviar, Guardar, Crear.",
+      "html": "<button class=\"ds-btn-primary\">Compilar</button>",
+      "css": ".ds-btn-primary{font:500 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;padding:8px 16px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:background .15s cubic-bezier(.16,1,.3,1),border-color .15s cubic-bezier(.16,1,.3,1),transform .12s cubic-bezier(.16,1,.3,1);font-weight:600;background:#6fbf3c;color:#0c1804;border:1px solid #6fbf3c}.ds-btn-primary:hover{background:#86d654;border-color:#86d654}.ds-btn-primary:active{transform:scale(.98)}.ds-btn-primary:focus-visible{outline:2px solid #6fbf3c;outline-offset:2px}"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "btn-danger",
+      "description": "Cancelar una tarea o quitar algo. Rojo solo en texto y contorno.",
+      "html": "<button class=\"ds-btn-danger\">Cancelar</button>",
+      "css": ".ds-btn-danger{font:500 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;padding:8px 16px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:background .15s cubic-bezier(.16,1,.3,1),border-color .15s cubic-bezier(.16,1,.3,1),transform .12s cubic-bezier(.16,1,.3,1);background:#1b201b;color:#ef7563;border:1px solid rgba(239,117,99,.35)}.ds-btn-danger:hover{background:rgba(239,117,99,.1)}.ds-btn-danger:focus-visible{outline:2px solid #6fbf3c;outline-offset:2px}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo de texto sobre el lienzo más oscuro; el foco lo marca el anillo verde.",
+      "html": "<label class=\"ds-field\"><span>Nombre que ven los jugadores</span><input class=\"ds-input\" value=\"PanolisSMP\"></label>",
+      "css": ".ds-field{display:flex;flex-direction:column;gap:6px;font:400 13px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;color:#a3b09b}.ds-input{font:400 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;color:#e6ece6;background:#0e110e;border:1px solid #354035;border-radius:7px;padding:8px 10px;min-height:36px;width:260px}.ds-input:hover{border-color:#4a584a}.ds-input:focus-visible{outline:2px solid #6fbf3c;outline-offset:-1px;border-color:transparent}"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "chip",
+      "refersTo": "segmented",
+      "description": "Elegir una opción entre pocas; la elegida sube de tono y lleva un anillo verde interno.",
+      "html": "<div class=\"ds-seg\" role=\"radiogroup\"><button class=\"ds-seg-on\" role=\"radio\" aria-checked=\"true\">Protegido</button><button role=\"radio\" aria-checked=\"false\">Libre</button></div>",
+      "css": ".ds-seg{display:inline-flex;background:#0e110e;border:1px solid #354035;border-radius:7px;padding:3px;gap:2px}.ds-seg button{background:none;border:0;color:#a3b09b;font:400 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;padding:6px 16px;border-radius:5px;cursor:pointer}.ds-seg button:hover{color:#e6ece6}.ds-seg .ds-seg-on{background:#232a23;color:#e6ece6;font-weight:600;box-shadow:inset 0 0 0 1px rgba(111,191,60,.45)}"
+    },
+    {
+      "name": "Modpack Row",
+      "kind": "nav",
+      "refersTo": "pack-row-active",
+      "description": "Fila de la lista de modpacks; la elegida lleva tinte y línea de Creeper.",
+      "html": "<button class=\"ds-pack ds-pack-on\"><span class=\"ds-pack-icon\">P</span><span><b>PanolisSMP</b><small>Fabric · MC 1.21.11 · v1.2.1</small></span></button>",
+      "css": ".ds-pack{display:flex;gap:12px;align-items:center;text-align:left;width:280px;background:transparent;border:1px solid transparent;border-radius:10px;padding:8px 10px;color:#e6ece6;font:400 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;cursor:pointer;transition:background .15s cubic-bezier(.16,1,.3,1)}.ds-pack:hover{background:#1b201b}.ds-pack-on,.ds-pack-on:hover{background:rgba(111,191,60,.11);border-color:rgba(111,191,60,.45)}.ds-pack-icon{width:40px;height:40px;border-radius:9px;background:#232a23;display:grid;place-items:center;color:#7f8e77;font-weight:700}.ds-pack b{display:block;font-weight:600}.ds-pack small{color:#a3b09b;font-size:12px}"
+    },
+    {
+      "name": "Pipeline Step",
+      "kind": "custom",
+      "refersTo": "pipeline-step",
+      "description": "Un paso del pie Editar → Compilar → Enviar: marcador redondo, botón y una pista de una línea.",
+      "html": "<div class=\"ds-step\"><span class=\"ds-num\"><svg viewBox=\"0 0 24 24\" width=\"15\" height=\"15\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 6 9 17l-5-5\"/></svg></span><div><button class=\"ds-step-btn\">Compilar de nuevo</button><small>Compilado hace 3 min</small></div></div>",
+      "css": ".ds-step{display:flex;align-items:center;gap:12px;font:400 14px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif}.ds-num{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#6fbf3c;color:#0c1804;flex:none}.ds-step>div{display:flex;flex-direction:column;align-items:flex-start;gap:4px}.ds-step-btn{font:500 15px/1.5 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;padding:11px 22px;border-radius:7px;background:#1b201b;color:#e6ece6;border:1px solid #354035;cursor:pointer}.ds-step-btn:hover{background:#232a23}.ds-step small{font-size:12px;color:#a3b09b}"
+    },
+    {
+      "name": "Protection Badge: Protegido",
+      "kind": "chip",
+      "refersTo": "badge-locked",
+      "description": "El estado por defecto de un archivo: el launcher lo restaura. Neutro, con candado.",
+      "html": "<span class=\"ds-badge\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"/></svg>Protegido</span>",
+      "css": ".ds-badge{display:inline-flex;align-items:center;gap:5px;font:400 12px/1.4 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;padding:2px 9px 2px 7px;border-radius:999px;border:1px solid #354035;color:#a3b09b;white-space:nowrap}"
+    },
+    {
+      "name": "Protection Badge: Libre",
+      "kind": "chip",
+      "refersTo": "badge-free",
+      "description": "La excepción que hay que ver: el jugador puede cambiar el archivo. Ámbar, con candado abierto.",
+      "html": "<span class=\"ds-badge-free\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 9.9-1\"/></svg>Libre</span>",
+      "css": ".ds-badge-free{display:inline-flex;align-items:center;gap:5px;font:400 12px/1.4 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;padding:2px 9px 2px 7px;border-radius:999px;border:1px solid rgba(224,176,64,.45);background:rgba(224,176,64,.08);color:#e0b040;white-space:nowrap}"
+    }
+  ],
+  "narrative": {
+    "northStar": "El taller ordenado",
+    "overview": "Un banco de trabajo oscuro y en calma. El autor trabaja solo, a ratos largos, y lo que hace al final (pulsar Enviar) llega a otras personas: por eso la interfaz debe transmitir serenidad y precisión, no prisa. Cada herramienta está en su sitio, nada compite por la atención y siempre se ve qué está pasando: los pasos, el progreso y el detalle técnico están a un clic, nunca ocultos.\n\nEl sistema es plano y se construye por capas de tono, no por adornos. Todos los neutros se inclinan hacia el verde del acento (nada de gris puro ni negro puro), y el verde solo aparece cuando algo avanza, está seleccionado o salió bien. Las fuentes son las del sistema operativo: no hay nada que descargar, en línea con el principio de gastar lo mínimo de la máquina.",
+    "keyCharacteristics": [
+      "Tono sereno y preciso; controles silenciosos, con un único elemento que destaca: el siguiente paso.",
+      "Profundidad por tono (plano por capas), con líneas finas para separar; solo el panel de progreso lleva sombra.",
+      "Un acento verde reservado a la acción, la selección y el éxito.",
+      "Iconos dibujados con un solo trazo (rejilla de 24 px, 1,75 de grosor, extremos redondos); nunca emoji.",
+      "Movimiento corto (120–220 ms) y solo para comunicar un cambio de estado."
+    ],
+    "rules": [
+      {
+        "name": "The Green Means Go Rule",
+        "body": "Verde Creeper es para lo que mueve el trabajo hacia delante, para la selección actual y para el éxito. Nunca decora, nunca marca un estado inactivo.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tinted Neutral Rule",
+        "body": "Ningún neutro es gris puro: todos se inclinan al matiz del acento (oklch ~145). Un gris frío en este sistema es un error.",
+        "section": "colors"
+      },
+      {
+        "name": "The System Font Rule",
+        "body": "No se carga ninguna fuente. Lo que pide el sistema ya está instalado y no cuesta nada.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Numbers Rule",
+        "body": "Versiones, tamaños, contadores y tiempos usan cifras tabulares para que no salten al cambiar.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Tone Rule",
+        "body": "La profundidad se expresa cambiando de tono, nunca añadiendo sombra. Si algo necesita destacar, sube de nivel de tono o gana una línea.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** reservar Verde Creeper para la acción que hace avanzar el trabajo, la selección actual y el éxito.",
+      "**Do** mantener todo texto en al menos 4,5:1 sobre su fondo; Salvia Apagada solo para marcadores, tamaños y metadatos.",
+      "**Do** dibujar los iconos con el mismo trazo (rejilla de 24 px, grosor 1,75) y darles nombre accesible cuando son botones.",
+      "**Do** mostrar el progreso paso a paso y dejar el detalle técnico a un clic.",
+      "**Do** separar secciones con líneas finas y aire (24 px), y alinear en columnas todo lo que se compara (tamaños, estados, controles).",
+      "**Do** respetar `prefers-reduced-motion` y limitar el movimiento a 120–220 ms con la curva `cubic-bezier(.16, 1, .3, 1)`."
+    ],
+    "donts": [
+      "**Don't** usar emoji como iconos ni mezclar familias de iconos.",
+      "**Don't** añadir sombras a tarjetas o botones para dar profundidad; sube de tono en su lugar.",
+      "**Don't** anidar tarjetas ni envolver cada sección en una caja.",
+      "**Don't** usar gris o negro puros: todo neutro se inclina al verde del acento.",
+      "**Don't** poner rojo o ámbar como decoración; existen para avisar.",
+      "**Don't** cargar fuentes externas ni recursos que cuesten memoria o red."
+    ]
+  }
+}
