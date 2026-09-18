@@ -610,3 +610,48 @@ Ex.
     }
 }
 ```
+
+## Protección de archivos (`policy`) y color (`accent`)
+
+Estas extensiones las genera Nebula a partir de `servermeta.json` (el Publisher las edita por ti).
+
+### `policy: "free"` en un módulo
+
+Por defecto el launcher **restaura** todo lo que publica el modpack: si un archivo falta, se renombra o cambia de
+hash/peso, se vuelve a descargar. Un módulo marcado con `"policy": "free"` se entrega **una sola vez** y después el
+jugador manda sobre él (puede editarlo, renombrarlo o borrarlo). Solo cuenta para:
+
+- módulos `File` (la carpeta `files` del modpack, que acaban dentro de la instancia), y
+- mods de Forge/NeoForge 1.20.3+ (que el launcher copia a la carpeta `mods` de la instancia).
+
+Las librerías, el loader y los mods que gestiona el launcher (Fabric, Forge antiguo) siempre se verifican.
+Un launcher anterior a esta función ignora `policy` y trata todo como protegido, que es el comportamiento de siempre.
+
+Lo ya entregado se anota en `.empi-provisioned.json` dentro de la instancia. Si el servidor trae
+`"protection": { "revision": N }` y N cambia, los archivos libres se entregan otra vez a todos.
+
+### Reglas en `servermeta.json`
+
+```json
+"protection": {
+  "default": "locked",
+  "revision": 0,
+  "rules": [
+    { "path": "mods/", "mode": "free" },
+    { "path": "mods/sodium-*", "mode": "locked" },
+    { "path": "config/", "mode": "free" },
+    { "path": "config/sodium-options.json", "mode": "locked" }
+  ]
+}
+```
+
+- `path` es una ruta dentro de la instancia. Los mods se escriben como `mods/<archivo>`.
+- Una carpeta termina en `/`; `*` cubre un nombre y `**` cruza carpetas.
+- Gana la regla más concreta: archivo exacto, luego patrón con `*`, luego la carpeta más profunda.
+- `mode` es `locked` (se restaura) o `free` (se entrega una vez).
+
+### `accent`
+
+`meta.accent` (por ejemplo `"#5e89ff"`) llega al servidor de la distribución como `accent` y tiñe el launcher mientras
+ese modpack está seleccionado. Si el modpack trae `files/theme.json`, su `accent` tiene prioridad; el Publisher
+escribe el mismo color en los dos sitios para que no se contradigan.

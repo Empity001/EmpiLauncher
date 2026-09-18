@@ -165,6 +165,7 @@ function getPack(config, id) {
     return {
         ...summary,
         meta: meta.meta,
+        defaultDiscordImage: `${baseUrl(config)}servers/${id}/icon.png`,
         javaMajor: meta.meta.javaOptions ? meta.meta.javaOptions.suggestedMajor || null : null,
         mods,
         filesEntries: fs.existsSync(filesDir) ? fs.readdirSync(filesDir).slice(0, 60) : [],
@@ -194,12 +195,56 @@ function patchMeta(config, id, patch) {
         const { type } = loaderOf(data)
         if (type) data[type] = { ...data[type], version: String(patch.loaderVersion).trim() }
     }
+    if ('accent' in patch) {
+        const accent = patch.accent ? String(patch.accent).trim().toLowerCase() : ''
+        if (accent && !/^#([0-9a-f]{3}|[0-9a-f]{6})$/.test(accent)) throw new Error('El color tiene que ser un hex como #5e89ff.')
+        if (accent) meta.accent = accent
+        else delete meta.accent
+        syncThemeAccent(path.dirname(file), accent)
+    }
+    if ('discord' in patch) {
+        const clean = (value) => String(value ?? '').trim()
+        const discord = patch.discord && typeof patch.discord === 'object'
+            ? { shortId: clean(patch.discord.shortId), largeImageText: clean(patch.discord.largeImageText), largeImageKey: clean(patch.discord.largeImageKey) }
+            : null
+        if (discord && (discord.shortId || discord.largeImageText || discord.largeImageKey)) meta.discord = discord
+        else delete meta.discord
+    }
     if (meta.version && !/^\d+(\.\d+){0,3}([-+][\w.]+)?$/.test(meta.version)) {
         throw new Error(`La version "${meta.version}" no es valida (usa algo como 1.2.0).`)
     }
 
     writeJson(file, data)
     return getPack(config, id)
+}
+
+/**
+ * The launcher lets files/theme.json override the accent from the distribution, so the two are kept in
+ * step: whatever colour is chosen here is written to both, and nothing else in theme.json is touched.
+ */
+function syncThemeAccent(packDirectory, accent) {
+    const themeFile = path.join(packDirectory, 'files', 'theme.json')
+    const theme = readJson(themeFile, {})
+    if (accent) theme.accent = accent
+    else delete theme.accent
+    if (Object.keys(theme).length > 0) {
+        fs.mkdirSync(path.dirname(themeFile), { recursive: true })
+        writeJson(themeFile, theme)
+    } else {
+        fs.rmSync(themeFile, { force: true })
+    }
+}
+
+function packDir(config, id) {
+    return assertPackId(config, id)
+}
+
+function readServerMeta(config, id) {
+    return readMeta(config, id)
+}
+
+function writeServerMeta(config, id, data) {
+    writeJson(metaPath(config, id), data)
 }
 
 /** Fresh servers come with "<FILL IN>" placeholders from Nebula; blank them so nothing weird reaches players. */
@@ -297,5 +342,6 @@ function openFolder(config, id, what) {
 
 module.exports = {
     LOADERS, CATEGORIES, env, rootPath, baseUrl, serversDir, generateDistro, runNebula, ensureBuilt,
-    listPacks, getPack, patchMeta, createPack, saveMod, deleteMod, moveMod, saveIcon, iconPath, openFolder
+    listPacks, getPack, patchMeta, createPack, saveMod, deleteMod, moveMod, saveIcon, iconPath, openFolder,
+    packDir, readServerMeta, writeServerMeta, modsOf, loaderOf, minecraftVersionOf
 }

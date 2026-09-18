@@ -41,10 +41,125 @@ index 554077d..db1e3ef 100644
                      case 'downloadComplete':
                          log.info('Received download complete.');
 diff --git a/node_modules/helios-core/dist/dl/distribution/DistributionIndexProcessor.js b/node_modules/helios-core/dist/dl/distribution/DistributionIndexProcessor.js
-index f09b6b4..85c2738 100644
+index f09b6b4..6a4f086 100644
 --- a/node_modules/helios-core/dist/dl/distribution/DistributionIndexProcessor.js
 +++ b/node_modules/helios-core/dist/dl/distribution/DistributionIndexProcessor.js
-@@ -67,7 +67,7 @@ class DistributionIndexProcessor extends IndexProcessor_1.IndexProcessor {
+@@ -15,6 +15,8 @@ const fs_extra_1 = require("fs-extra");
+ const node_stream_zip_1 = __importDefault(require("node-stream-zip"));
+ const path_1 = require("path");
+ class DistributionIndexProcessor extends IndexProcessor_1.IndexProcessor {
++    static PROVISION_FILE = '.empi-provisioned.json';
++    provision = null;
+     distribution;
+     serverId;
+     static logger = LoggerUtil_1.LoggerUtil.getLogger('DistributionIndexProcessor');
+@@ -35,19 +37,88 @@ class DistributionIndexProcessor extends IndexProcessor_1.IndexProcessor {
+             throw new AssetGuardError_1.AssetGuardError(`Invalid server id ${this.serverId}`);
+         }
+         const notValid = [];
++        this.provision = await this.loadProvisionRecord(server);
+         await this.validateModules(server.modules, notValid);
++        await this.saveProvisionRecord();
+         await onStageComplete();
+         return {
+             distribution: notValid
+         };
+     }
+     async postDownload() {
++        if (this.provision != null) {
++            for (const key of this.provision.pending) {
++                this.provision.items[key] = 1;
++                this.provision.dirty = true;
++            }
++            this.provision.pending = [];
++            await this.saveProvisionRecord();
++        }
+         await this.loadModLoaderVersionJson();
+     }
++    // --- Protection ("free" files) -------------------------------------------------------------
++    // A module Nebula stamped policy:"free" is delivered once and then left alone: the player may
++    // edit, rename or delete it. What was already delivered is remembered in a small file inside the
++    // instance, so nothing is restored again until the modpack raises protection.revision.
++    // Only files inside the instance are covered; libraries, loaders and the mod store copies are
++    // always validated.
++    async loadProvisionRecord(server) {
++        const root = this.findInstanceRoot(server);
++        const revision = server.rawServer.protection?.revision ?? 0;
++        const record = { root, revision, items: {}, pending: [], dirty: false };
++        if (root == null) {
++            return record;
++        }
++        try {
++            const saved = await (0, fs_extra_1.readJson)((0, path_1.join)(root, DistributionIndexProcessor.PROVISION_FILE));
++            if ((saved.revision ?? 0) === revision && saved.items != null) {
++                record.items = saved.items;
++            }
++        }
++        catch (err) {
++            // First launch (or an unreadable record): everything counts as not delivered yet.
++        }
++        return record;
++    }
++    async saveProvisionRecord() {
++        const record = this.provision;
++        if (record == null || record.root == null || !record.dirty) {
++            return;
++        }
++        try {
++            await (0, fs_extra_1.ensureDir)(record.root);
++            await (0, fs_extra_1.writeJson)((0, path_1.join)(record.root, DistributionIndexProcessor.PROVISION_FILE), { revision: record.revision, items: record.items });
++            record.dirty = false;
++        }
++        catch (err) {
++            DistributionIndexProcessor.logger.warn('Unable to save the record of delivered files.', err);
++        }
++    }
++    /** File modules live at <instanceDir>/<serverId>/<artifact.path>; peel the relative part off to find the instance. */
++    findInstanceRoot(server) {
++        for (const module of server.modules) {
++            const raw = module.rawModule;
++            if (raw.type === helios_distribution_types_1.Type.File && raw.artifact.path != null) {
++                const full = module.getPath();
++                const relative = raw.artifact.path.split('/').join(path_1.sep);
++                if (full.toLowerCase().endsWith(relative.toLowerCase())) {
++                    return full.slice(0, full.length - relative.length);
++                }
++            }
++        }
++        return null;
++    }
+     async validateModules(modules, accumulator) {
+         for (const module of modules) {
+             const hash = module.rawModule.artifact.MD5;
+-            if (!await (0, FileUtils_1.validateLocalFile)(module.getPath(), Asset_1.HashAlgo.MD5, hash)) {
++            const key = module.rawModule.artifact.path ?? module.rawModule.id;
++            const free = this.provision?.root != null
++                && module.rawModule.policy === 'free'
++                && module.rawModule.type === helios_distribution_types_1.Type.File;
++            if (free && this.provision.items[key]) {
++                // Delivered before: whatever the player did with it is theirs.
++            }
++            else if (!await (0, FileUtils_1.validateLocalFile)(module.getPath(), Asset_1.HashAlgo.MD5, hash)) {
+                 accumulator.push({
+                     id: module.rawModule.id,
+                     hash: hash,
+@@ -56,6 +127,15 @@ class DistributionIndexProcessor extends IndexProcessor_1.IndexProcessor {
+                     url: module.rawModule.artifact.url,
+                     path: module.getPath()
+                 });
++                if (free) {
++                    this.provision.pending.push(key);
++                    this.provision.dirty = true;
++                }
++            }
++            else if (free) {
++                // Already in place and correct: count it as delivered.
++                this.provision.items[key] = 1;
++                this.provision.dirty = true;
+             }
+             if (module.hasSubModules()) {
+                 await this.validateModules(module.subModules, accumulator);
+@@ -67,7 +147,7 @@ class DistributionIndexProcessor extends IndexProcessor_1.IndexProcessor {
          if (server == null) {
              throw new AssetGuardError_1.AssetGuardError(`Invalid server id ${this.serverId}`);
          }

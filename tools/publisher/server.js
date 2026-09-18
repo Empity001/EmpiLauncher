@@ -10,10 +10,12 @@ const nebula = require('./lib/nebula')
 const packs = require('./lib/packs')
 const launcher = require('./lib/launcher')
 const versions = require('./lib/versions')
+const protection = require('./lib/protection')
+const appearance = require('./lib/appearance')
 const gh = require('./lib/gh')
 const { capture, runInJob, killTree } = require('./lib/exec')
 
-const PORT = 4848
+const PORT = Number(process.env.PUBLISHER_PORT) || 4848
 const HOST = '127.0.0.1'
 const PUBLIC_DIR = path.join(__dirname, 'public')
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png' }
@@ -167,6 +169,16 @@ route('POST', '/api/packs/:id/icon', async ({ req, params }) => {
 })
 route('POST', '/api/packs/:id/open', async ({ req, params }) => ({ folder: nebula.openFolder(config.load(), params.id, (await readJson(req)).what) }))
 
+route('GET', '/api/packs/:id/protection', ({ params }) => protection.describe(config.load(), params.id))
+route('POST', '/api/packs/:id/protection', async ({ req, params }) => protection.save(config.load(), params.id, await readJson(req)))
+
+route('GET', '/api/packs/:id/visuals', ({ params }) => appearance.info(config.load(), params.id))
+route('POST', '/api/packs/:id/visual', ({ req, params, query }) => appearance.save(config.load(), params.id, query.get('kind'), query.get('ext'), req))
+route('DELETE', '/api/packs/:id/visual', ({ params, query }) => {
+    appearance.remove(config.load(), params.id, query.get('kind'))
+    return appearance.info(config.load(), params.id)
+})
+
 route('POST', '/api/jobs/create-pack', async ({ req }) => {
     const body = await readJson(req)
     const job = startJob(`Crear ${body.id}`, (log, step) => nebula.createPack(config.load(), body, log, step))
@@ -217,8 +229,8 @@ function handlePresence(req, res) {
     })
 }
 
-function serveFile(res, file) {
-    res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' })
+function serveFile(res, file, mime) {
+    res.writeHead(200, { 'Content-Type': mime || MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' })
     fs.createReadStream(file).pipe(res)
 }
 
@@ -249,6 +261,11 @@ const server = http.createServer(async (req, res) => {
         if (req.method === 'GET' && iconMatch) {
             const icon = nebula.iconPath(config.load(), decodeURIComponent(iconMatch[1]))
             return icon ? serveFile(res, icon) : sendJson(res, 404, { error: 'Sin icono' })
+        }
+        const visualMatch = url.pathname.match(/^\/api\/packs\/([^/]+)\/visual$/)
+        if (req.method === 'GET' && visualMatch) {
+            const found = appearance.find(config.load(), decodeURIComponent(visualMatch[1]), url.searchParams.get('kind'))
+            return found ? serveFile(res, found.file, found.mime) : sendJson(res, 404, { error: 'Sin imagen' })
         }
 
         for (const candidate of routes) {

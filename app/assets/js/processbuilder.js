@@ -8,6 +8,7 @@ const { Type }              = require('helios-distribution-types')
 const os                    = require('os')
 const path                  = require('path')
 
+const { syncMods }                     = require('./modsync')
 const ConfigManager            = require('./configmanager')
 const isDev                    = require('./isdev')
 
@@ -329,26 +330,11 @@ class ProcessBuilder {
      * any mod EmpiLauncher previously copied there that is no longer enabled.
      */
     _syncModsFolder(mods) {
-        const modsDir = path.join(this.gameDir, 'mods')
-        fs.ensureDirSync(modsDir)
-        const markerFile = path.join(this.gameDir, '.empi-managed-mods.json')
-
-        const previouslyManaged = fs.existsSync(markerFile) ? JSON.parse(fs.readFileSync(markerFile, 'UTF-8')) : []
-        const currentlyManaged = []
-
-        for (const mod of mods) {
-            const fileName = path.basename(mod.getPath())
-            fs.copyFileSync(mod.getPath(), path.join(modsDir, fileName))
-            currentlyManaged.push(fileName)
-        }
-
-        for (const fileName of previouslyManaged) {
-            if (!currentlyManaged.includes(fileName)) {
-                fs.removeSync(path.join(modsDir, fileName))
-            }
-        }
-
-        fs.writeFileSync(markerFile, JSON.stringify(currentlyManaged), 'UTF-8')
+        syncMods({
+            gameDir: this.gameDir,
+            mods,
+            revision: this.server.rawServer.protection?.revision ?? 0
+        })
     }
 
     /**

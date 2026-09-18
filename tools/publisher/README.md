@@ -46,3 +46,16 @@ Los avisos de la barra superior te dicen si falta algo. Las rutas se pueden camb
 - Solo escucha en `127.0.0.1` y rechaza peticiones que no vengan de su propia página.
 - Una sola tarea larga a la vez, con botón **Cancelar** que mata también los procesos hijos.
 - Nebula solo se recompila cuando cambia su código (antes `npm start` lo recompilaba siempre).
+
+## Ficha de cada modpack
+
+- **Ajustes**: nombre, versión, IP, Java, opciones y Discord (Rich Presence).
+- **Apariencia**: icono, color de acento, fondo y banner (con su vista previa ligera opcional). Las imágenes van
+  a la carpeta `files` con los nombres que busca el launcher; si pesan más de 40 MB, **Enviar** las sube solas a un Release.
+- **Protección**: un explorador de los archivos del modpack donde marcas cada carpeta o archivo como
+  **Protegido** (el launcher lo restaura si falta o cambia) o **Libre** (se entrega una vez y el jugador puede
+  cambiarlo). Gana la regla más concreta: por ejemplo `mods/` libre y `mods/sodium-*` protegido. Las reglas se
+  guardan en `servermeta.json` (`protection`) y se ven también en la lista "Reglas". "Volver a entregar" hace que
+  todos reciban de nuevo los archivos libres. Los jugadores con un launcher anterior a esta función siguen viendo todo
+  como protegido.
+- **Mods** y **Archivos**: como antes.
