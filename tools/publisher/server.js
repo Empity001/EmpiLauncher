@@ -2,6 +2,7 @@ const http = require('http')
 const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
+const os = require('os')
 const { exec } = require('child_process')
 
 const config = require('./lib/config')
@@ -274,11 +275,20 @@ function openBrowser() {
 
 server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-        // Already running: just bring its page up instead of starting a second copy.
+        // Already running (e.g. the old copy is still in its 45s grace after the tab closed):
+        // bring its page up instead of starting a second one. The exit is delayed so the
+        // browser launch, which runs in a child process, is not cut off.
         openBrowser()
-        process.exit(0)
+        setTimeout(() => process.exit(0), 2500)
+        return
     }
     throw err
+})
+
+// A crash used to vanish with its minimized window; leave the reason where Publicar.bat can show it.
+process.on('uncaughtException', (err) => {
+    try { fs.appendFileSync(path.join(os.homedir(), '.empilauncher-publisher.log'), `${new Date().toISOString()} ${err.stack || err}\n`) } catch { /* nothing more to do */ }
+    process.exit(1)
 })
 
 server.listen(PORT, HOST, () => {
