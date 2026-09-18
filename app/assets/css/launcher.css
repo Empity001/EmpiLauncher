@@ -9494,6 +9494,17 @@ html[data-empi-inactive] #launch_button[attention] {
     animation-play-state: paused !important;
 }
 
+/* Every other infinite decorative animation (clouds, glows, rotations...) also stops
+   while the window isn't the one being used; nothing redraws until focus returns. */
+html[data-empi-inactive] *,
+html[data-empi-inactive] *::before,
+html[data-empi-inactive] *::after {
+    animation-play-state: paused !important;
+}
+html[data-empi-inactive] #loadSpinnerImage {
+    animation-play-state: running !important;
+}
+
 /* Hidden views are fully skipped by layout/paint until opened. */
 #welcomeContainer,
 #loginContainer,

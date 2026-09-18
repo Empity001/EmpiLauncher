@@ -2681,6 +2681,15 @@ window.addEventListener('blur', () => {
     document.documentElement.setAttribute('data-empi-inactive', '')
     pauseLandingAnimations()
 }, { passive: true })
+// A window that opens without focus (Windows blocks focus stealing) never fires 'blur',
+// so it would keep animating at full speed behind whatever the user is actually using.
+// Cheap 2s check that puts it in the same resting state a blur would.
+setInterval(() => {
+    if(!document.hidden && !document.hasFocus() && !document.documentElement.hasAttribute('data-empi-inactive')){
+        document.documentElement.setAttribute('data-empi-inactive', '')
+        pauseLandingAnimations()
+    }
+}, 2000)
 window.addEventListener('empi-background-state', event => {
     if(event.detail?.inBackground){
         pauseLandingAnimations()
