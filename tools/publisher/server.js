@@ -2,129 +2,287 @@ const http = require('http')
 const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
+const { exec } = require('child_process')
 
 const config = require('./lib/config')
-const { publishLauncher } = require('./lib/publishLauncher')
-const { publishPacks } = require('./lib/publishPacks')
+const nebula = require('./lib/nebula')
+const packs = require('./lib/packs')
+const launcher = require('./lib/launcher')
+const versions = require('./lib/versions')
+const gh = require('./lib/gh')
+const { capture, runInJob, killTree } = require('./lib/exec')
 
 const PORT = 4848
+const HOST = '127.0.0.1'
 const PUBLIC_DIR = path.join(__dirname, 'public')
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' }
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png' }
+const ALLOWED_HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`])
+
+// ------------------------------------------------------------------ jobs
+// One long task at a time (nebula, git and electron-builder don't like company). Its output is
+// kept as a list of events so a reloaded page can pick the log back up.
 
 const jobs = new Map()
+let activeJob = null
+const MAX_EVENTS = 4000
 
-function createJob(taskFn) {
-    const id = crypto.randomUUID()
-    const job = { id, lines: [], done: false, error: null, listeners: new Set() }
-    jobs.set(id, job)
-
-    const log = (line) => {
-        for (const text of String(line).split(/\r?\n/)) {
-            job.lines.push(text)
-            for (const res of job.listeners) res.write(`data: ${JSON.stringify({ line: text })}\n\n`)
-        }
+class HttpError extends Error {
+    constructor(status, message) {
+        super(message)
+        this.status = status
     }
-
-    taskFn(log)
-        .then((result) => {
-            job.done = true
-            job.result = result
-            for (const res of job.listeners) res.write(`data: ${JSON.stringify({ done: true, result })}\n\n`)
-        })
-        .catch((err) => {
-            job.done = true
-            job.error = err.message
-            for (const res of job.listeners) res.write(`data: ${JSON.stringify({ done: true, error: err.message })}\n\n`)
-        })
-
-    return id
 }
 
+function jobSummary(job) {
+    return job && { id: job.id, title: job.title, done: job.done, error: job.error }
+}
+
+function startJob(title, task) {
+    if (activeJob && !activeJob.done) throw new HttpError(409, `Ya hay una tarea en marcha: ${activeJob.title}`)
+
+    const job = {
+        id: crypto.randomUUID(), title, events: [], done: false, error: null, result: null,
+        listeners: new Set(), store: { children: new Set(), cancelled: false }
+    }
+    jobs.set(job.id, job)
+    activeJob = job
+
+    const emit = (event) => {
+        job.events.push(event)
+        if (job.events.length > MAX_EVENTS) job.events.shift()
+        for (const res of job.listeners) res.write(`data: ${JSON.stringify(event)}\n\n`)
+    }
+    const log = (text) => { for (const line of String(text).split(/\r?\n/)) emit({ line }) }
+    const step = (name) => emit({ step: name })
+    const finish = (extra) => {
+        job.done = true
+        Object.assign(job, extra)
+        emit({ done: true, error: job.error, result: job.result })
+        for (const res of job.listeners) res.end()
+        job.listeners.clear()
+    }
+
+    runInJob(job.store, () => task(log, step))
+        .then((result) => finish({ result: result ?? null }))
+        .catch((err) => finish({ error: job.store.cancelled ? 'Cancelado.' : err.message }))
+
+    return job
+}
+
+function cancelJob(job) {
+    job.store.cancelled = true
+    for (const child of job.store.children) killTree(child)
+}
+
+// ------------------------------------------------------------------ presence
+// The tool exists only while its page is open: once the tab closes (and nothing is running) it exits,
+// so it never sits in the background eating memory.
+
+const presence = new Set()
+let idleTimer = null
+
+function scheduleExit(delayMs) {
+    clearTimeout(idleTimer)
+    idleTimer = setTimeout(() => {
+        if (presence.size === 0 && !(activeJob && !activeJob.done)) process.exit(0)
+        scheduleExit(20000)
+    }, delayMs)
+}
+
+setInterval(() => { for (const res of presence) res.write(': ping\n\n') }, 15000).unref()
+
+// ------------------------------------------------------------------ helpers
+
 function sendJson(res, status, body) {
-    res.writeHead(status, { 'Content-Type': 'application/json' })
+    res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' })
     res.end(JSON.stringify(body))
 }
 
-function readJsonBody(req) {
-    return new Promise((resolve, reject) => {
-        let data = ''
-        req.on('data', (chunk) => { data += chunk })
-        req.on('end', () => {
-            try {
-                resolve(data ? JSON.parse(data) : {})
-            } catch (err) {
-                reject(err)
-            }
-        })
-        req.on('error', reject)
+async function readJson(req) {
+    const chunks = []
+    for await (const chunk of req) chunks.push(chunk)
+    const text = Buffer.concat(chunks).toString('utf8')
+    return text ? JSON.parse(text) : {}
+}
+
+async function health() {
+    const current = config.load()
+    const env = nebula.env(current)
+    const [git, ghOk] = await Promise.all([
+        capture('git', ['--version']).then(() => true, () => false),
+        gh.authStatus()
+    ])
+    return {
+        git,
+        gh: ghOk,
+        java: !!env.JAVA_EXECUTABLE && fs.existsSync(env.JAVA_EXECUTABLE),
+        nebula: fs.existsSync(path.join(current.nebulaProjectPath, 'node_modules')),
+        packsRepo: fs.existsSync(path.join(current.empiPacksRepoPath, '.git')),
+        launcherRepo: fs.existsSync(path.join(current.launcherRepoPath, 'package.json'))
+    }
+}
+
+// ------------------------------------------------------------------ routes
+
+const routes = []
+const route = (method, pattern, handler) => {
+    const keys = []
+    const regex = new RegExp(`^${pattern.replace(/:(\w+)/g, (_, key) => { keys.push(key); return '([^/]+)' })}$`)
+    routes.push({ method, regex, keys, handler })
+}
+
+route('GET', '/api/health', () => health())
+route('GET', '/api/config', () => config.load())
+route('POST', '/api/config', async ({ req }) => {
+    const merged = { ...config.load(), ...(await readJson(req)) }
+    config.save(merged)
+    return merged
+})
+
+route('GET', '/api/status', () => ({ job: jobSummary(activeJob && !activeJob.done ? activeJob : null), packs: packs.status(config.load()) }))
+
+route('GET', '/api/versions/minecraft', () => versions.minecraft())
+route('GET', '/api/versions/loader', ({ query }) => versions.loader(query.get('type'), query.get('mc')))
+
+route('GET', '/api/packs', () => nebula.listPacks(config.load()))
+route('GET', '/api/packs/:id', ({ params }) => nebula.getPack(config.load(), params.id))
+route('POST', '/api/packs/:id/meta', async ({ req, params }) => nebula.patchMeta(config.load(), params.id, await readJson(req)))
+route('POST', '/api/packs/:id/mods', async ({ req, params, query }) => {
+    await nebula.saveMod(config.load(), params.id, query.get('category'), query.get('name'), req)
+    return { ok: true }
+})
+route('DELETE', '/api/packs/:id/mods', ({ params, query }) => {
+    nebula.deleteMod(config.load(), params.id, query.get('category'), query.get('name'))
+    return { ok: true }
+})
+route('POST', '/api/packs/:id/mods/move', async ({ req, params }) => {
+    const { from, to, name } = await readJson(req)
+    nebula.moveMod(config.load(), params.id, from, to, name)
+    return { ok: true }
+})
+route('POST', '/api/packs/:id/icon', async ({ req, params }) => {
+    await nebula.saveIcon(config.load(), params.id, req)
+    return { ok: true }
+})
+route('POST', '/api/packs/:id/open', async ({ req, params }) => ({ folder: nebula.openFolder(config.load(), params.id, (await readJson(req)).what) }))
+
+route('POST', '/api/jobs/create-pack', async ({ req }) => {
+    const body = await readJson(req)
+    const job = startJob(`Crear ${body.id}`, (log, step) => nebula.createPack(config.load(), body, log, step))
+    return { jobId: job.id }
+})
+route('POST', '/api/jobs/compile-packs', () => ({ jobId: startJob('Compilar modpacks', (log, step) => packs.compile(config.load(), {}, log, step)).id }))
+route('POST', '/api/jobs/send-packs', async ({ req }) => {
+    const body = await readJson(req)
+    return { jobId: startJob('Enviar modpacks', (log, step) => packs.send(config.load(), body, log, step)).id }
+})
+
+route('GET', '/api/launcher', () => launcher.info(config.load()))
+route('POST', '/api/jobs/compile-launcher', async ({ req }) => {
+    const body = await readJson(req)
+    return { jobId: startJob('Compilar el launcher', (log, step) => launcher.compile(config.load(), body, log, step)).id }
+})
+route('POST', '/api/jobs/send-launcher', async ({ req }) => {
+    const body = await readJson(req)
+    return { jobId: startJob('Enviar el launcher', (log, step) => launcher.send(config.load(), body, log, step)).id }
+})
+
+route('POST', '/api/jobs/:id/cancel', ({ params }) => {
+    const job = jobs.get(params.id)
+    if (!job) throw new HttpError(404, 'Tarea no encontrada')
+    cancelJob(job)
+    return { ok: true }
+})
+
+// Streams (SSE) and files bypass the JSON wrapper.
+function handleStream(req, res, jobId) {
+    const job = jobs.get(jobId)
+    if (!job) return sendJson(res, 404, { error: 'Tarea no encontrada' })
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' })
+    for (const event of job.events) res.write(`data: ${JSON.stringify(event)}\n\n`)
+    if (job.done) return res.end()
+    job.listeners.add(res)
+    req.on('close', () => job.listeners.delete(res))
+}
+
+function handlePresence(req, res) {
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' })
+    res.write(': hello\n\n')
+    presence.add(res)
+    clearTimeout(idleTimer)
+    req.on('close', () => {
+        presence.delete(res)
+        if (presence.size === 0) scheduleExit(45000)
     })
 }
 
-function serveStatic(req, res) {
-    const filePath = req.url === '/' ? '/index.html' : req.url
-    const resolved = path.join(PUBLIC_DIR, filePath)
-    if (!resolved.startsWith(PUBLIC_DIR) || !fs.existsSync(resolved)) {
+function serveFile(res, file) {
+    res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' })
+    fs.createReadStream(file).pipe(res)
+}
+
+function serveStatic(res, pathname) {
+    const resolved = path.join(PUBLIC_DIR, pathname === '/' ? 'index.html' : pathname)
+    if (!resolved.startsWith(PUBLIC_DIR) || !fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
         res.writeHead(404)
-        res.end('Not found')
-        return
+        return res.end('Not found')
     }
-    const ext = path.extname(resolved)
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' })
-    fs.createReadStream(resolved).pipe(res)
+    serveFile(res, resolved)
 }
 
 const server = http.createServer(async (req, res) => {
+    const url = new URL(req.url, `http://${HOST}:${PORT}`)
     try {
-        if (req.url === '/api/config' && req.method === 'GET') {
-            return sendJson(res, 200, config.load())
-        }
-
-        if (req.url === '/api/config' && req.method === 'POST') {
-            const body = await readJsonBody(req)
-            const current = config.load()
-            const merged = { ...current, ...body }
-            config.save(merged)
-            return sendJson(res, 200, merged)
-        }
-
-        if (req.url === '/api/jobs/launcher' && req.method === 'POST') {
-            const body = await readJsonBody(req)
-            const id = createJob((log) => publishLauncher(config.load(), body, log))
-            return sendJson(res, 200, { jobId: id })
-        }
-
-        if (req.url === '/api/jobs/packs' && req.method === 'POST') {
-            const body = await readJsonBody(req)
-            const id = createJob((log) => publishPacks(config.load(), body, log))
-            return sendJson(res, 200, { jobId: id })
-        }
-
-        const streamMatch = req.url.match(/^\/api\/jobs\/([a-f0-9-]+)\/stream$/)
-        if (streamMatch && req.method === 'GET') {
-            const job = jobs.get(streamMatch[1])
-            if (!job) return sendJson(res, 404, { error: 'Job not found' })
-
-            res.writeHead(200, {
-                'Content-Type': 'text/event-stream',
-                'Cache-Control': 'no-cache',
-                Connection: 'keep-alive'
-            })
-            for (const line of job.lines) res.write(`data: ${JSON.stringify({ line })}\n\n`)
-            if (job.done) {
-                res.write(`data: ${JSON.stringify({ done: true, error: job.error, result: job.result })}\n\n`)
-                return res.end()
+        // Only this machine's own page may drive the API (blocks other sites and DNS-rebinding tricks).
+        if (url.pathname.startsWith('/api/')) {
+            if (!ALLOWED_HOSTS.has(req.headers.host)) throw new HttpError(403, 'Host no permitido')
+            if (req.method !== 'GET' && req.headers.origin && !ALLOWED_HOSTS.has(new URL(req.headers.origin).host)) {
+                throw new HttpError(403, 'Origen no permitido')
             }
-            job.listeners.add(res)
-            req.on('close', () => job.listeners.delete(res))
-            return
         }
 
-        return serveStatic(req, res)
+        if (req.method === 'GET' && url.pathname === '/api/presence') return handlePresence(req, res)
+        const streamMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/stream$/)
+        if (req.method === 'GET' && streamMatch) return handleStream(req, res, streamMatch[1])
+        const iconMatch = url.pathname.match(/^\/api\/packs\/([^/]+)\/icon$/)
+        if (req.method === 'GET' && iconMatch) {
+            const icon = nebula.iconPath(config.load(), decodeURIComponent(iconMatch[1]))
+            return icon ? serveFile(res, icon) : sendJson(res, 404, { error: 'Sin icono' })
+        }
+
+        for (const candidate of routes) {
+            if (candidate.method !== req.method) continue
+            const match = url.pathname.match(candidate.regex)
+            if (!match) continue
+            const params = {}
+            candidate.keys.forEach((key, index) => { params[key] = decodeURIComponent(match[index + 1]) })
+            const result = await candidate.handler({ req, res, params, query: url.searchParams })
+            return sendJson(res, 200, result ?? { ok: true })
+        }
+
+        if (req.method === 'GET' && !url.pathname.startsWith('/api/')) return serveStatic(res, decodeURIComponent(url.pathname))
+        sendJson(res, 404, { error: 'No encontrado' })
     } catch (err) {
-        sendJson(res, 500, { error: err.message })
+        sendJson(res, err.status || 500, { error: err.message })
     }
 })
 
-server.listen(PORT, () => {
-    console.log(`EmpiLauncher Publisher: http://localhost:${PORT}`)
+function openBrowser() {
+    if (process.argv.includes('--no-open')) return
+    if (process.platform === 'win32') exec(`start "" http://localhost:${PORT}`)
+}
+
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        // Already running: just bring its page up instead of starting a second copy.
+        openBrowser()
+        process.exit(0)
+    }
+    throw err
+})
+
+server.listen(PORT, HOST, () => {
+    console.log(`Empi Publisher: http://localhost:${PORT}  (se cierra solo al cerrar la pagina)`)
+    scheduleExit(120000)
+    openBrowser()
 })

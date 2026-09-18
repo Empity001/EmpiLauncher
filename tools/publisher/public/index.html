@@ -1,82 +1,125 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>EmpiLauncher Publisher</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Empi Publisher</title>
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<header>
-    <h1>EmpiLauncher <span>Publisher</span></h1>
-    <button id="settingsButton" class="ghost">Configuracion</button>
-</header>
+    <div id="offline" class="offline" hidden>El Publisher se cerró. Ábrelo de nuevo con su acceso directo y recarga esta página.</div>
 
-<main>
-    <section class="card">
-        <h2>Publicar Launcher</h2>
-        <p class="hint">Compila el instalador y lo publica en GitHub Releases.</p>
-        <label class="checkbox">
-            <input type="checkbox" id="bumpVersion" checked>
-            Subir de version (patch) antes de publicar
-        </label>
-        <button id="publishLauncherButton" class="primary">Publicar Launcher</button>
-        <pre id="launcherLog" class="log" hidden></pre>
-    </section>
+    <header class="topbar">
+        <div class="brand"><span class="logo">E</span><span>Empi Publisher</span></div>
+        <nav class="tabs" id="mainTabs">
+            <button class="tab active" data-tab="packs">Modpacks</button>
+            <button class="tab" data-tab="launcher">Launcher</button>
+        </nav>
+        <div class="health" id="health"></div>
+        <button class="icon-btn" id="settingsBtn" title="Ajustes">⚙</button>
+    </header>
 
-    <section class="card">
-        <h2>Publicar EmpiPacks</h2>
-        <p class="hint">Corre Nebula (si esta configurado), sube archivos grandes a un Release, y sube el resto al repositorio.</p>
-        <label>
-            Mensaje del commit
-            <input type="text" id="commitMessage" placeholder="Actualizar EmpiPacks">
-        </label>
-        <button id="publishPacksButton" class="primary">Publicar EmpiPacks</button>
-        <pre id="packsLog" class="log" hidden></pre>
-    </section>
-</main>
+    <main>
+        <!-- ============================== MODPACKS ============================== -->
+        <section id="tab-packs" class="layout">
+            <aside class="sidebar">
+                <div class="side-head">
+                    <h2>Mis modpacks</h2>
+                    <button class="btn primary small" id="newPackBtn">+ Nuevo</button>
+                </div>
+                <div id="packList" class="pack-list"></div>
+            </aside>
+            <div class="content" id="packContent"></div>
+        </section>
 
-<div id="settingsModal" class="modal-backdrop" hidden>
-    <div class="modal">
-        <h2>Configuracion</h2>
-        <label>
-            Carpeta del repo de EmpiLauncher
-            <input type="text" id="launcherRepoPath">
-        </label>
-        <label>
-            Carpeta local del repo de EmpiPacks
-            <input type="text" id="empiPacksRepoPath">
-        </label>
-        <label>
-            Repo de EmpiPacks en GitHub (owner/repo)
-            <input type="text" id="empiPacksGithubRepo">
-        </label>
-        <label>
-            Repo de EmpiLauncher en GitHub (owner/repo)
-            <input type="text" id="launcherGithubRepo">
-        </label>
-        <label>
-            Carpeta del proyecto Nebula
-            <input type="text" id="nebulaProjectPath">
-        </label>
-        <label>
-            Carpeta ROOT de Nebula (la del .env, donde deja distribution.json/repo/servers)
-            <input type="text" id="nebulaRootPath">
-        </label>
-        <label>
-            Comando de Nebula (vacio = no correrlo, asumir que el repo ya esta al dia)
-            <input type="text" id="nebulaCommand" placeholder="npm run start -- g distro">
-        </label>
-        <label>
-            Archivos de mas de esta cantidad de MB van a un Release en vez del repo
-            <input type="number" id="largeFileThresholdMb" min="1">
-        </label>
-        <div class="modal-actions">
-            <button id="closeSettingsButton" class="ghost">Cerrar</button>
-            <button id="saveSettingsButton" class="primary">Guardar</button>
+        <!-- ============================== LAUNCHER ============================== -->
+        <section id="tab-launcher" class="single" hidden>
+            <div id="launcherContent"></div>
+        </section>
+    </main>
+
+    <footer class="pipeline" id="pipeline"></footer>
+
+    <!-- Live progress of whatever is running -->
+    <aside class="activity" id="activity" hidden>
+        <div class="activity-head">
+            <div>
+                <div class="activity-title" id="activityTitle"></div>
+                <div class="activity-sub" id="activitySub"></div>
+            </div>
+            <div class="activity-actions">
+                <button class="btn danger small" id="activityCancel">Cancelar</button>
+                <button class="btn small" id="activityClose" hidden>Cerrar</button>
+            </div>
         </div>
-    </div>
-</div>
+        <ol class="steps" id="activitySteps"></ol>
+        <div class="banner" id="activityBanner" hidden></div>
+        <details class="log-wrap" id="logWrap" open>
+            <summary>Detalle técnico</summary>
+            <pre id="activityLog" class="log"></pre>
+        </details>
+    </aside>
 
-<script src="app.js"></script>
+    <!-- New modpack -->
+    <dialog id="newPackDialog">
+        <form method="dialog" id="newPackForm" class="dialog-body">
+            <h2>Nuevo modpack</h2>
+            <p class="muted">Rellena esto y yo hago el resto por detrás. Después subes los mods y le das a Compilar.</p>
+
+            <label>Nombre del modpack
+                <input id="npName" placeholder="MiModpack" autocomplete="off" required>
+                <small class="muted" id="npNameHint"></small>
+            </label>
+
+            <label>Versión de Minecraft
+                <input id="npMc" list="mcList" placeholder="1.21.11" autocomplete="off" required>
+                <datalist id="mcList"></datalist>
+            </label>
+
+            <div class="field">
+                <span class="label">Loader</span>
+                <div class="segmented" id="npLoader">
+                    <button type="button" data-value="fabric" class="active">Fabric</button>
+                    <button type="button" data-value="forge">Forge</button>
+                    <button type="button" data-value="neoforge">NeoForge</button>
+                </div>
+            </div>
+
+            <label>Versión del loader
+                <select id="npLoaderVersion"></select>
+                <input id="npLoaderVersionCustom" placeholder="Escribe la versión, por ejemplo 61.2.1" hidden>
+                <small class="muted" id="npLoaderHint"></small>
+            </label>
+
+            <div class="command-preview"><span class="muted">Comando que se ejecutará por detrás:</span><code id="npCommand"></code></div>
+
+            <div class="dialog-actions">
+                <button type="button" class="btn" id="npCancel">Cancelar</button>
+                <button type="submit" class="btn primary" id="npCreate">Crear modpack</button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- Settings -->
+    <dialog id="settingsDialog">
+        <form method="dialog" class="dialog-body" id="settingsForm">
+            <h2>Ajustes</h2>
+            <p class="muted">Normalmente no hace falta tocar nada; solo si mueves las carpetas de sitio.</p>
+            <label>Carpeta del launcher <input id="launcherRepoPath"></label>
+            <label>Carpeta del repositorio EmpiPacks <input id="empiPacksRepoPath"></label>
+            <label>Carpeta de Nebula <input id="nebulaProjectPath"></label>
+            <label>Carpeta de trabajo de Nebula (ROOT) <input id="nebulaRootPath"></label>
+            <label>GitHub del launcher <input id="launcherGithubRepo"></label>
+            <label>GitHub de EmpiPacks <input id="empiPacksGithubRepo"></label>
+            <label>Archivos grandes: a Release desde (MB) <input id="largeFileThresholdMb" type="number" min="5"></label>
+            <div class="dialog-actions">
+                <button type="button" class="btn" id="settingsCancel">Cancelar</button>
+                <button type="submit" class="btn primary">Guardar</button>
+            </div>
+        </form>
+    </dialog>
+
+    <div id="toast" class="toast" hidden></div>
+    <script src="/app.js"></script>
 </body>
 </html>

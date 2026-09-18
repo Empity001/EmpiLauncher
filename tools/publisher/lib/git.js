@@ -4,8 +4,34 @@ function withLog(log, command, args) {
     log(`$ ${command} ${args.join(' ')}`)
 }
 
-async function status(cwd) {
-    return capture('git', ['status', '--short'], { cwd })
+/** `git status --short` as a list of { code, file } (empty when the tree is clean). */
+async function changes(cwd) {
+    const out = await capture('git', ['status', '--short', '-uall'], { cwd })
+    return out.split('\n').filter((line) => line.trim()).map((line) => ({ code: line.slice(0, 2).trim(), file: line.slice(3) }))
+}
+
+/**
+ * The EmpiPacks files must reach GitHub byte-for-byte as Nebula hashed them. With Git's default Windows
+ * setting (autocrlf) text files get their line endings rewritten on commit, which would make players'
+ * downloads fail the checksum in distribution.json - so conversion is switched off for that repo.
+ */
+async function ensureByteExact(cwd) {
+    await capture('git', ['config', 'core.autocrlf', 'false'], { cwd })
+    await capture('git', ['config', 'core.safecrlf', 'false'], { cwd })
+}
+
+/** Stages everything quietly (the plain command prints one warning per text file on Windows). */
+async function stage(cwd) {
+    await capture('git', ['add', '-A'], { cwd })
+}
+
+/** What a commit right now would contain, as [{ code: 'A'|'M'|'D', file }]. Needs `stage` first. */
+async function stagedChanges(cwd) {
+    const out = await capture('git', ['diff', '--cached', '--no-renames', '--name-status'], { cwd })
+    return out.split('\n').filter((line) => line.trim()).map((line) => {
+        const [code, ...rest] = line.split('\t')
+        return { code: code.trim(), file: rest.join('\t') }
+    })
 }
 
 async function isRepo(cwd) {
@@ -23,8 +49,14 @@ async function clone(url, destination, log) {
 }
 
 async function pull(cwd, log) {
-    withLog(log, 'git', ['pull'])
-    await run('git', ['pull'], { cwd }, log)
+    withLog(log, 'git', ['pull', '--ff-only'])
+    await run('git', ['pull', '--ff-only'], { cwd }, log)
+}
+
+async function add(cwd, paths, log) {
+    const args = ['add', '-A', '--', ...paths]
+    withLog(log, 'git', args)
+    await run('git', args, { cwd }, log)
 }
 
 async function addAll(cwd, log) {
@@ -42,10 +74,14 @@ async function push(cwd, log) {
     await run('git', ['push'], { cwd }, log)
 }
 
-/** Stops tracking a path without deleting it from disk (used to remove a file from git once it moves to a GitHub Release). */
-async function untrack(cwd, relativePath, log) {
-    withLog(log, 'git', ['rm', '--cached', '--ignore-unmatch', relativePath])
-    await run('git', ['rm', '--cached', '--ignore-unmatch', relativePath], { cwd }, log)
+/** True when the local branch has commits the remote doesn't (for "nothing to send" checks after a failed push). */
+async function unpushedCount(cwd) {
+    try {
+        const out = await capture('git', ['rev-list', '--count', '@{u}..HEAD'], { cwd })
+        return Number(out) || 0
+    } catch {
+        return 0
+    }
 }
 
-module.exports = { status, isRepo, clone, pull, addAll, commit, push, untrack }
+module.exports = { changes, ensureByteExact, stage, stagedChanges, isRepo, clone, pull, add, addAll, commit, push, unpushedCount }

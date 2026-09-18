@@ -1,43 +1,48 @@
-# EmpiLauncher Publisher
+# Empi Publisher
 
-Pagina local (sin terminal, sin PowerShell) para publicar actualizaciones del
-launcher y de EmpiPacks con un click.
+Página local para crear modpacks y publicar el launcher **sin escribir comandos**:
+tú eliges cosas en pantalla, ella lanza Nebula, git, gh y electron-builder por detrás.
 
-## Uso
+## Abrirlo
 
-Doble click en **`Publicar.bat`**. Se abre `http://localhost:4848` en el
-navegador solo.
+Doble click en **`Publicar.bat`** (o en el acceso directo del escritorio).
+Se abre `http://localhost:4848` y **se cierra solo** cuando cierras la pestaña, así que
+no queda nada consumiendo recursos en segundo plano.
 
-La primera vez, entra a **Configuracion** (arriba a la derecha) y revisa que
-las rutas sean correctas - ya vienen con valores por defecto basados en donde
-esta esta carpeta y donde encontre tu clon de EmpiPacks, pero confirmalos.
+## Modpacks: Editar → Compilar → Enviar
 
-### Publicar Launcher
+1. **Editar**
+   - **+ Nuevo**: nombre, versión de Minecraft, loader (Fabric / Forge / NeoForge) y su versión
+     (te ofrece la lista real y marca la recomendada). Por detrás ejecuta
+     `nebula generate server <nombre> <mc> --<loader> <versión>`.
+   - En la ficha del modpack: **Ajustes** (nombre, versión del pack, IP, Java, whitelist…),
+     **Mods** (arrastra los `.jar` a Obligatorios / Opcional activado / Opcional apagado) y
+     **Archivos** (abre la carpeta `files` para configs, resource packs, shaders…).
+2. **Compilar**: actualiza el clon de EmpiPacks, corre Nebula (`generate distro`; la primera vez
+   con un Forge/NeoForge nuevo instala el loader en segundo plano, sin ventanas) y prepara todo
+   en el repositorio local. No publica nada todavía. Si después cambias algo, el botón
+   te avisa de que hay que compilar otra vez.
+3. **Enviar**: sube a un Release los archivos de más de 40 MB (GitHub no admite más de 100 MB
+   por archivo), ajusta sus enlaces en `distribution.json`, hace commit y push.
+   GitHub Pages tarda 1–2 minutos en mostrar los cambios.
 
-Compila el instalador con `electron-builder` y lo sube directo a GitHub
-Releases (usa la configuracion que ya tenia `electron-builder.yml`). Si
-tildas "Subir de version", sube el numero de version en `package.json`,
-crea el commit y lo empuja a GitHub despues de publicar.
+## Launcher: versión → Compilar → Enviar
 
-### Publicar EmpiPacks
-
-1. Si configuraste un comando de Nebula, lo corre primero.
-2. Busca archivos de mas del limite configurado (40MB por defecto) y los
-   sube como asset de un Release en vez de al repositorio - asi el repo no
-   crece sin limite y nunca te vas a topar con el limite de 100MB de GitHub
-   por archivo. Los archivos ya subidos que no cambiaron no se vuelven a
-   subir (usa un hash local para saberlo).
-3. Actualiza las URLs correspondientes dentro de `distribution.json` para
-   que apunten al Release en vez de al repo.
-4. Sube todo lo demas (los cambios normales) al repositorio con un commit y
-   push.
+1. Elige **parche / menor / mayor / la misma** y, si quieres, escribe qué cambia.
+2. **Compilar** genera el instalador con `electron-builder` (sin publicar).
+3. **Enviar** sube el código, crea el Release `vX.Y.Z` con el instalador, su `.blockmap` y
+   `latest.yml` (lo que necesita la actualización automática) y borra los instaladores viejos de `dist/`.
 
 ## Requisitos
 
-- Node.js (ya lo tenes, es lo mismo que usa el launcher).
-- `gh` (GitHub CLI) instalado y logueado - ya lo estaba usando para esta
-  sesion.
-- Git configurado con acceso de push a ambos repos.
+- Node.js, Git y `gh` (GitHub CLI) con sesión iniciada (`gh auth login`).
+- Nebula instalado (`npm install` una vez en su carpeta) y su `.env` con `JAVA_EXECUTABLE`, `ROOT` y `BASE_URL`.
 
-No hace falta `npm install`: esta herramienta no tiene dependencias, solo usa
-lo que ya viene con Node.
+Los avisos de la barra superior te dicen si falta algo. Las rutas se pueden cambiar en ⚙ Ajustes
+(se guardan en `~/.empilauncher-publisher.json`). No hace falta `npm install` aquí: no tiene dependencias.
+
+## Seguridad y consumo
+
+- Solo escucha en `127.0.0.1` y rechaza peticiones que no vengan de su propia página.
+- Una sola tarea larga a la vez, con botón **Cancelar** que mata también los procesos hijos.
+- Nebula solo se recompila cuando cambia su código (antes `npm start` lo recompilaba siempre).

@@ -15,6 +15,7 @@ compression: 'maximum'
 files:
   - '!{dist,.gitignore,.vscode,docs,dev-app-update.yml,.nvmrc,eslint.config.mjs}'
   - '!.github/**'
+  - '!tools/**'
 
 extraResources:
   - 'libraries'
