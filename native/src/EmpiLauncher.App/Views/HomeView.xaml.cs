@@ -177,6 +177,17 @@ public partial class HomeView : UserControl
         AvatarInitial.Text = string.IsNullOrEmpty(account?.DisplayName) ? "?" : account.DisplayName[..1].ToUpperInvariant();
 
         // No account, or no skin to fetch: the initial is the whole avatar (an offline player has no head to show).
+        // An offline player has no head at Mojang: with a skin chosen the launcher draws it itself (from the file the engine made), without it the initial stands in.
+        if (account is { Type: "offline", Skin.Head: { Length: > 0 } head } && System.IO.File.Exists(head))
+        {
+            _avatarFor = account.Uuid + head;
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit(); bitmap.UriSource = new Uri(head); bitmap.CacheOption = BitmapCacheOption.OnLoad; bitmap.DecodePixelWidth = 80; bitmap.EndInit(); bitmap.Freeze();
+            AvatarImage.Fill = new ImageBrush(bitmap) { Stretch = Stretch.UniformToFill };
+            RenderOptions.SetBitmapScalingMode(AvatarImage, BitmapScalingMode.NearestNeighbor);
+            AvatarImage.Visibility = Visibility.Visible;
+            return;
+        }
         if (account == null || account.Type == "offline") { AvatarImage.Visibility = Visibility.Collapsed; _avatarFor = null; return; }
         if (_avatarFor == account.Uuid) return;
         _avatarFor = account.Uuid;

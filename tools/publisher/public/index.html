@@ -137,6 +137,11 @@
             <label>GitHub del launcher <input id="launcherGithubRepo"></label>
             <label>GitHub de EmpiPacks <input id="empiPacksGithubRepo"></label>
             <label>Archivos grandes: a Release desde (MB) <input id="largeFileThresholdMb" type="number" min="5"></label>
+            <div class="dot-setting">
+                <span class="label">Color de los puntos y las ondas del fondo</span>
+                <p class="muted">El gris es el de siempre. Cuando una onda rosa se cruza con la tuya, los puntos se mezclan. Se guarda en este navegador.</p>
+                <div id="dotColor"></div>
+            </div>
             <div class="dialog-actions">
                 <button type="button" class="btn" id="settingsCancel">Cancelar</button>
                 <button type="submit" class="btn paper">Guardar</button>
@@ -146,6 +151,7 @@
 
     <div id="toast" class="toast" role="status" hidden></div>
     <script src="/life.js"></script>
+    <script src="/picker.js"></script>
     <script src="/app.js"></script>
 </body>
 </html>

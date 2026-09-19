@@ -17,8 +17,10 @@
     const toggle = document.getElementById('lifeBtn')
     const KEY = 'empi.motion'
     const TAU = Math.PI * 2
-    const PAPER = 'rgba(241, 239, 232, 0.4)'
-    const PINK = 'rgba(255, 61, 139, 0.9)'
+    // The dots' own colour (the player's choice; the grey of the launcher by default) and the accent. Where an effect of one meets an
+    // effect of the other the dot is drawn in a blend: mix step 0 is the dot colour, MIX the accent, the steps between the transition.
+    const DOT_KEY = 'empi.dots', DEFAULT_DOT = '#64635f', ACCENT = [255, 61, 139], MIX = 16
+    const BUCKETS = 44
     const hyp = (a, b) => Math.sqrt(a * a + b * b)
     const HOT = '.pack-card, .toggle-pill, .btn:not(:disabled), .subtab, .tab, .choice, .zone, .icon-btn, .segmented button, input, select, textarea, .mod-row, .prow, .module, .section'
 
@@ -30,6 +32,25 @@
     let alive = stored ? stored === 'alive' : !reduce.matches
     const ctx = canvas ? canvas.getContext('2d') : null
 
+    // ---------------------------------------------------------------- click ripples
+    // A ring has to be able to leave the window, so its life follows its reach (the farthest corner). It starts fast and slows like
+    // water, spreads and weakens as it grows, wobbles a little so it is not a drawn circle, and only fades in its last quarter.
+    const RIPPLE_BAND = 26
+    function newRipple(x, y, accent) {
+        const reach = Math.max(hyp(x, y), hyp(window.innerWidth - x, y), hyp(x, window.innerHeight - y), hyp(window.innerWidth - x, window.innerHeight - y)) + 3 * RIPPLE_BAND
+        const life = Math.min(4.4, Math.max(1.6, 1.2 + reach / 650))
+        return { x, y, t0: t, pink: accent, life, reach, phase: (x * 0.013 + y * 0.007) % TAU, r: 0, w: RIPPLE_BAND, a: 0 }
+    }
+    function stepRipple(rp) {
+        const age = Math.min(t - rp.t0, rp.life)
+        const radius = rp.reach * 1.08 * (1 - Math.exp(-age / (rp.life / 2.6)))
+        const fadeFrom = rp.life * 0.72
+        const fade = age <= fadeFrom ? 1 : 0.5 + 0.5 * Math.cos(Math.PI * (age - fadeFrom) / (rp.life - fadeFrom))
+        rp.r = radius
+        rp.w = RIPPLE_BAND + 0.028 * radius
+        rp.a = 0.62 / Math.sqrt(1 + radius / 240) * fade
+    }
+
     // ---------------------------------------------------------------- the field
     let W = 0, H = 0, dpr = 1, pitch = 24
     let raf = 0, last = 0, t = 0, speed = 1, wantSpeed = 1
@@ -39,8 +60,18 @@
     const next = { el: null, x: 0, y: 0, w: 0, h: 0, amp: 0 }
     const ripples = []
     let quiet = []
-    const paper = Array.from({ length: 44 }, () => [])
-    const pink = Array.from({ length: 44 }, () => [])
+    const sets = Array.from({ length: MIX + 1 }, () => Array.from({ length: BUCKETS }, () => []))   // [mix step][radius bucket] -> x, y pairs
+    let dotHex = DEFAULT_DOT
+    let mixColors = []
+    const toRgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+    function buildMix() {
+        const dot = toRgb(dotHex)
+        mixColors = Array.from({ length: MIX + 1 }, (_, k) => `rgb(${dot.map((c, i) => Math.round(c + (ACCENT[i] - c) * (k / MIX))).join(',')})`)
+    }
+    /** The saved colour, if it is a valid one. Per browser: a viewing preference, like the motion switch. */
+    const readDot = () => { try { const v = localStorage.getItem(DOT_KEY); return /^#[0-9a-f]{6}$/i.test(v || '') ? v.toLowerCase() : DEFAULT_DOT } catch { return DEFAULT_DOT } }
+    dotHex = readDot()
+    buildMix()
 
     function size() {
         dpr = 1   // dots are soft by nature; one canvas pixel per CSS pixel keeps the raster cost down on dense screens
@@ -126,10 +157,11 @@
         ease(next, next.el)
         magnet()
 
-        for (let i = 0; i < paper.length; i++) { paper[i].length = 0; pink[i].length = 0 }
+        for (const set of sets) for (const bucket of set) bucket.length = 0
         const maxR = pitch * 0.53
         const band = ((ph * 0.075) % 1.5 - 0.25) * H
-        for (let i = ripples.length - 1; i >= 0; i--) if (t - ripples[i].t0 > 1.3) ripples.splice(i, 1)
+        for (let i = ripples.length - 1; i >= 0; i--) if (t - ripples[i].t0 > ripples[i].life) ripples.splice(i, 1)
+        for (const rp of ripples) stepRipple(rp)
         const doPtr = ptr.amp > 0.01, doHot = hot.amp > 0.02, doNext = next.amp > 0.02
         const w1 = ph * 0.55, w2 = ph * 0.42, w3 = ph * 0.7, warp = ph * 0.6
 
@@ -152,10 +184,12 @@
             }
             let glow = 0
             for (let k = 0; k < ripples.length; k++) {
-                const rp = ripples[k], age = t - rp.t0
-                const ring = (hyp(x - rp.x, y - rp.y) - age * 460) / 26
-                if (ring > -3 && ring < 3) {
-                    const v = Math.exp(-ring * ring) * (1 - age / 1.3) * 0.55 * (1 - 0.5 * q)
+                const rp = ripples[k], dx = x - rp.x, dy = y - rp.y
+                const wobble = 1 + 0.035 * Math.sin(3 * Math.atan2(dy, dx) + rp.phase + (t - rp.t0) * 1.4)
+                const ring = (hyp(dx, dy) - rp.r * wobble) / rp.w
+                if (ring > -6 && ring < 3) {
+                    // sharp leading edge, soft wake behind it
+                    const v = (ring >= 0 ? Math.exp(-ring * ring * 1.6) : Math.exp(-ring * ring * 0.28)) * rp.a * (1 - 0.5 * q)
                     if (rp.pink) glow += v
                     else tone += v
                 }
@@ -171,18 +205,18 @@
                 if (d < 90) glow += (1 - d / 90) ** 2 * next.amp * (0.45 + 0.55 * Math.sin(d * 0.09 - ph * 4.2)) * 0.6
             }
 
-            const usePink = glow > tone * 0.7 && glow > 0.05
-            const v = usePink ? Math.max(glow, tone) : tone
+            // where an accent effect and a dot-colour effect overlap the dot takes a colour in between, and is a little bigger than either alone
+            const v = glow > 0.02 ? Math.max(glow, tone) + 0.35 * Math.min(glow, tone) : tone
             if (v <= 0.02) continue
             const r = maxR * Math.sqrt(v > 1 ? 1 : v)
             if (r < 0.75) continue
-            const list = (usePink ? pink : paper)[Math.min(43, (r * 2) | 0)]
-            list.push(x, y)
+            sets[glow > 0.02 ? Math.round(glow / (glow + tone) * MIX) : 0][Math.min(BUCKETS - 1, (r * 2) | 0)].push(x, y)
         }
 
         ctx.clearRect(0, 0, W, H)
-        for (const [set, color] of [[paper, PAPER], [pink, PINK]]) {
-            ctx.fillStyle = color
+        for (let step = 0; step <= MIX; step++) {
+            const set = sets[step]
+            ctx.fillStyle = mixColors[step]
             for (let i = 1; i < set.length; i++) {
                 const dots = set[i]
                 if (!dots.length) continue
@@ -345,7 +379,17 @@
     function burst(el, isPink = true) {
         if (!alive || !el) return
         const r = el.getBoundingClientRect()
-        ripples.push({ x: r.left + r.width / 2, y: r.top + r.height / 2, t0: t, pink: isPink })
+        ripples.push(newRipple(r.left + r.width / 2, r.top + r.height / 2, isPink))
+        if (ripples.length > 6) ripples.shift()
+    }
+
+    /** The colour of the dots (and of the waves that are not the accent). persist = false while it is being dragged in the picker. */
+    function setDotColor(hex, persist = true) {
+        if (!/^#[0-9a-f]{6}$/i.test(hex || '')) return
+        dotHex = hex.toLowerCase()
+        buildMix()
+        if (persist) { try { localStorage.setItem(DOT_KEY, dotHex) } catch { /* private window */ } }
+        if (!alive) paintStatic()
     }
 
     function nudge() {
@@ -378,7 +422,7 @@
 
     // ---------------------------------------------------------------- wiring
     if (!ctx) {
-        window.Life = { enter() {}, ink() {}, scramble() {}, burst() {}, busy() {}, refresh() {} }
+        window.Life = { enter() {}, ink() {}, scramble() {}, burst() {}, busy() {}, refresh() {}, setDotColor() {}, dotColor: () => '#64635f', defaultDot: '#64635f' }
         return
     }
 
@@ -387,13 +431,14 @@
         busy: (on) => { wantSpeed = on ? 2.4 : 1 },
         refresh: () => { lastQuiet = 0; nextProbe = 0 },
         reink: () => { for (const args of Object.values(inkArgs)) if (args[0].isConnected) ink(...args) },
-        stats: () => ({ alive, pitch, cost: +cost.toFixed(2), dots: paper.reduce((n, a) => n + a.length / 2, 0) + pink.reduce((n, a) => n + a.length / 2, 0) })
+        setDotColor, dotColor: () => dotHex, defaultDot: DEFAULT_DOT,
+        stats: () => ({ alive, pitch, cost: +cost.toFixed(2), dots: sets.reduce((n, set) => n + set.reduce((m, a) => m + a.length / 2, 0), 0) })
     }
 
     window.addEventListener('pointermove', onMove, { passive: true })
     window.addEventListener('pointerdown', (event) => {
         if (!alive) return
-        ripples.push({ x: event.clientX, y: event.clientY, t0: t, pink: false })
+        ripples.push(newRipple(event.clientX, event.clientY, false))
         if (ripples.length > 6) ripples.shift()
     }, { passive: true })
     document.addEventListener('pointerover', onOver, { passive: true })

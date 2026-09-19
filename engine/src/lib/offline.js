@@ -78,10 +78,15 @@ function authUser(name) {
 
 const file = (dir) => path.join(dir, 'native-offline.json')
 
+/** The skin the player chose (a NameMC id and the model it was made for), if what is saved is well formed. */
+function validSkin(skin) {
+    return skin && /^[0-9a-f]{16}$/.test(String(skin.id)) ? { id: String(skin.id), model: skin.model === 'slim' ? 'slim' : 'default' } : undefined
+}
+
 function read(dir) {
     try {
         const saved = JSON.parse(fs.readFileSync(file(dir), 'utf8'))
-        return problem(saved.name) ? null : { name: String(saved.name).trim(), active: saved.active === true }
+        return problem(saved.name) ? null : { name: String(saved.name).trim(), active: saved.active === true, skin: validSkin(saved.skin) }
     } catch { return null }
 }
 
@@ -91,6 +96,15 @@ function write(dir, saved) {
 }
 
 const clear = (dir) => fs.rmSync(file(dir), { force: true })
+
+/** Sets (or, with null, removes) the skin of the offline player; returns the saved player, or null when there is none. */
+function setSkin(dir, skin) {
+    const saved = read(dir)
+    if (!saved) return null
+    const next = { ...saved, skin: skin ? validSkin(skin) : undefined }
+    write(dir, next)
+    return next
+}
 
 function setActive(dir, active) {
     const saved = read(dir)
@@ -105,4 +119,4 @@ function currentAccount(ConfigManager) {
     return ConfigManager.getSelectedAccount()
 }
 
-module.exports = { problem, offlineId, offlineUuid, profile, authUser, read, write, clear, setActive, currentAccount }
+module.exports = { problem, offlineId, offlineUuid, profile, authUser, read, write, clear, setActive, setSkin, currentAccount }

@@ -27,8 +27,11 @@ namespace EmpiLauncher.App.Views;
 /// </summary>
 internal sealed class LivingField : Grid
 {
-    private const double StillTime = 7.3, RippleSpeed = 460, RippleLife = 1.3;
+    private const double StillTime = 7.3;
     private const double AmbientMs = 125, InteractiveMs = 41;
+
+    // A click ripple lives as long as it takes to cross the window (see NewRipple), between these limits, in seconds.
+    private const double RippleMinLife = 1.6, RippleMaxLife = 4.4, RipplePxPerSecond = 650, RippleBand = 26;
 
     /// <summary>A layer that paints through a callback. The base one is cached as a texture, so it costs one blit per frame, not 4,000 dots.</summary>
     private sealed class Layer : FrameworkElement
@@ -70,11 +73,19 @@ internal sealed class LivingField : Grid
     private double _cost; private int _slow;
 
     // dot colours: opaque, so a bigger dot always fully covers the smaller base dot under it
-    private Brush _paperDot = Solid(0x64, 0x63, 0x5f), _accentDot = Solid(0xff, 0x3d, 0x8b);
-    private Color _accentFor = Color.FromRgb(0xff, 0x3d, 0x8b);
+    // The dots' own colour (the player's choice, grey by default) and the modpack's accent. Where an effect in one meets an effect in the other
+    // the dot is drawn in a blend of the two: _mix[0] is the dot colour, _mix[MixSteps] the accent, and the steps between are the transition.
+    private const int MixSteps = 16;
+    private readonly Brush[] _mix = new Brush[MixSteps + 1];
+    private Color _dotColor = Color.FromRgb(0x64, 0x63, 0x5f), _accentFor = Color.FromRgb(0xff, 0x3d, 0x8b);
+    private Brush _paperDot = Solid(0x64, 0x63, 0x5f);
 
     private sealed class Pointer { public double X = -999, Y = -999, W, H, Amp, Want; }
-    private readonly record struct Ripple(double X, double Y, double T0, bool Accent);
+    /// <summary>One click. Reach is how far its ring has to travel to leave the window (the farthest corner); Life is how long that takes.</summary>
+    private readonly record struct Ripple(double X, double Y, double T0, bool Accent, double Life, double Reach, double Phase);
+
+    // per frame, per live ripple: radius of the ring, its width and its strength (see UpdateRipples)
+    private readonly double[] _rR = new double[4], _rW = new double[4], _rA = new double[4];
 
     public LivingField()
     {
@@ -131,6 +142,7 @@ internal sealed class LivingField : Grid
 
     private void Gate()
     {
+        if (SyncColors()) DrawLive();   // a colour changed in Ajustes: show it even if the field is standing still
         FieldGovernor.Evaluate(Window.GetWindow(this));
         if (FieldGovernor.Allowed && !_running)
         {
@@ -253,9 +265,34 @@ internal sealed class LivingField : Grid
         var p = e.GetPosition(this);
         var target = FindHot(e.OriginalSource as DependencyObject);
         var accent = target != null && (ReferenceEquals(target, NextAction) || target is Button b && ReferenceEquals(b.Style, Application.Current.TryFindResource("PrimaryButton")));
-        _ripples.Add(new Ripple(p.X, p.Y, _t, accent));
+        // The ring has to be able to leave the window: its reach is the distance to the farthest corner, and its life follows from it.
+        var reach = Math.Max(Math.Max(Hyp(p.X, p.Y), Hyp(_w - p.X, p.Y)), Math.Max(Hyp(p.X, _h - p.Y), Hyp(_w - p.X, _h - p.Y))) + 3 * RippleBand;
+        var life = Math.Clamp(1.2 + reach / RipplePxPerSecond, RippleMinLife, RippleMaxLife);
+        _ripples.Add(new Ripple(p.X, p.Y, _t, accent, life, reach, (p.X * 0.013 + p.Y * 0.007) % (Math.PI * 2)));
         if (_ripples.Count > 4) _ripples.RemoveAt(0);
         _movedAt = _clock.ElapsedMilliseconds;
+    }
+
+    /// <summary>
+    /// Where each live ripple is right now. The ring starts fast and slows down like water (exponential ease-out, arriving at the
+    /// far corner as its life ends), spreads and weakens as it grows, and only in its last quarter does it fade, so it is never cut
+    /// off while it is still crossing the window.
+    /// </summary>
+    private void UpdateRipples()
+    {
+        for (var k = 0; k < _ripples.Count; k++)
+        {
+            var rp = _ripples[k];
+            var age = Math.Min(_t - rp.T0, rp.Life);
+            var tau = rp.Life / 2.6;
+            var radius = rp.Reach * 1.08 * (1 - Math.Exp(-age / tau));
+            var spread = 1 / Math.Sqrt(1 + radius / 240);
+            var fadeStart = rp.Life * 0.72;
+            var fade = age <= fadeStart ? 1 : 0.5 + 0.5 * Math.Cos(Math.PI * (age - fadeStart) / (rp.Life - fadeStart));
+            _rR[k] = radius;
+            _rW[k] = RippleBand + 0.028 * radius;
+            _rA[k] = 0.62 * spread * fade;
+        }
     }
 
     /// <summary>The control under the pointer, if it is one the player can act on (or a card): that is what gets contoured.</summary>
@@ -286,7 +323,7 @@ internal sealed class LivingField : Grid
         _ptr.Amp += (_ptr.Want - _ptr.Amp) * 0.12;
         Ease(_hot, _hotElement);
         Ease(_next, NextAction is { IsVisible: true, IsHitTestVisible: true } && !Launcher.Instance.Game.Busy ? NextAction : null);
-        _ripples.RemoveAll(r => _t - r.T0 > RippleLife);
+        _ripples.RemoveAll(r => _t - r.T0 > r.Life);
 
         // fast while the player is interacting (moving, clicking, a control being contoured), gentle otherwise
         var interacting = _clock.ElapsedMilliseconds - _movedAt < 1500 || _ripples.Count > 0 || _hot.Amp > 0.03;
@@ -326,11 +363,26 @@ internal sealed class LivingField : Grid
         }
     }
 
-    private void SyncAccent()
+    /// <summary>Picks up the modpack's accent and the player's dot colour when either changed; returns whether anything did.</summary>
+    private bool SyncColors()
     {
-        if (Application.Current.Resources["AccentBrush"] is not SolidColorBrush brush || brush.Color == _accentFor) return;
-        _accentFor = brush.Color;
-        _accentDot = Solid(_accentFor.R, _accentFor.G, _accentFor.B);
+        var changed = false;
+        if (Application.Current.Resources["AccentBrush"] is SolidColorBrush brush && brush.Color != _accentFor) { _accentFor = brush.Color; changed = true; }
+        var wanted = ParseDot(Launcher.Instance.Prefs.DotColor);
+        if (wanted != _dotColor) { _dotColor = wanted; _paperDot = Solid(wanted.R, wanted.G, wanted.B); _baseLayer.InvalidateVisual(); changed = true; }
+        if (changed || _mix[0] == null)
+            for (var k = 0; k <= MixSteps; k++)
+            {
+                var t = (double)k / MixSteps;
+                _mix[k] = Solid((byte)Math.Round(_dotColor.R + (_accentFor.R - _dotColor.R) * t), (byte)Math.Round(_dotColor.G + (_accentFor.G - _dotColor.G) * t), (byte)Math.Round(_dotColor.B + (_accentFor.B - _dotColor.B) * t));
+            }
+        return changed;
+    }
+
+    private static Color ParseDot(string? hex)
+    {
+        try { if (hex is { Length: 7 } && hex[0] == '#') return (Color)ColorConverter.ConvertFromString(hex); } catch (FormatException) { }
+        return Color.FromRgb(0x64, 0x63, 0x5f);
     }
 
     private void DrawLive() => _liveLayer.InvalidateVisual();
@@ -352,20 +404,34 @@ internal sealed class LivingField : Grid
     private void PaintLive(DrawingContext dc)
     {
         if (_n == 0) return;
-        SyncAccent();
+        SyncColors();
         _dc = dc; _stamp++;
         _ph = _t; _w1 = _ph * 0.55; _w2 = _ph * 0.42; _w3 = _ph * 0.7; _warp = _ph * 0.6;
         _doPtr = _ptr.Amp > 0.01; _doHot = _hot.Amp > 0.02; _doNext = _next.Amp > 0.02;
 
-        if (_ripples.Count > 0) { for (var i = 0; i < _n; i++) Dot(i); }   // a ring can be anywhere
-        else
-        {
-            foreach (var i in _plateIdx) Dot(i);
-            if (_doPtr) InRect(_ptr.X - 156, _ptr.Y - 156, _ptr.X + 156, _ptr.Y + 156);
-            if (_doHot) InRect(_hot.X - 58, _hot.Y - 58, _hot.X + _hot.W + 58, _hot.Y + _hot.H + 58);
-        }
+        foreach (var i in _plateIdx) Dot(i);
+        if (_doPtr) InRect(_ptr.X - 156, _ptr.Y - 156, _ptr.X + 156, _ptr.Y + 156);
+        if (_doHot) InRect(_hot.X - 58, _hot.Y - 58, _hot.X + _hot.W + 58, _hot.Y + _hot.H + 58);
+        if (_ripples.Count > 0) RippleDots();
         if (_doNext) InRect(_next.X - 90, _next.Y - 90, _next.X + _next.W + 90, _next.Y + _next.H + 90);
         _dc = null;
+    }
+
+    /// <summary>Only the dots a ring is over (its band, its wake and a margin for its wobble), not the whole lattice: a long ripple stays cheap.</summary>
+    private void RippleDots()
+    {
+        UpdateRipples();
+        for (var i = 0; i < _n; i++)
+        {
+            double x = _gx[i], y = _gy[i];
+            for (var k = 0; k < _ripples.Count; k++)
+            {
+                var d = Hyp(x - _ripples[k].X, y - _ripples[k].Y);
+                var edge = (d - _rR[k]) / _rW[k];
+                var slack = 0.06 * _rR[k] / _rW[k];   // the ring's outline wobbles by a few percent of its radius
+                if (edge > -6 - slack && edge < 3 + slack) { Dot(i); break; }
+            }
+        }
     }
 
     /// <summary>The lattice rows and columns inside a rectangle, found by arithmetic, not by scanning every dot.</summary>
@@ -406,11 +472,15 @@ internal sealed class LivingField : Grid
         for (var k = 0; k < _ripples.Count; k++)
         {
             var rp = _ripples[k];
-            var age = _t - rp.T0;
-            var ring = (Hyp(x - rp.X, y - rp.Y) - age * RippleSpeed) / 26;
-            if (ring > -3 && ring < 3)
+            double dx = x - rp.X, dy = y - rp.Y;
+            // a slightly uneven outline, drifting as it goes, so the wave reads as water and not as a drawn circle
+            var wobble = 1 + 0.035 * Math.Sin(3 * Math.Atan2(dy, dx) + rp.Phase + (_t - rp.T0) * 1.4);
+            var ring = (Hyp(dx, dy) - _rR[k] * wobble) / _rW[k];
+            if (ring > -6 && ring < 3)
             {
-                var v = Math.Exp(-ring * ring) * (1 - age / RippleLife) * 0.55 * (1 - 0.5 * q);
+                // sharp leading edge, soft wake behind it
+                var shape = ring >= 0 ? Math.Exp(-ring * ring * 1.6) : Math.Exp(-ring * ring * 0.28);
+                var v = shape * _rA[k] * (1 - 0.5 * q);
                 if (rp.Accent) glow += v; else tone += v;
             }
         }
@@ -430,11 +500,13 @@ internal sealed class LivingField : Grid
             if (d < 90) glow += Math.Pow(1 - d / 90, 2) * _next.Amp * (0.45 + 0.55 * Math.Sin(d * 0.09 - _ph * 4.2)) * 0.6;
         }
 
-        var useAccent = glow > tone * 0.7 && glow > 0.05;
-        var value = useAccent ? Math.Max(glow, tone) : tone;
+        // Where an accent effect and a dot-colour effect overlap, the dot takes a colour in between (more accent the more the accent
+        // contributes) and is a little bigger than either alone: the two waves visibly meet and melt into each other.
+        var value = glow > 0.02 ? Math.Max(glow, tone) + 0.35 * Math.Min(glow, tone) : tone;
         if (value <= 0.02) return;
         var r = Radius(value);
         if (r < 0.75 || r <= _rBase[i] + 0.35) return;   // the base layer already shows this dot
-        _dc!.DrawEllipse(useAccent ? _accentDot : _paperDot, null, new Point(x, y), r, r);
+        var share = glow > 0.02 ? glow / (glow + tone) : 0;
+        _dc!.DrawEllipse(_mix[(int)Math.Round(share * MixSteps)], null, new Point(x, y), r, r);
     }
 }

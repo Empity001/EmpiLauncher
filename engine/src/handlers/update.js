@@ -7,6 +7,7 @@
  *
  *   update.check    -> what is newer, if anything
  *   update.install  -> download the installer, check its sha512, start it silently; the UI closes right after
+ *   update.changelog -> the release notes of every version newer than this one, newest first (the whole trail, not just the last)
  */
 const fs = require('fs')
 const path = require('path')
@@ -81,6 +82,29 @@ function register(handlers, state) {
     handlers.set('update.check', async () => {
         const { base, ...info } = await findUpdate()
         return info
+    })
+
+    // The notes of every release newer than the running one. GitHub's release list is public; it is asked at most once every ten minutes.
+    let changelog = null
+    handlers.set('update.changelog', async () => {
+        const { ConfigManager } = ensureCore(state)
+        const current = state.shim && require('electron').app.getVersion()
+        if (changelog && Date.now() - changelog.at < 10 * 60 * 1000 && changelog.current === current) return { current, entries: changelog.entries }
+        try {
+            let releases
+            if (process.env.EMPI_ENGINE_TEST === '1' && process.env.EMPI_UPDATE_URL) releases = JSON.parse(await text(`${process.env.EMPI_UPDATE_URL.replace(/\/$/, '')}/releases.json`) || '[]')
+            else releases = JSON.parse(await text(`https://api.github.com/repos/${OWNER}/${REPO}/releases?per_page=40`) || '[]')
+            const entries = releases
+                .filter((r) => !r.draft && (!r.prerelease || ConfigManager.getAllowPrerelease()))
+                .map((r) => ({ version: String(r.tag_name || '').replace(/^v/, ''), name: r.name || r.tag_name, date: r.published_at || null, body: String(r.body || '').slice(0, 6000), url: r.html_url || null }))
+                .filter((r) => semver.valid(r.version) && (!semver.valid(current) || semver.gt(r.version, current)))
+                .sort((a, b) => semver.rcompare(a.version, b.version))
+            changelog = { at: Date.now(), current, entries }
+            return { current, entries }
+        } catch (err) {
+            state.log.debug('Release notes could not be read.', err)
+            return { current, entries: [], reason: 'offline' }
+        }
     })
 
     let installing = false

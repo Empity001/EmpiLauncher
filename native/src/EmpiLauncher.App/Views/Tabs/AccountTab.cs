@@ -62,6 +62,9 @@ internal sealed class AccountTab : SettingsTab
             var name = account.DisplayName;
             if (offline)
             {
+                var skin = Ui.Button(account.Skin != null ? "Cambiar skin" : "Skin…", () => ((MainWindow)Application.Current.MainWindow).ShowSkinPrompt(LoadAsync));
+                skin.Margin = new Thickness(0, 0, 8, 0);
+                actions.Children.Add(skin);
                 var rename = Ui.Button("Cambiar nombre", () => ((MainWindow)Application.Current.MainWindow).ShowOfflinePrompt(name, LoadAsync));
                 rename.Margin = new Thickness(0, 0, 8, 0);
                 actions.Children.Add(rename);
@@ -87,7 +90,7 @@ internal sealed class AccountTab : SettingsTab
 
         var note = Ui.Section(null, out var noteBody);
         noteBody.Children.Add(Ui.Text("Al iniciar o cerrar sesión se abre la ventana de Microsoft y se cierra sola al terminar. No queda ningún navegador abierto en segundo plano.", "CaptionText"));
-        var offlineNote = Ui.Text("Jugar sin conexión no usa ninguna cuenta: no hay skin, solo el nombre que elijas, y sirve para un jugador y para servidores que no verifican la cuenta. El mismo nombre siempre tiene el mismo identificador.", "CaptionText");
+        var offlineNote = Ui.Text("Jugar sin conexión no usa ninguna cuenta: solo el nombre que elijas, con un identificador que siempre es el mismo para ese nombre. Sirve para un jugador y para servidores que no verifican la cuenta. La skin, si quieres una, se elige de NameMC con el botón Skin.", "CaptionText");
         offlineNote.Margin = new Thickness(0, 10, 0, 0);
         noteBody.Children.Add(offlineNote);
         Root.Children.Add(note);

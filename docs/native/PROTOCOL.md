@@ -85,21 +85,33 @@ Códigos de error comunes: `unknown_method`, `bad_json`, `busy`, `no_server`, `n
 | `offline.preview` `{name}` | `{valid, reason?, name, id, uuid}`: en qué se convertiría un nombre (o por qué no vale). La regla vive solo en el motor (`engine/src/lib/offline.js`) |
 | `offline.set` `{name}` | Crea el jugador sin conexión o lo renombra, y lo deja en uso. Devuelve `{selected, accounts[]}`. Error `bad_name` con la razón en `message` |
 
-**Jugar sin conexión** (sin cuenta, sin skin, solo un nombre). El nombre (3 a 16 de `a-z A-Z 0-9 _`) se pasa a minúsculas y cada
+**Jugar sin conexión** (sin cuenta, solo un nombre; la skin es opcional, ver abajo). El nombre (3 a 16 de `a-z A-Z 0-9 _`) se pasa a minúsculas y cada
 carácter tiene un valor fijo (`a-z` = 1..26, `0-9` = 27..36, `_` = 37); los valores se combinan con FNV-1a de 64 bits y el resultado
 se reduce a 12 dígitos (`mod 10^12`, ceros a la izquierda). Mismo nombre, mismo id, siempre. El juego recibe
 `--username <nombre> --uuid 00000000000030008000<12 dígitos> --accessToken offline --userType legacy`. El jugador se guarda en
 `native-offline.json` junto a la configuración, nunca en `config.json`: el launcher clásico no debe encontrarse un tipo de cuenta que no conoce.
 
+**Skin del jugador sin conexión** (opcional). Se elige por el id de NameMC (`96cab59a8709ce31`, o el enlace `namemc.com/skin/…`). NameMC no ofrece API y su web (búsqueda incluida) está tras una comprobación anti-bots, así que **el launcher no busca en NameMC**: el jugador pega el id o el enlace (o se recoge del portapapeles si es uno) y el motor baja esa sola imagen de `s.namemc.com/i/<id>.png`, que sí se sirve sin protección.
+
+| Método | Resultado |
+|---|---|
+| `skin.parse` `{input}` | `{valid, id?, reason?}`. Sin red: entiende el id, el enlace de la skin y el de la imagen |
+| `skin.fetch` `{input}` | `{id, model, front, head}`. Baja la imagen (una vez, ≤ 64 KB, PNG de 64×64 o 64×32), la comprueba, detecta el modelo (fino/Alex por el cuarto píxel del brazo) y dibuja la vista frontal (96×192) y la cabeza (64×64). No cambia nada. Errores `bad_skin`, `skin_failed` |
+| `skin.set` `{id, model?}` | La lista de cuentas con la skin puesta al jugador sin conexión (error `no_offline` si no hay). La primera vez baja también el componente que la muestra |
+| `skin.clear` | La lista de cuentas sin skin |
+
+Cómo la ve el juego: al lanzar, el motor arranca un servidor de skins **solo en 127.0.0.1 y solo mientras dura la partida** (`lib/skinserver.js`, protocolo Yggdrasil según la especificación de authlib-injector, perfiles firmados con una clave que se crea en cada partida) y añade `-javaagent:authlib-injector-1.2.8.jar=<url local>`. El agente es un jar de 350 KB (AGPL-3.0), se baja al elegir la primera skin (no se distribuye) y solo se acepta el archivo con el sha256 fijado en el código (`9c7f4343…7b10`, el que lista GitHub para la 1.2.8). Si algo falla el juego arranca igual con la skin por defecto y se avisa (`game.notice`). Comprobado con el authlib real de Minecraft 1.21.11 (`engine/test/skin-java.mjs`): recibe la textura firmada y con el modelo correcto. **No comprobado dentro de una partida real** (ver PLAN.md).
+
 ### Preferencias, arte, estado del servidor y actualizaciones
 | Método | Resultado |
 |---|---|
-| `ui.get` / `ui.set` `{key, value}` | Preferencias que solo tiene la interfaz nativa (`native-ui.json`). Hoy: `fieldMode: auto\|always\|off` (el campo de puntos vivo) |
+| `ui.get` / `ui.set` `{key, value}` | Preferencias que solo tiene la interfaz nativa (`native-ui.json`). Hoy: `fieldMode: auto\|always\|off` (el campo de puntos vivo) y `dotColor: #rrggbb` (el color de los puntos y de las ondas; gris `#64635f` por defecto) |
 | `art.get` `{id}` | `{serverId, banner, background}`: rutas de imágenes pequeñas ya listas (logo PNG ≤ 900 px con transparencia, fondo JPEG ≤ 1280 px) en la caché del launcher. Las remotas solo se bajan hasta 8 MB; un WebP animado enorme se reduce a su primer fotograma |
 | `server.status` `{id?}` | `{online, players?:{online,max}}` |
 | `update.check` | `{available, current, version?, releaseDate?, installer?, sha512?, size?, page?, reason?}`. Un solo canal: el `latest.yml` de la última release de GitHub (el mismo que lee el launcher clásico, por eso el clásico se actualiza al nativo). `reason`: `no_channel`, `bad_channel`, `offline` |
 | `update.install` | Descarga el instalador de la versión publicada, comprueba su sha512 y lo lanza en silencio (`/S --updated --force-run`). `{launched, file, version}`. Errores: `no_update bad_channel bad_checksum download_failed install_failed cancelled busy game_running`. No se instala nada sin huella, con un nombre que no sea un archivo, ni con Minecraft abierto |
 | `update.cancel` | Corta la descarga en curso (`update.install` responde `cancelled`) |
+| `update.changelog` | `{current, entries:[{version, name, date, body, url}], reason?}`: las notas de **todas** las versiones más nuevas que la instalada, de la más reciente a la más antigua (no solo la última). Sale de la lista pública de releases de GitHub, se pide como mucho cada 10 min; deja fuera borradores y, salvo que se permitan, las versiones de prueba |
 
 ## Eventos
 

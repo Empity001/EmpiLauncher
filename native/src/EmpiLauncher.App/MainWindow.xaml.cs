@@ -266,6 +266,7 @@ public partial class MainWindow : Window
     private string _promptName = "";
     private TextChangedEventHandler? _promptChanged;
     private KeyEventHandler? _promptKeys;
+    private RoutedEventHandler? _linkClick;
 
     /// <summary>
     /// Asks for the name to play with when there is no account. As the name is typed the engine says what it would become (its
@@ -282,6 +283,7 @@ public partial class MainWindow : Window
         confirm.IsEnabled = false;
         System.Windows.Automation.AutomationProperties.SetName(confirm, "Confirmar y jugar sin conexión");   // the title has the same words: this one is the button
 
+        System.Windows.Automation.AutomationProperties.SetName(DialogInput, "Nombre para jugar sin conexión");
         DialogInput.Text = initial;
         DialogInput.Visibility = DialogHint.Visibility = Visibility.Visible;
         SetHint("3 a 16 caracteres: letras, números y guion bajo.", false);
@@ -305,6 +307,103 @@ public partial class MainWindow : Window
         Check();
     }
 
+    /// <summary>
+    /// The skin of the offline player. The player pastes the id (96cab59a8709ce31) or the link of a skin from NameMC: it is read as they
+    /// type (or picked up from the clipboard when it holds one), downloaded once, checked, and drawn here before it is used. Nothing is
+    /// searched on NameMC (its site is behind a bot check): "Abrir NameMC" only opens it in the browser to choose a skin.
+    /// </summary>
+    public void ShowSkinPrompt(Func<Task>? done = null)
+    {
+        if (_dialogOpen) { _dialogQueue.Enqueue(() => ShowSkinPrompt(done)); return; }
+        var hasSkin = _l.Account is { Type: "offline", Skin: not null };
+        string? skinId = null;
+        var buttons = new List<(string Label, Action? Action, bool Primary)> { ("Cancelar", null, false) };
+        if (hasSkin) buttons.Add(("Quitar skin", () => _ = ClearSkinAsync(done), false));
+        buttons.Add(("Usar esta skin", () => _ = ApplySkinAsync(skinId, done), true));
+        ShowDialog("Skin para jugar sin conexión",
+            "Elige una skin en NameMC y pega aquí su id (por ejemplo 96cab59a8709ce31) o su enlace. Se descarga una sola vez y se ve al abrir Minecraft.",
+            buttons.ToArray());
+
+        var confirm = (Button)DialogButtons.Children[^1];
+        confirm.IsEnabled = false;
+        System.Windows.Automation.AutomationProperties.SetName(confirm, "Confirmar y usar esta skin");
+
+        DialogLink.Content = "Abrir NameMC para elegir una skin";
+        DialogLink.Visibility = Visibility.Visible;
+        _linkClick = (_, _) => { try { Process.Start(new ProcessStartInfo("https://namemc.com/minecraft-skins") { UseShellExecute = true }); } catch (Exception) { } };
+        DialogLink.Click += _linkClick;
+
+        DialogInput.MaxLength = 200;
+        System.Windows.Automation.AutomationProperties.SetName(DialogInput, "Id o enlace de la skin");
+        DialogInput.Text = "";
+        DialogInput.Visibility = DialogHint.Visibility = Visibility.Visible;
+        SetHint("Pega el id o el enlace de la skin.", false);
+
+        async void Check()
+        {
+            var text = DialogInput.Text.Trim();
+            var generation = ++_promptGeneration;
+            skinId = null;
+            confirm.IsEnabled = false;
+            DialogImage.Visibility = Visibility.Collapsed;
+            if (text.Length == 0) { SetHint("Pega el id o el enlace de la skin.", false); return; }
+            var parsed = await _l.ParseSkinAsync(text);
+            if (generation != _promptGeneration || DialogInput.Visibility != Visibility.Visible) return;
+            if (!parsed.Valid) { SetHint(parsed.Reason ?? "Eso no es un id de NameMC.", false); return; }
+            SetHint("Descargando la skin…", false);
+            await Task.Delay(250);   // a paste arrives as one change, typing as many: fetch once it settles
+            if (generation != _promptGeneration || DialogInput.Visibility != Visibility.Visible) return;
+            try
+            {
+                var preview = await _l.FetchSkinAsync(text);
+                if (generation != _promptGeneration || DialogInput.Visibility != Visibility.Visible) return;
+                var image = new System.Windows.Media.Imaging.BitmapImage();
+                image.BeginInit(); image.UriSource = new Uri(preview.Front); image.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad; image.EndInit(); image.Freeze();
+                DialogImage.Source = image;
+                DialogImage.Visibility = Visibility.Visible;
+                skinId = preview.Id;
+                confirm.IsEnabled = true;
+                SetHint($"Skin {preview.Id}, modelo {(preview.Model == "slim" ? "fino (Alex)" : "normal (Steve)")}. Pulsa “Usar esta skin”.", false);
+            }
+            catch (EngineException ex) { if (generation == _promptGeneration) SetHint(ex.Message, true); }
+        }
+        _promptChanged = (_, _) => Check();
+        _promptKeys = (_, e) => { if (e.Key == Key.Enter && confirm.IsEnabled) { e.Handled = true; confirm.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent)); } };
+        DialogInput.TextChanged += _promptChanged;
+        DialogInput.KeyDown += _promptKeys;
+
+        // A NameMC link or id already on the clipboard is picked up (only when it is one; nothing else is ever read or kept).
+        try
+        {
+            if (Clipboard.ContainsText())
+            {
+                var copied = Clipboard.GetText().Trim();
+                if (copied.Length <= 300 && (copied.Contains("namemc.com", StringComparison.OrdinalIgnoreCase) || System.Text.RegularExpressions.Regex.IsMatch(copied, "^[0-9a-fA-F]{16}$")))
+                    DialogInput.Text = copied;
+            }
+        }
+        catch (Exception) { /* the clipboard can be busy: typing works the same */ }
+        DialogInput.Focus();
+        DialogInput.SelectAll();
+    }
+
+    private async Task ApplySkinAsync(string? id, Func<Task>? done)
+    {
+        if (id == null) return;
+        ShowToast("Preparando la skin…");
+        var error = await _l.ApplySkinAsync(id);
+        if (error != null) { HideToast(); ShowDialog("No se pudo usar esa skin", error, ("Entendido", null, true)); return; }
+        ShowToast("Skin lista: la verás al abrir Minecraft.");
+        if (done != null) await done();
+    }
+
+    private async Task ClearSkinAsync(Func<Task>? done)
+    {
+        await _l.ClearSkinAsync();
+        ShowToast("Skin quitada: vuelves a la skin por defecto.");
+        if (done != null) await done();
+    }
+
     private void SetHint(string text, bool problem)
     {
         DialogHint.Text = text;
@@ -324,7 +423,11 @@ public partial class MainWindow : Window
         if (_promptChanged != null) { DialogInput.TextChanged -= _promptChanged; _promptChanged = null; }
         if (_promptKeys != null) { DialogInput.KeyDown -= _promptKeys; _promptKeys = null; }
         _promptGeneration++;
-        DialogInput.Visibility = DialogHint.Visibility = Visibility.Collapsed;
+        DialogInput.Visibility = DialogHint.Visibility = DialogImage.Visibility = Visibility.Collapsed;
+        DialogImage.Source = null;
+        DialogInput.MaxLength = 16;
+        if (_linkClick != null) { DialogLink.Click -= _linkClick; _linkClick = null; }
+        DialogLink.Visibility = Visibility.Collapsed;
         DialogLayer.Visibility = Visibility.Collapsed;
         _dialogOpen = false;
         if (_dialogQueue.Count > 0) _dialogQueue.Dequeue()();

@@ -1,18 +1,21 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using EmpiLauncher.App.Services;
 using EmpiLauncher.Ipc;
 
 namespace EmpiLauncher.App.Views.Tabs;
 
+/// <summary>The "Launcher" tab: this launcher's version and updates (with the notes of every version in between), its own settings, the living background and its colour, folders and cost.</summary>
 internal sealed class AboutTab : SettingsTab
 {
     private readonly Launcher _l = Launcher.Instance;
     public override string Id => "about";
-    public override string Title => "Acerca";
+    public override string Title => "Launcher";
 
     private string Str(string key) => _l.Config!.Settings.TryGetValue(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
     private bool Bool(string key) => _l.Config!.Settings.TryGetValue(key, out var v) && v.ValueKind == JsonValueKind.True;
@@ -23,21 +26,20 @@ internal sealed class AboutTab : SettingsTab
         Root.Children.Clear();
         var config = _l.Config!;
 
-        // ---- launcher ----
+        Root.Children.Add(UpdatesSection(config));
+
         var launcher = Ui.Section("Launcher", out var l);
         l.Children.Add(Ui.Row("Modo de rendimiento", "Automático ahorra recursos en equipos justos: sin efectos que cuesten memoria o GPU.", ModeChoice()));
         l.Children.Add(Ui.Row("Versiones de prueba", "Recibir también las versiones del launcher que aún se están probando.", Ui.Switch(Bool("allowPrerelease"), v => _ = Set("allowPrerelease", v), "Versiones de prueba")));
         Root.Children.Add(launcher);
         Root.Children.Add(FieldSection());
 
-        // ---- folders ----
         var folders = Ui.Section("Carpetas", out var f, "Aquí viven el juego, las cuentas y la configuración.");
         f.Children.Add(FolderRow("Datos del juego", Str("dataDirectory")));
         f.Children.Add(FolderRow("Instalaciones", config.InstanceDirectory));
         f.Children.Add(FolderRow("Configuración", config.LauncherDirectory));
         Root.Children.Add(folders);
 
-        // ---- what it costs, measured live ----
         var cost = Ui.Section("Consumo ahora mismo", out var c, "Lo que usan en este instante la interfaz y el motor. La interfaz devuelve memoria al sistema cuando está quieta.");
         var ui = Ui.Text("", "BodyText");
         var engine = Ui.Text("", "BodyText");
@@ -54,30 +56,107 @@ internal sealed class AboutTab : SettingsTab
         catch (EngineException) { ui.Text = engine.Text = "sin datos"; }
 
         var about = Ui.Section(null, out var a);
-        var version = config.AppVersion is { Length: > 0 } v && !v.StartsWith("0.0.0") ? "versión " + v : "versión de desarrollo";
-        a.Children.Add(Ui.Text($"Empi Launcher, {version}", "BodyText"));
         a.Children.Add(Ui.Text("La interfaz es nativa de Windows. La lógica de descarga, verificación y lanzamiento es la misma del launcher clásico, ejecutada en un motor aparte sin Chromium.", "CaptionText"));
-        ((TextBlock)a.Children[1]).Margin = new Thickness(0, 6, 0, 10);
-        var checkText = Ui.Text("", "CaptionText");
-        var check = Ui.Button("Buscar actualizaciones", async () =>
-        {
-            checkText.Text = "Buscando…";
-            await _l.CheckUpdateAsync();
-            if (_l.Update != null) { checkText.Text = $"Hay una versión nueva: {_l.Update.Version}."; ((MainWindow)Application.Current.MainWindow).ShowUpdateDialog(); }
-            else checkText.Text = "Tienes la última versión, o no hay conexión para comprobarlo.";
-        });
-        var checkRow = new StackPanel { Orientation = Orientation.Horizontal };
-        checkRow.Children.Add(check);
-        checkText.VerticalAlignment = VerticalAlignment.Center;
-        checkText.Margin = new Thickness(12, 0, 0, 0);
-        checkRow.Children.Add(checkText);
-        a.Children.Add(checkRow);
         Root.Children.Add(about);
     }
 
     private Task Set(string key, object value) => _l.Client.CallAsync("config.set", new { key, value });
 
-    /// <summary>The living background: three choices and, always visible, whether it is moving right now and why not if it is not.</summary>
+    // ---- version and updates ---------------------------------------------------------------------------------------
+
+    /// <summary>The version in use and, when a newer one exists, the notes of EVERY version from this one to the latest, newest first.</summary>
+    private FrameworkElement UpdatesSection(ConfigResult config)
+    {
+        var version = config.AppVersion is { Length: > 0 } v && !v.StartsWith("0.0.0") ? "versión " + v : "versión de desarrollo";
+        var section = Ui.Section("Versión y novedades", out var body, $"Empi Launcher, {version}.");
+        var trail = new StackPanel { Margin = new Thickness(0, 12, 0, 0) };
+        var status = Ui.Text("", "CaptionText");
+        status.VerticalAlignment = VerticalAlignment.Center;
+        status.Margin = new Thickness(12, 0, 0, 0);
+
+        async Task Fill(bool askDialog)
+        {
+            status.Text = "Buscando…";
+            trail.Children.Clear();
+            await _l.CheckUpdateAsync();
+            var notes = await _l.ChangelogAsync();
+            trail.Children.Clear();
+            if (_l.Update != null)
+            {
+                status.Text = notes.Entries.Count > 1 ? $"Hay {notes.Entries.Count} versiones nuevas hasta la {_l.Update.Version}." : $"Hay una versión nueva: {_l.Update.Version}.";
+                foreach (var entry in notes.Entries) trail.Children.Add(TrailEntry(entry));
+                if (notes.Entries.Count == 0) trail.Children.Add(Ui.Text("No se pudieron leer las notas de las versiones, pero la actualización está disponible.", "CaptionText"));
+                if (askDialog) ((MainWindow)Application.Current.MainWindow).ShowUpdateDialog();
+            }
+            else status.Text = notes.Reason == "offline" && _l.Update == null ? "Tienes la última versión, o no hay conexión para comprobarlo." : "Tienes la última versión.";
+        }
+
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        row.Children.Add(Ui.Button("Buscar actualizaciones", () => _ = Fill(true)));
+        row.Children.Add(status);
+        body.Children.Add(row);
+        body.Children.Add(trail);
+        _ = Fill(false);   // opening the tab already shows what is new; the dialog is only for the button
+        return section;
+    }
+
+    /// <summary>One release: its number, its date, a link and its notes, tidied for reading (the notes are Markdown written for GitHub).</summary>
+    private FrameworkElement TrailEntry(ChangelogEntry entry)
+    {
+        var head = new DockPanel();
+        if (entry.Url != null)
+        {
+            var open = Ui.Button("Ver en GitHub", () => { try { Process.Start(new ProcessStartInfo(entry.Url) { UseShellExecute = true }); } catch (Exception) { } }, "GhostButton", 12);
+            DockPanel.SetDock(open, Dock.Right);
+            head.Children.Add(open);
+        }
+        var title = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        title.Children.Add(Ui.Text("v" + entry.Version, "BodyText", null, 16));
+        if (DateTime.TryParse(entry.Date, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var date))
+        {
+            var when = Ui.Text(date.ToLocalTime().ToString("d 'de' MMMM 'de' yyyy", CultureInfo.GetCultureInfo("es-ES")), "CaptionText");
+            when.Margin = new Thickness(12, 0, 0, 0);
+            when.VerticalAlignment = VerticalAlignment.Center;
+            title.Children.Add(when);
+        }
+        head.Children.Add(title);
+
+        var stack = new StackPanel();
+        stack.Children.Add(head);
+        var notes = Notes(entry.Body);
+        notes.Margin = new Thickness(0, 10, 0, 0);
+        stack.Children.Add(notes);
+        return new Border { Style = (Style)Application.Current.FindResource("Tile"), Child = stack, Margin = new Thickness(0, 0, 0, 8), Padding = new Thickness(16, 12, 16, 12) };
+    }
+
+    /// <summary>GitHub Markdown as plain reading text: headings stand out, bullets become bullets, the rest of the markup goes.</summary>
+    private static StackPanel Notes(string? markdown)
+    {
+        var panel = new StackPanel();
+        var shown = 0;
+        foreach (var raw in (markdown ?? "").Replace("\r", "").Split('\n'))
+        {
+            var line = raw.Trim();
+            if (line.Length == 0 || line.StartsWith("<!--") || line == "---") continue;
+            if (++shown > 40) { panel.Children.Add(Ui.Text("…", "CaptionText")); break; }
+            var heading = line.StartsWith('#');
+            var bullet = line.StartsWith("- ") || line.StartsWith("* ");
+            var text = line.TrimStart('#', ' ').Replace("**", "").Replace("__", "").Replace("`", "");
+            if (bullet) text = "•  " + text[2..].TrimStart();
+            var block = Ui.Text(text, heading ? "BodyText" : "CaptionText");
+            if (heading) block.FontWeight = FontWeights.SemiBold;
+            block.TextWrapping = TextWrapping.Wrap;
+            block.Margin = new Thickness(bullet ? 6 : 0, heading ? 8 : 2, 0, 0);
+            if (!heading) block.Foreground = Ui.Res("Paper2Brush");
+            panel.Children.Add(block);
+        }
+        if (shown == 0) panel.Children.Add(Ui.Text("Esta versión no trae notas.", "CaptionText"));
+        return panel;
+    }
+
+    // ---- the living background ---------------------------------------------------------------------------------------
+
+    /// <summary>The living background: three choices, its colour and, always visible, whether it is moving right now and why not if it is not.</summary>
     private FrameworkElement FieldSection()
     {
         var section = Ui.Section("Fondo vivo", out var body, "Puntos de fondo que se mueven despacio y se acercan al puntero, con el color del modpack.");
@@ -99,11 +178,87 @@ internal sealed class AboutTab : SettingsTab
             pill.Checked += async (_, _) => { await _l.SetFieldModeAsync(mode); Refresh(); };
             row.Children.Add(pill);
         }
-        body.Children.Add(Ui.Row("Campo de puntos", "Automático se apaga solo si algo importa más: descargas, Minecraft, poca memoria, modo de rendimiento. Siempre no se apaga por eso.", track));
+        body.Children.Add(Ui.Row("Campo de puntos", "Automático sigue en marcha mientras descargas o actualizas y solo se queda quieto si algo importa más: Minecraft abierto, poca memoria, modo de rendimiento. Siempre no se apaga por eso.", track));
         Refresh();
         status.Margin = new Thickness(0, 4, 0, 0);
         body.Children.Add(status);
+        body.Children.Add(Ui.Row("Color de los puntos y las ondas", "El gris es el de siempre. Elige uno de la lista o crea el tuyo. Cuando una onda del color del modpack se cruza con la tuya, los puntos se mezclan.", DotColorChoice()));
         return section;
+    }
+
+    private const string DefaultDots = "#64635f";
+    private static readonly (string Hex, string Label)[] DotPresets =
+    [
+        ("#64635f", "Gris"), ("#b8b7b1", "Blanco"), ("#4a6fd8", "Azul"), ("#2fa8b5", "Cian"),
+        ("#4caf6d", "Verde"), ("#c99a3a", "Ámbar"), ("#cc5a8a", "Rosa"), ("#8b6bd6", "Violeta")
+    ];
+
+    /// <summary>Round presets plus a rainbow one that opens the launcher's own colour picker. Whatever is picked is shown live and saved by the engine.</summary>
+    private FrameworkElement DotColorChoice()
+    {
+        var current = (_l.Prefs.DotColor ?? DefaultDots).ToLowerInvariant();
+        var rings = new List<(Border Ring, string Hex)>();
+        Border? customRing = null;
+        Border? customFace = null;
+        var rainbow = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1) };
+        foreach (var (offset, color) in new[] { (0.0, "#ff5a5a"), (0.25, "#ffd24a"), (0.5, "#4fdc7a"), (0.75, "#4aa8ff"), (1.0, "#c46bff") })
+            rainbow.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(color), offset));
+
+        void Mark(string hex)
+        {
+            current = hex;
+            var preset = DotPresets.Any(p => p.Hex == hex);
+            foreach (var (ring, h) in rings) ring.BorderBrush = h == hex ? Ui.Res("PaperBrush") : Brushes.Transparent;
+            if (customRing != null && customFace != null)
+            {
+                customRing.BorderBrush = preset ? Brushes.Transparent : Ui.Res("PaperBrush");
+                customFace.Background = preset ? rainbow : new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
+            }
+        }
+
+        var strip = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        foreach (var (hex, label) in DotPresets)
+        {
+            var ring = Swatch(new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)));
+            rings.Add((ring, hex));
+            var button = SwatchButton(ring, label);
+            var chosen = hex;
+            button.Click += (_, _) => { _ = _l.SetDotColorAsync(chosen); Mark(chosen); };
+            strip.Children.Add(button);
+        }
+
+        customFace = new Border { Background = rainbow };
+        customRing = Swatch(customFace, out var face);
+        var custom = SwatchButton(customRing, "Personalizado…");
+        System.Windows.Automation.AutomationProperties.SetName(custom, "Color personalizado");
+        custom.Click += (_, _) =>
+        {
+            var picker = new ColorPicker(current, DefaultDots, DotPresets);
+            picker.Changing += hex => { _l.PreviewDotColor(hex); Mark(hex); };
+            picker.Committed += hex => { _ = _l.SetDotColorAsync(hex); Mark(hex); };
+            ColorPicker.Show(custom, picker);
+        };
+        strip.Children.Add(custom);
+        Mark(current);
+        return strip;
+    }
+
+    private static Border Swatch(Brush fill) => Swatch(new Border { Background = fill }, out _);
+
+    /// <summary>A round colour chip inside a ring that shows which one is chosen.</summary>
+    private static Border Swatch(Border face, out Border faceBack)
+    {
+        face.CornerRadius = new CornerRadius(12);
+        face.Width = 24; face.Height = 24;
+        faceBack = face;
+        return new Border { Width = 32, Height = 32, CornerRadius = new CornerRadius(16), BorderThickness = new Thickness(2), BorderBrush = Brushes.Transparent, Child = face, Padding = new Thickness(2) };
+    }
+
+    private static Button SwatchButton(Border ring, string label)
+    {
+        var button = new Button { Style = (Style)Application.Current.FindResource("BareButton"), Content = ring, Margin = new Thickness(0, 0, 3, 0), ToolTip = label };
+        System.Windows.Automation.AutomationProperties.SetName(button, "Color de los puntos: " + label);
+        return button;
     }
 
     private FrameworkElement ModeChoice()

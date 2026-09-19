@@ -9,7 +9,7 @@ namespace EmpiLauncher.App.Services;
 /// Decides whether the living field may move. The interface is static by default: modules, cards and pills never animate at rest,
 /// and the field is decoration that has to earn its cost. It is switched off, and shows a still frame instead, whenever motion
 /// would compete with something that matters or would be pointless:
-///   - a download, verification, game preparation or Minecraft itself is running;
+///   - Minecraft itself is running (the launcher is out of the way then anyway);
 ///   - the window is minimised, hidden or not in front;
 ///   - the player turned motion off in Windows, or asked for performance mode (or "auto" on a machine under 6 GB);
 ///   - the machine is short of free memory;
@@ -49,7 +49,8 @@ internal static class FieldGovernor
         if (choice == "always") return window.IsActive ? "" : "la ventana no está en primer plano";
 
         if (_yielded.Length > 0) return _yielded;
-        if (l.Game.Busy) return "hay una operación en curso";
+        // Downloads, updates and checks do NOT stop it: the field, its breathing and its click waves stay while the player watches a
+        // progress bar. Only the machine's own limits (below) and the player's choice can put it to sleep.
         if (l.Game.Running) return "Minecraft está en marcha";
         if (!window.IsActive) return "la ventana no está en primer plano";
         if (!SystemParameters.ClientAreaAnimation) return "las animaciones están desactivadas en Windows";

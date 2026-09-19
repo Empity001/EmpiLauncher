@@ -33,6 +33,8 @@ class ProcessBuilder {
         this.modManifest = modManifest
         this.authUser = authUser
         this.launcherVersion = launcherVersion
+        // JVM arguments the native launcher adds on top of the pack's own (the skin agent for a player without an account); empty for the classic one
+        this.extraJvmArgs = []
         this.empiLaunchSession = typeof crypto.randomUUID === 'function'
             ? crypto.randomUUID()
             : crypto.randomBytes(24).toString('hex')
@@ -447,6 +449,7 @@ class ProcessBuilder {
         args.push('-Xmx' + ConfigManager.getMaxRAM(this.server.rawServer.id))
         args.push('-Xms' + ConfigManager.getMinRAM(this.server.rawServer.id))
         args = args.concat(ConfigManager.getJVMOptions(this.server.rawServer.id))
+        args = args.concat(this.extraJvmArgs)
         args.push('-Djava.library.path=' + tempNativePath)
         args = args.concat(this._constructEmpiCheckArguments())
 
@@ -499,6 +502,7 @@ class ProcessBuilder {
         args.push('-Xmx' + ConfigManager.getMaxRAM(this.server.rawServer.id))
         args.push('-Xms' + ConfigManager.getMinRAM(this.server.rawServer.id))
         args = args.concat(ConfigManager.getJVMOptions(this.server.rawServer.id))
+        args = args.concat(this.extraJvmArgs)
         args = args.concat(this._constructEmpiCheckArguments())
 
         // Main Java Class

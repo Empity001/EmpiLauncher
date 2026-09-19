@@ -23,7 +23,11 @@ const { ensureCore } = require('./core')
 const { describeDistribution, refreshWithoutCache } = require('./distro')
 const { createPackState, getServerPackFingerprint } = require('../lib/packstate')
 const { onDistroLoaded } = require('../lib/distrosync')
-const { currentAccount } = require('../lib/offline')
+const offlineLib = require('../lib/offline')
+const { currentAccount } = offlineLib
+const skinLib = require('../lib/skin')
+const { startSkinServer } = require('../lib/skinserver')
+const fsSync = require('fs')
 
 const GAME_LAUNCH_REGEX = /^\[.+\]: (?:MinecraftForge .+ Initialized|ModLauncher .+ starting: .+|Loading Minecraft .+ with Fabric Loader .+)$/
 const MIN_LINGER = 5000
@@ -67,6 +71,9 @@ function register(handlers, state) {
     let hasRPC = false
     let lastPercent = -1
     let lastTransferAt = 0
+    // The skin server of the running game (only for an offline player with a skin); it lives exactly as long as the game.
+    let skinServer = null
+    const stopSkinServer = () => { const running = skinServer; skinServer = null; if (running) running.close().catch(() => {}) }
 
     const core = () => ensureCore(state)
     const log = () => state.log
@@ -120,6 +127,7 @@ function register(handlers, state) {
 
     /** Ends an operation with a message for the player and puts the button back to what the pack needs. */
     function fail(code, title, message) {
+        stopSkinServer()
         emit('game.failure', { code, title, message })
         if (game.proc == null) setPhase('idle')
         refreshPackStatus().catch((err) => log().warn('Unable to restore launch state after failure.', err))
@@ -390,9 +398,31 @@ function register(handlers, state) {
         if (authUser == null) return fail('no_account', 'Cuenta necesaria', 'Inicia sesión con tu cuenta de Minecraft, o elige jugar sin conexión, antes de jugar.')
         log().info(`Sending ${authUser.type === 'offline' ? 'offline player' : 'selected account'} (${authUser.displayName}) to ProcessBuilder.`)
         const pb = new (rt().ProcessBuilder)(serv, versionData, modLoaderData, authUser, appVersion())
+        if (authUser.type === 'offline') await attachSkin(pb, authUser, ConfigManager.getLauncherDirectory())
         detail('launch', TEXT.launching)
 
         return spawnGame(pb, distro, serv)
+    }
+
+    /**
+     * An offline player that chose a skin: a small local server answers the game's skin lookup with it, and a Java agent
+     * (authlib-injector, pinned by hash in lib/skin.js) points the game at that server. Both exist only for this launch. If anything
+     * about it fails the game still starts, with the default skin, and the player is told why.
+     */
+    async function attachSkin(pb, authUser, dir) {
+        const saved = offlineLib.read(dir)
+        if (!saved || !saved.skin) return
+        try {
+            detail('skin', 'Preparando tu skin...')
+            const skin = await skinLib.fetchSkin(dir, saved.skin.id)   // in the cache after the first time: no network
+            const injector = await skinLib.ensureInjector(dir)
+            skinServer = await startSkinServer({ name: authUser.displayName, uuid: authUser.uuid, png: fsSync.readFileSync(skin.png), model: saved.skin.model || skin.model })
+            pb.extraJvmArgs.push(`-javaagent:${injector}=${skinServer.url}`, '-Dauthlibinjector.noLogFile')
+        } catch (err) {
+            stopSkinServer()
+            log().warn('The skin was not applied.', err)
+            emit('game.notice', { level: 'warning', text: `No se pudo preparar tu skin (${err.message}). Juegas con la skin por defecto.` })
+        }
     }
 
     function spawnGame(pb, distro, serv) {
@@ -469,6 +499,7 @@ function register(handlers, state) {
             finalized.add(child)
         }
         log().info(`Restoring launcher after Minecraft ${source}.`)
+        stopSkinServer()
         if (game.fallbackTimer != null) { clearTimeout(game.fallbackTimer); game.fallbackTimer = null }
         if (child == null || game.proc === child) game.proc = null
         game.stopRequested = false

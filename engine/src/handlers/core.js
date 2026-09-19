@@ -5,7 +5,9 @@
  */
 const path = require('path')
 const { EngineError } = require('../ipc/server')
+const fs = require('fs')
 const offline = require('../lib/offline')
+const skins = require('../lib/skin')
 
 /** Loads the classic launcher's config and distribution API the way its preloader does, once. */
 function ensureCore(state) {
@@ -56,7 +58,12 @@ function accountsView(ConfigManager) {
     const saved = offline.read(ConfigManager.getLauncherDirectory())
     if (saved) {
         const player = offline.profile(saved.name)
-        accounts.push({ uuid: player.uuid, displayName: player.name, username: player.name, type: 'offline', expiresAt: null, offlineId: player.id })
+        const entry = { uuid: player.uuid, displayName: player.name, username: player.name, type: 'offline', expiresAt: null, offlineId: player.id }
+        if (saved.skin) {
+            const files = skins.cached(ConfigManager.getLauncherDirectory(), saved.skin.id)
+            entry.skin = { id: saved.skin.id, model: saved.skin.model, front: files && fs.existsSync(files.front) ? files.front : null, head: files && fs.existsSync(files.head) ? files.head : null }
+        }
+        accounts.push(entry)
         if (saved.active) selectedUuid = player.uuid
     }
     return { selected: selectedUuid, accounts }

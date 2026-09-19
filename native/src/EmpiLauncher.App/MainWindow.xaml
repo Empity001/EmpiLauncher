@@ -24,11 +24,15 @@
                 <Button x:Name="UpdateButton" Style="{StaticResource PrimaryButton}" Margin="12,0,0,0" Padding="12,4" FontSize="11" Visibility="Collapsed"
                         WindowChrome.IsHitTestVisibleInChrome="True" AutomationProperties.Name="Actualización disponible"/>
             </StackPanel>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
-                <Button x:Name="MinButton" Style="{StaticResource IconButton}" Content="&#xE921;" Width="40" Height="34" ToolTip="Minimizar" AutomationProperties.Name="Minimizar"/>
-                <Button x:Name="MaxButton" Style="{StaticResource IconButton}" Content="&#xE922;" Width="40" Height="34" ToolTip="Maximizar" AutomationProperties.Name="Maximizar"/>
-                <Button x:Name="CloseButton" Style="{StaticResource IconButton}" Content="&#xE8BB;" Width="40" Height="34" ToolTip="Cerrar" AutomationProperties.Name="Cerrar"/>
-            </StackPanel>
+            <!-- the three window buttons sit in a small box of their own, so the dots behind never blur them together -->
+            <Border HorizontalAlignment="Right" VerticalAlignment="Center" Background="#F20E0F11" BorderBrush="{StaticResource HairStrongBrush}" BorderThickness="1"
+                    CornerRadius="16" Padding="3,2" WindowChrome.IsHitTestVisibleInChrome="True">
+                <StackPanel Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button x:Name="MinButton" Style="{StaticResource IconButton}" Content="&#xE921;" Width="38" Height="28" ToolTip="Minimizar" AutomationProperties.Name="Minimizar"/>
+                    <Button x:Name="MaxButton" Style="{StaticResource IconButton}" Content="&#xE922;" Width="38" Height="28" ToolTip="Maximizar" AutomationProperties.Name="Maximizar"/>
+                    <Button x:Name="CloseButton" Style="{StaticResource IconButton}" Content="&#xE8BB;" Width="38" Height="28" ToolTip="Cerrar" AutomationProperties.Name="Cerrar"/>
+                </StackPanel>
+            </Border>
         </Grid>
 
         <!-- the selected modpack's picture (a small still preview made by the engine), then its scrim -->
@@ -63,6 +67,9 @@
                     <TextBox x:Name="DialogInput" Style="{StaticResource InputBox}" Visibility="Collapsed" Margin="0,18,0,0" MaxLength="16"
                              AutomationProperties.Name="Nombre para jugar sin conexión"/>
                     <TextBlock x:Name="DialogHint" Style="{StaticResource CaptionText}" Visibility="Collapsed" Margin="4,8,0,0" TextWrapping="Wrap"/>
+                    <Button x:Name="DialogLink" Style="{StaticResource GhostButton}" Visibility="Collapsed" HorizontalAlignment="Left" Margin="0,12,0,0" Padding="14,6"/>
+                    <!-- a skin's preview (96x192, drawn by the engine), shown as its pixels -->
+                    <Image x:Name="DialogImage" Visibility="Collapsed" Width="90" Height="180" Stretch="Uniform" HorizontalAlignment="Left" Margin="4,14,0,0" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
                     <StackPanel x:Name="DialogButtons" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0"/>
                 </StackPanel>
             </Border>

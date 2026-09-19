@@ -37,7 +37,21 @@ public sealed record DistroResult(long TookMs, string SelectedServer, string Mai
 /// ExpiresAt is a Unix time in milliseconds (a number in the engine's answer, not text). Type is "microsoft", "mojang" or "offline";
 /// an offline player (no account, just a name) also carries its 12-digit OfflineId.
 /// </summary>
-public sealed record AccountSummary(string Uuid, string DisplayName, string? Username, string Type, double? ExpiresAt, string? OfflineId = null);
+public sealed record AccountSummary(string Uuid, string DisplayName, string? Username, string Type, double? ExpiresAt, string? OfflineId = null, OfflineSkin? Skin = null);
+
+/// <summary>The skin of the offline player: its NameMC id, the model it was made for and the launcher's own pictures of it (paths; either may be missing).</summary>
+public sealed record OfflineSkin(string Id, string Model, string? Front, string? Head);
+
+/// <summary>A skin fetched from NameMC and checked (skin.fetch): Front is a 96x192 picture of it, Head a 64x64 one.</summary>
+public sealed record SkinPreview(string Id, string Model, string Front, string Head);
+
+/// <summary>What was typed or pasted for a skin (skin.parse): its NameMC id, or why it is not one.</summary>
+public sealed record SkinParse(bool Valid, string? Id, string? Reason);
+
+/// <summary>One release newer than the running launcher, with the notes written for it (update.changelog).</summary>
+public sealed record ChangelogEntry(string Version, string? Name, string? Date, string? Body, string? Url);
+
+public sealed record ChangelogResult(string? Current, List<ChangelogEntry> Entries, string? Reason);
 
 /// <summary>What a name would become as an offline player (offline.preview); Reason says why not when Valid is false.</summary>
 public sealed record OfflinePreview(bool Valid, string? Reason, string Name, string? Id, string? Uuid);
@@ -95,8 +109,8 @@ public sealed record ValidResult(bool Valid);
 /// <summary>Small still images of a modpack's art (cached by the engine); null where there is none or it is too big to fetch.</summary>
 public sealed record ArtResult(string ServerId, string? Banner, string? Background);
 
-/// <summary>Preferences only the native interface has. FieldMode: auto | always | off.</summary>
-public sealed record UiPrefs(string FieldMode);
+/// <summary>Preferences only the native interface has. FieldMode: auto | always | off. DotColor: #rrggbb of the field's dots.</summary>
+public sealed record UiPrefs(string FieldMode, string? DotColor = null);
 
 /// <summary>Answer of update.check. Reason is set when nothing is offered: no_channel (nothing published), bad_channel, offline.</summary>
 public sealed record UpdateInfo(bool Available, string? Current, string? Version, string? Installer, string? Sha512, long? Size, string? Page, string? Reason);

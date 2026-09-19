@@ -156,6 +156,19 @@ public sealed class Launcher : IAsyncDisposable
         catch (Exception) { }   // no art is a normal state: the plain interface still works
     }
 
+    /// <summary>Shows a dot colour right away (while it is being dragged in the picker) without saving it; SetDotColorAsync saves.</summary>
+    public void PreviewDotColor(string hex)
+    {
+        Prefs = Prefs with { DotColor = hex };
+        PrefsChanged?.Invoke();
+    }
+
+    public async Task SetDotColorAsync(string hex)
+    {
+        Prefs = await Client.CallAsync<UiPrefs>("ui.set", new { key = "dotColor", value = hex });
+        PrefsChanged?.Invoke();
+    }
+
     public async Task SetFieldModeAsync(string mode)
     {
         Prefs = await Client.CallAsync<UiPrefs>("ui.set", new { key = "fieldMode", value = mode });
@@ -300,6 +313,33 @@ public sealed class Launcher : IAsyncDisposable
     }
 
     public Task CancelAuthAsync() => Client.CallAsync("auth.cancel");
+
+    // ---- the skin of the offline player (a NameMC id; see engine/src/lib/skin.js) -----------------------------------------------
+
+    public Task<SkinParse> ParseSkinAsync(string input) => Client.CallAsync<SkinParse>("skin.parse", new { input }, TimeSpan.FromSeconds(5));
+
+    /// <summary>Downloads (once) and checks a skin and draws its preview. Throws EngineException with a sentence for the player.</summary>
+    public Task<SkinPreview> FetchSkinAsync(string input) => Client.CallAsync<SkinPreview>("skin.fetch", new { input }, TimeSpan.FromSeconds(30));
+
+    /// <summary>Makes it the skin of the offline player. Returns the reason it could not be, or null.</summary>
+    public async Task<string?> ApplySkinAsync(string id)
+    {
+        try { await Client.CallAsync<AccountList>("skin.set", new { id }, TimeSpan.FromSeconds(90)); await RefreshConfigAsync(); return null; }
+        catch (EngineException ex) { return ex.Message; }
+    }
+
+    public async Task ClearSkinAsync()
+    {
+        await Client.CallAsync<AccountList>("skin.clear");
+        await RefreshConfigAsync();
+    }
+
+    /// <summary>The notes of every release newer than this launcher, newest first; empty when up to date or offline.</summary>
+    public async Task<ChangelogResult> ChangelogAsync()
+    {
+        try { return await Client.CallAsync<ChangelogResult>("update.changelog", timeout: TimeSpan.FromSeconds(30)); }
+        catch (Exception) { return new ChangelogResult(null, [], "offline"); }
+    }
 
     /// <summary>True when the player in use has no account (only a name).</summary>
     public bool IsOffline => Account?.Type == "offline";

@@ -64,6 +64,15 @@ foreach ($step in $Steps.Split(';')) {
         'wait'  { Start-Sleep -Milliseconds ([int]([double]$arg * 1000)) }
         'shot'  { Save-Shot $arg }
         'click' { Click-Named $arg }
+        # screen:<name>  what is on the screen where the window is (PrintWindow cannot see popups, which are windows of their own)
+        'screen' {
+            $r = New-Object Win+RECT; [void][Win]::GetWindowRect($hwnd, [ref]$r)
+            $w = $r.R - $r.L; $h = $r.B - $r.T
+            $bmp = New-Object System.Drawing.Bitmap $w, $h
+            $g = [System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($r.L, $r.T, 0, 0, $bmp.Size); $g.Dispose()
+            $path = Join-Path $OutDir "$arg.png"; $bmp.Save($path, [System.Drawing.Imaging.ImageFormat]::Png); $bmp.Dispose()
+            Write-Host "screen $path ($w x $h)"
+        }
         # type:<automation name>=<text>  sets the text of a text box through UI Automation (raises TextChanged like typing does)
         'type'  {
             $name, $text = $arg.Split('=', 2)

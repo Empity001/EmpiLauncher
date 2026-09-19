@@ -16,6 +16,14 @@ const server = http.createServer((req, res) => {
     const url = decodeURIComponent(req.url)
     if (url.endsWith('/latest.yml')) {
         res.end(`version: 99.0.0\nfiles:\n  - url: ${published.name}\n    sha512: ${published.sha512}\n    size: ${published.size}\npath: ${published.name}\nsha512: ${published.sha512}\nreleaseDate: '2026-09-19T00:00:00.000Z'\n`)
+    } else if (url.endsWith('/releases.json')) {
+        res.end(JSON.stringify([
+            { tag_name: 'v99.1.0', name: 'v99.1.0', published_at: '2026-10-01T00:00:00Z', body: '- newer', draft: false, prerelease: false },
+            { tag_name: 'v99.0.5', name: 'v99.0.5', published_at: '2026-09-25T00:00:00Z', body: '- middle', draft: false, prerelease: false },
+            { tag_name: 'v99.0.9-beta', name: 'beta', published_at: '2026-09-26T00:00:00Z', body: '- beta', draft: false, prerelease: true },
+            { tag_name: 'v99.0.7', name: 'draft', body: '- draft', draft: true, prerelease: false },
+            { tag_name: 'v0.0.0-alpha', name: 'old', published_at: '2020-01-01T00:00:00Z', body: '- older than the running one', draft: false, prerelease: false }
+        ]))
     } else if (url.endsWith('.exe')) {
         res.setHeader('content-length', payload.length)
         if (stall) { res.write(payload.subarray(0, 1024 * 1024)); return }   // a connection that goes quiet half way
@@ -27,6 +35,10 @@ const url = `http://127.0.0.1:${server.address().port}`
 
 const engine = await startEngine({ label: 'update-install', env: { EMPI_UPDATE_URL: url, EMPI_ENGINE_TEST: '1', EMPI_UPDATE_NO_RUN: '1' } })
 try {
+    const notes = await engine.call('update.changelog')
+    check('update.changelog lists every newer release, newest first, with its notes', notes.ok && notes.result.entries.map((e) => e.version).join(',') === '99.1.0,99.0.5' && notes.result.entries[1].body === '- middle', JSON.stringify(notes.result))
+    check('and leaves out drafts, prereleases (by default) and versions that are not newer', !notes.result.entries.some((e) => ['99.0.7', '99.0.9-beta', '0.0.0-alpha'].includes(e.version)))
+
     const done = await engine.call('update.install')
     check('downloads the installer and verifies its sha512', done.ok && done.result.launched === false && fs.existsSync(done.result.file) && fs.statSync(done.result.file).size === payload.length, JSON.stringify(done.result ?? done.error))
     check('the file lands under the launcher data folder, not somewhere else', done.ok && done.result.file.startsWith(path.join(engine.root, 'user', 'updates')), done.result?.file)
