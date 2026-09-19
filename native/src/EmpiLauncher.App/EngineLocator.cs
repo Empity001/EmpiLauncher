@@ -33,15 +33,15 @@ internal static class EngineLocator
         }
         else electronAsNode = Path.GetFileName(runtime).Equals("electron.exe", StringComparison.OrdinalIgnoreCase);
 
+        // "shared" = the classic launcher's real config, accounts AND game installation (what the released native launcher will use).
+        // Anything else is an isolated sandbox, game files included: a development build must never repair or launch the real install.
         var data = Environment.GetEnvironmentVariable("EMPI_USER_DATA");
-        string? userData = data switch
-        {
-            null => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EmpiLauncher.Native", "dev-userdata"),
-            "shared" => null,
-            _ => data
-        };
+        var shared = data == "shared";
+        var sandbox = data is null or "shared" ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EmpiLauncher.Native", "dev-userdata") : data;
+        string? userData = shared ? null : sandbox;
+        string? dataDir = shared ? null : Path.Combine(sandbox, "data");
         if (userData != null) Directory.CreateDirectory(userData);
-        return new EngineHostOptions(runtime, main, electronAsNode, userData, "0.0.0-native-dev");
+        return new EngineHostOptions(runtime, main, electronAsNode, userData, "0.0.0-native-dev", dataDir);
     }
 
     private static string? FindUp(params string[] parts)

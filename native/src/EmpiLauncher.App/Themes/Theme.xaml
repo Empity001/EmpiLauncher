@@ -1,0 +1,56 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:themes="clr-namespace:EmpiLauncher.App.Themes">
+    <!-- Empi Proof Bench, native. Tokens come from DESIGN.md: halftone black and paper-white, ONE accent (the modpack's own colour,
+         electric pink when a pack sets none). Everything here is static: nothing animates at rest. -->
+
+    <themes:PillRadiusConverter x:Key="PillRadius"/>
+
+    <Color x:Key="WellColor">#060607</Color>
+    <Color x:Key="BgColor">#0b0b0d</Color>
+    <Color x:Key="SurfaceColor">#111114</Color>
+    <Color x:Key="Surface2Color">#18181c</Color>
+    <Color x:Key="Surface3Color">#212127</Color>
+    <Color x:Key="LineColor">#24242a</Color>
+    <Color x:Key="LineStrongColor">#3b3b44</Color>
+    <Color x:Key="PaperColor">#f1efe8</Color>
+    <Color x:Key="Paper2Color">#a5a598</Color>
+    <Color x:Key="Paper3Color">#8b8b81</Color>
+    <Color x:Key="PaperInkColor">#47473f</Color>
+
+    <SolidColorBrush x:Key="WellBrush" Color="{StaticResource WellColor}"/>
+    <SolidColorBrush x:Key="BgBrush" Color="{StaticResource BgColor}"/>
+    <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
+    <SolidColorBrush x:Key="Surface2Brush" Color="{StaticResource Surface2Color}"/>
+    <SolidColorBrush x:Key="Surface3Brush" Color="{StaticResource Surface3Color}"/>
+    <SolidColorBrush x:Key="LineBrush" Color="{StaticResource LineColor}"/>
+    <SolidColorBrush x:Key="LineStrongBrush" Color="{StaticResource LineStrongColor}"/>
+    <SolidColorBrush x:Key="PaperBrush" Color="{StaticResource PaperColor}"/>
+    <SolidColorBrush x:Key="Paper2Brush" Color="{StaticResource Paper2Color}"/>
+    <SolidColorBrush x:Key="Paper3Brush" Color="{StaticResource Paper3Color}"/>
+    <SolidColorBrush x:Key="PaperInkBrush" Color="{StaticResource PaperInkColor}"/>
+    <SolidColorBrush x:Key="ModuleBrush" Color="#C2111215"/>
+    <SolidColorBrush x:Key="HairBrush" Color="#1AF1EFE8"/>
+    <SolidColorBrush x:Key="HairStrongBrush" Color="#38F1EFE8"/>
+    <SolidColorBrush x:Key="TintBrush" Color="#0AFFFFFF"/>
+    <SolidColorBrush x:Key="TintHoverBrush" Color="#21FFFFFF"/>
+    <SolidColorBrush x:Key="DangerBrush" Color="#ff6a4d"/>
+    <SolidColorBrush x:Key="WarnBrush" Color="#ffb14a"/>
+    <SolidColorBrush x:Key="OkBrush" Color="#48dc35"/>
+
+    <!-- The one accent. App code replaces these two when the selected modpack brings its own colour. -->
+    <SolidColorBrush x:Key="AccentBrush" Color="#ff3d8b"/>
+    <SolidColorBrush x:Key="AccentInkBrush" Color="#16030c"/>
+    <SolidColorBrush x:Key="AccentSoftBrush" Color="#29ff3d8b"/>
+
+    <!-- Doto is a dot-matrix face: display sizes only, never body text. Falls back to a mono face if the resource is missing. -->
+    <!-- The variable Doto file's default instance is named "Doto Black" (weight 900), which is the family name WPF sees. -->
+    <FontFamily x:Key="DisplayFont">pack://application:,,,/Assets/Fonts/#Doto Black, Cascadia Mono, Consolas</FontFamily>
+    <FontFamily x:Key="MonoFont">Geist Mono, Cascadia Mono, Consolas</FontFamily>
+    <FontFamily x:Key="BodyFont">Segoe UI Variable Text, Segoe UI</FontFamily>
+
+    <CornerRadius x:Key="RadiusInput">12</CornerRadius>
+    <CornerRadius x:Key="RadiusTile">16</CornerRadius>
+    <CornerRadius x:Key="RadiusModule">22</CornerRadius>
+    <CornerRadius x:Key="RadiusDock">32</CornerRadius>
+</ResourceDictionary>

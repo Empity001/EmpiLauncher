@@ -38,6 +38,7 @@ const state = { started: Date.now(), keepAlive: new Set(), appJs, shim, log, dat
 require('./handlers/core').register(handlers, state)
 require('./handlers/distro').register(handlers, state)
 require('./handlers/game').register(handlers, state)
+require('./handlers/settings').register(handlers, state)
 
 const ipc = createServer({
     pipeName, token, handlers, log,

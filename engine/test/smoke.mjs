@@ -77,6 +77,38 @@ check('back to idle afterwards', after.ok && after.result.phase === 'idle', JSON
 const busyTwice = await call('game.stop')
 check('game.stop with nothing running is harmless', busyTwice.ok && busyTwice.result.stopped === false)
 
+// ---- Settings ----
+const java = await call('settings.java')
+check('settings.java gives sliders and Java requirement', java.ok && java.result.absoluteMaxGb > 0 && java.result.suggestedMajor > 0, JSON.stringify(java.result))
+const raised = await call('settings.java.set', { minRAMGb: 2.5, maxRAMGb: 1.5, jvmOptions: '-XX:+UseZGC   -Dfoo=bar' })
+check('settings.java.set keeps max >= min and converts units', raised.ok && raised.result.minRAMGb === 2.5 && raised.result.maxRAMGb === 2.5 && raised.result.jvmOptions.join(' ') === '-XX:+UseZGC -Dfoo=bar', JSON.stringify(raised.result))
+check('config.validate rejects a bad width', (await call('config.validate', { key: 'gameWidth', value: 'abc' })).result.valid === false)
+const modsList = await call('mods.list')
+check('mods.list', modsList.ok && Array.isArray(modsList.result.required) && Array.isArray(modsList.result.optional), modsList.ok ? `${modsList.result.required.length} required, ${modsList.result.optional.length} optional, ${modsList.result.dropins.mods.length} drop-ins, shaders ${modsList.result.shaders.packs.length}` : JSON.stringify(modsList.error))
+const firstOptional = modsList.ok ? modsList.result.optional[0] : null
+if (firstOptional) {
+    const flipped = await call('mods.set', { path: firstOptional.path, enabled: !firstOptional.enabled })
+    const again = await call('mods.list')
+    check('mods.set flips an optional mod and it persists', flipped.ok && again.result.optional[0].enabled === !firstOptional.enabled, firstOptional.name)
+}
+if (modsList.ok) {
+    const modsDir = modsList.result.dropins.dir
+    const source = path.join(userData, 'incoming'); fs.mkdirSync(source, { recursive: true })
+    fs.writeFileSync(path.join(source, 'demo-mod.jar'), 'x'); fs.writeFileSync(path.join(source, 'notes.txt'), 'x')
+    await call('dropins.add', { paths: [path.join(source, 'demo-mod.jar'), path.join(source, 'notes.txt')] })
+    check('dropins.add moves only mod files', fs.existsSync(path.join(modsDir, 'demo-mod.jar')) && !fs.existsSync(path.join(modsDir, 'notes.txt')))
+    await call('dropins.toggle', { fullName: 'demo-mod.jar', enabled: false })
+    check('dropins.toggle disables by renaming', fs.existsSync(path.join(modsDir, 'demo-mod.jar.disabled')))
+    const listed = await call('mods.list')
+    check('disabled drop-in is listed as disabled', listed.result.dropins.mods.some((m) => m.name === 'demo-mod.jar' && m.disabled))
+    const escape = await call('dropins.resolve', { fullName: '..\\..\\config.json' })
+    check('dropins.resolve refuses to leave the mods folder', escape.ok === false && escape.error.code === 'bad_path', JSON.stringify(escape.error))
+    const ok = await call('dropins.resolve', { fullName: 'demo-mod.jar.disabled' })
+    check('dropins.resolve returns the real path', ok.ok && ok.result.path.endsWith('demo-mod.jar.disabled'))
+    await call('shaders.select', { name: 'OFF' })
+    check('shaders.select writes the option file', fs.existsSync(path.join(path.dirname(modsDir), 'optionsshaders.txt')))
+}
+
 const mem = await call('engine.memory')
 check('engine memory', mem.ok, JSON.stringify(mem.result))
 await call('engine.shutdown')

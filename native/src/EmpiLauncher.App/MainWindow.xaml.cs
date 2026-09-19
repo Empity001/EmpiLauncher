@@ -1,102 +1,161 @@
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Media;
 using System.Windows.Threading;
+using EmpiLauncher.App.Services;
+using EmpiLauncher.App.Views;
 using EmpiLauncher.Ipc;
 
 namespace EmpiLauncher.App;
 
-public sealed record PackRow(string Id, string Name, string Meta, Brush Fill, Brush Ink, Brush InkSoft);
-
 public partial class MainWindow : Window
 {
-    private EngineHost? _engine;
-    private DistroResult? _distro;
-    private string? _selected;
+    private readonly Launcher _l = Launcher.Instance;
     private readonly DispatcherTimer _idle = new() { Interval = TimeSpan.FromSeconds(4) };
+    private readonly DispatcherTimer _toastTimer = new() { Interval = TimeSpan.FromSeconds(7) };
+    private readonly Queue<Action> _dialogQueue = new();
+    private bool _dialogOpen;
+    private SettingsView? _settings;
 
     public MainWindow()
     {
         InitializeComponent();
-        Loaded += async (_, _) => await StartAsync();
-        Closed += async (_, _) => { if (_engine != null) await _engine.DisposeAsync(); };
+        MinButton.Click += (_, _) => WindowState = WindowState.Minimized;
+        MaxButton.Click += (_, _) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+        CloseButton.Click += (_, _) => Close();
+        ToastClose.Click += (_, _) => HideToast();
+        _toastTimer.Tick += (_, _) => HideToast();
+        StateChanged += (_, _) => OnStateChanged();
+
         // A launcher spends most of its life waiting: after a quiet moment, hand back what start-up touched.
         _idle.Tick += (_, _) => { _idle.Stop(); TrimMemory(); };
         PreviewMouseMove += (_, _) => { _idle.Stop(); _idle.Start(); };
+        Deactivated += (_, _) => { _idle.Interval = TimeSpan.FromSeconds(2); _idle.Stop(); _idle.Start(); };
+        Activated += (_, _) => _idle.Interval = TimeSpan.FromSeconds(4);
+
+        _l.Failure += failure => ShowDialog(failure.Title, failure.Message, ("Entendido", null, true));
+        _l.Notice += ShowToast;
+        _l.EngineLost += message => ShowDialog("El launcher perdió su motor", message + " Ábrelo de nuevo para continuar.", ("Cerrar", Close, true));
+        _l.JavaNeeded += need => ShowDialog(
+            "Falta una versión de Java",
+            $"Para iniciar Minecraft se necesita una instalación de 64 bits de Java {need.SuggestedMajor}. ¿Quieres que la instalemos por ti?",
+            ("Ahora no", () => _ = _l.DismissJavaAsync(), false),
+            ("Instalar Java", () => _ = _l.InstallJavaAsync(), true));
+
+        Loaded += async (_, _) => await StartAsync();
+        Closing += OnClosing;
     }
 
     private async Task StartAsync()
     {
-        var sw = Stopwatch.StartNew();
+        ShowHome();
         try
         {
-            _engine = await EngineHost.StartAsync(EngineLocator.Resolve());
-            var config = await _engine.Client.CallAsync<ConfigResult>("config.get");
-            _distro = await _engine.Client.CallAsync<DistroResult>("distro.load");
-            _selected = _distro.SelectedServer;
-            Render();
-            Status.Text = $"motor listo en {sw.ElapsedMilliseconds} ms, índice {_distro.TookMs} ms, {config.Accounts.Accounts.Count} cuenta(s)";
+            await _l.StartAsync();
             _idle.Start();
         }
         catch (Exception ex)
         {
-            PackTitle.Text = "No se pudo iniciar el motor";
-            Status.Text = ex.Message;
+            ShowDialog("No se pudo iniciar el motor", ex.Message, ("Cerrar", Close, true));
         }
     }
 
-    private void Render()
-    {
-        if (_distro == null) return;
-        var paper = new SolidColorBrush(Color.FromRgb(0xf1, 0xef, 0xe8));
-        var card = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x1c));
-        var ink = new SolidColorBrush(Color.FromRgb(0x05, 0x05, 0x06));
-        var text = new SolidColorBrush(Color.FromRgb(0xf1, 0xef, 0xe8));
-        var soft = new SolidColorBrush(Color.FromRgb(0xa5, 0xa5, 0x98));
-        var softInk = new SolidColorBrush(Color.FromRgb(0x47, 0x47, 0x3f));
+    // ---- views ----------------------------------------------------------------------------------------------------
 
-        Rail.ItemsSource = _distro.Servers.Select(s =>
+    private void ShowHome()
+    {
+        ReleaseSettings();
+        var home = new HomeView();
+        home.OpenSettings += () => ShowSettings();
+        ViewHost.Content = home;
+    }
+
+    private void ShowSettings(string tab = "account")
+    {
+        var view = new SettingsView(tab);
+        view.Done += ShowHome;
+        _settings = view;
+        ViewHost.Content = view;
+    }
+
+    private void ReleaseSettings()
+    {
+        // The gallery holds decoded pictures: let go of them the moment the tab is left.
+        _settings?.Release();
+        _settings = null;
+    }
+
+    // ---- full-screen viewer ---------------------------------------------------------------------------------------
+
+    public void ShowViewer(ScreenshotViewer viewer)
+    {
+        viewer.Closed += () => ViewerLayer.Children.Clear();
+        ViewerLayer.Children.Clear();
+        ViewerLayer.Children.Add(viewer);
+    }
+
+    // ---- toast and dialog -----------------------------------------------------------------------------------------
+
+    public void ShowToast(string text)
+    {
+        ToastText.Text = text;
+        Toast.Visibility = Visibility.Visible;
+        _toastTimer.Stop();
+        _toastTimer.Start();
+    }
+
+    private void HideToast() { _toastTimer.Stop(); Toast.Visibility = Visibility.Collapsed; }
+
+    /// <summary>Buttons are (label, action, primary). The dialog closes when any of them is pressed; dialogs queue up if several arrive.</summary>
+    public void ShowDialog(string title, string message, params (string Label, Action? Action, bool Primary)[] buttons)
+    {
+        if (_dialogOpen) { _dialogQueue.Enqueue(() => ShowDialog(title, message, buttons)); return; }
+        _dialogOpen = true;
+        DialogTitle.Text = title;
+        DialogMessage.Text = message;
+        DialogButtons.Children.Clear();
+        foreach (var (label, action, primary) in buttons)
         {
-            var on = s.Id == _selected;
-            var meta = $"{s.MinecraftVersion}  v{s.Version}" + (s.MainServer ? "  Principal" : "") + (s.Whitelist ? "  Whitelist" : "");
-            return new PackRow(s.Id, s.Name, meta, on ? paper : card, on ? ink : text, on ? softInk : soft);
-        }).ToList();
-
-        var current = _distro.Servers.First(s => s.Id == _selected);
-        PackTitle.Text = current.Name;
-        PackSub.Text = string.IsNullOrWhiteSpace(current.Description) ? $"Minecraft {current.MinecraftVersion}" : current.Description;
-        if (current.Accent is { Length: 7 } hex)
-            PlayButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
-        else
-            PlayButton.Background = new SolidColorBrush(Color.FromRgb(0xff, 0x3d, 0x8b));
+            var button = new Button { Content = label, Style = (Style)FindResource(primary ? "PrimaryButton" : "GhostButton"), Margin = new Thickness(10, 0, 0, 0) };
+            button.Click += (_, _) => { CloseDialog(); action?.Invoke(); };
+            DialogButtons.Children.Add(button);
+        }
+        DialogLayer.Visibility = Visibility.Visible;
+        if (DialogButtons.Children.Count > 0) ((Button)DialogButtons.Children[^1]).Focus();
     }
 
-    private async void OnPackClick(object sender, MouseButtonEventArgs e)
+    private void CloseDialog()
     {
-        if (_engine == null || _distro == null || sender is not FrameworkElement { Tag: string id }) return;
-        _selected = id;
-        Render();
-        await _engine.Client.CallAsync("distro.select", new { id });
+        DialogLayer.Visibility = Visibility.Collapsed;
+        _dialogOpen = false;
+        if (_dialogQueue.Count > 0) _dialogQueue.Dequeue()();
     }
 
-    private void OnPlayClick(object sender, MouseButtonEventArgs e)
+    // ---- window ---------------------------------------------------------------------------------------------------
+
+    private void OnStateChanged()
     {
-        Status.Text = "Jugar todavía no está conectado: es la siguiente pieza (motor: game.prepare y game.launch).";
+        // A borderless window that is maximised spills over the screen by the size of its resize border.
+        Root.Margin = WindowState == WindowState.Maximized ? new Thickness(SystemParameters.WindowResizeBorderThickness.Left + 2) : new Thickness(0);
+        MaxButton.Content = WindowState == WindowState.Maximized ? "" : "";
+        if (WindowState == WindowState.Minimized) TrimMemory();
     }
 
-    private async void TrimMemory()
+    private void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        // While Minecraft runs the launcher stays out of the way (the classic one hides to the tray): closing only minimises.
+        if (_l.Game.Running || _l.Game.Busy) { e.Cancel = true; WindowState = WindowState.Minimized; return; }
+        _ = _l.DisposeAsync();
+    }
+
+    private void TrimMemory()
     {
         try
         {
-            _engine?.Trim();
+            _l.TrimMemory();
             GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
             NativeMethods.EmptyWorkingSet(Process.GetCurrentProcess().Handle);
-            if (_engine != null)
-            {
-                var memory = await _engine.Client.CallAsync<EngineMemory>("engine.memory");
-                Status.Text += $"\nen reposo: interfaz {Process.GetCurrentProcess().WorkingSet64 / 1048576} MB, motor {memory.RssMB:0} MB";
-            }
         }
         catch { }
     }

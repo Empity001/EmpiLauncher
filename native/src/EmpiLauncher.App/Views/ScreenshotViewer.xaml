@@ -1,0 +1,24 @@
+<UserControl x:Class="EmpiLauncher.App.Views.ScreenshotViewer"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Focusable="True" Background="#E6060607">
+    <Grid Margin="28">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <DockPanel Margin="0,0,0,14">
+            <Button x:Name="CloseButton" DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="Cerrar" AutomationProperties.Name="Cerrar visor"/>
+            <Button x:Name="OpenFolderButton" DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="Mostrar en la carpeta" Margin="0,0,10,0"/>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock x:Name="Caption" Style="{StaticResource BodyText}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                <TextBlock x:Name="Meta" Style="{StaticResource CaptionText}" TextWrapping="NoWrap" Margin="0,3,0,0"/>
+            </StackPanel>
+        </DockPanel>
+        <Grid Grid.Row="1">
+            <Image x:Name="Picture" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
+            <Button x:Name="PrevButton" Style="{StaticResource IconButton}" Content="&#xE76B;" HorizontalAlignment="Left" VerticalAlignment="Center" Background="#B3111215" Width="46" Height="46" FontSize="16" AutomationProperties.Name="Anterior"/>
+            <Button x:Name="NextButton" Style="{StaticResource IconButton}" Content="&#xE76C;" HorizontalAlignment="Right" VerticalAlignment="Center" Background="#B3111215" Width="46" Height="46" FontSize="16" AutomationProperties.Name="Siguiente"/>
+        </Grid>
+    </Grid>
+</UserControl>
