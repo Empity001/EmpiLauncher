@@ -169,7 +169,7 @@ function paintProfiles() {
             h('p', { class: 'prose' }, 'Un mismo modpack jugado de varias maneras: por ejemplo el Normal y uno Lite con menos carga. En el launcher los jugadores lo eligen en un desplegable pequeño junto al nombre del modpack, en lugar de ver dos versiones distintas. Todos los perfiles comparten mundos, opciones y configuración; solo cambian qué mods y archivos lleva cada uno.'),
             h('div', { id: 'profilesImport' }),
             h('div', { class: 'form-actions', style: 'margin-top:16px' },
-                h('button', { class: 'btn paper', type: 'button', onclick: openImport }, withIcon('plus', 'Añadir perfil')))))
+                h('button', { class: 'btn paper', id: 'addProfileButton', type: 'button', onclick: openImport }, withIcon('plus', 'Añadir perfil')))))
         paintImport()
         return
     }
@@ -181,8 +181,8 @@ function paintProfiles() {
             h('p', { class: 'muted' }, 'Cada tarjeta es un perfil. El «por defecto» es el que reciben los jugadores la primera vez, y el que ven los launchers que todavía no conocen los perfiles.'),
             h('div', { class: 'pcards', id: 'profileCards' }),
             h('div', { class: 'form-actions', style: 'margin-top:14px' },
-                h('button', { class: 'btn small', type: 'button', disabled: draft.list.length >= 12, onclick: openImport }, withIcon('plus', 'Añadir perfil')),
-                h('span', { class: 'hint-line' }, draft.list.length >= 12 ? 'Ya tiene el máximo de perfiles.' : 'Elige una de tus versiones o empieza con uno vacío.')),
+                h('button', { class: 'btn small', id: 'addProfileButton', type: 'button', disabled: draft.list.length >= 12, onclick: openImport }, withIcon('plus', 'Añadir perfil')),
+                h('span', { class: 'hint-line' }, draft.list.length >= 12 ? 'Ya tiene el máximo de perfiles.' : 'Elige una de tus versiones.')),
             h('div', { id: 'profilesImport' })),
         h('section', { class: 'section' },
             h('h2', {}, 'Qué lleva cada perfil'),
@@ -199,17 +199,6 @@ function paintProfiles() {
     paintMatrix()
     paintProfilesBar()
     paintImport()
-}
-
-function addProfile() {
-    const { draft } = profilesUi
-    const base = draft.list.find((profile) => profile.uid === draft.default)
-    let n = draft.list.length + 1
-    const names = new Set(draft.list.map((profile) => profile.name.toLowerCase()))
-    while (names.has(`perfil ${n}`)) n++
-    draft.list.push(newProfile({ name: `Perfil ${n}`, mods: new Set(base.mods), files: new Set(base.files), off: new Set(base.off), keep: { mods: [...base.keep.mods], files: [...base.keep.files], off: [...base.keep.off] } }))
-    markProfilesDirty()
-    paintProfiles()
 }
 
 function removeProfile(profile) {
@@ -276,20 +265,6 @@ function paintCards() {
 }
 
 // ---- bringing a modpack that already exists in as a profile
-
-/** An empty profile to fill in by hand: when the modpack has none yet, this one (what it is now) and the new one. */
-function addEmptyProfile() {
-    if (!profilesUi.draft) {
-        const first = newProfile({ id: 'normal', name: 'Normal' })
-        profilesUi.draft = { default: first.uid, list: [first, newProfile({ name: 'Perfil 2' })] }
-        profilesUi.dirty = true
-        profilesUi.importing = null
-        paintProfiles()
-        return
-    }
-    profilesUi.importing = null
-    addProfile()
-}
 
 /** "3 archivos propios" with the paths on hover, in the card of a profile that has its own versions of some files. */
 function ownFilesNote(profile) {
@@ -363,6 +338,8 @@ function paintImport() {
     const slot = $('#profilesImport')
     if (!slot) return
     const importing = profilesUi.importing
+    const opener = $('#addProfileButton')
+    if (opener) opener.hidden = !!importing
     if (!importing) { slot.replaceChildren(); return }
     const { sources, plan } = importing
     const mb = (bytes) => formatSize(bytes)
@@ -376,10 +353,8 @@ function paintImport() {
         ...sources.map((source) => h('button', {
             type: 'button', role: 'radio', 'aria-checked': String(importing.from === source.id), class: `import-src${importing.from === source.id ? ' on' : ''}`, disabled: importing.busy,
             onclick: () => chooseSource(source.id)
-        }, h('b', {}, source.name), h('span', { class: 'muted' }, `v${source.packVersion} · ${plural(source.mods, 'mod', 'mods')}${source.active ? '' : ' · desactivado'}`))),
-        h('button', { type: 'button', class: 'import-src empty', disabled: importing.busy, onclick: addEmptyProfile },
-            h('b', {}, withIcon('plus', 'Perfil vacío')), h('span', { class: 'muted' }, 'Lo marcas tú a mano en la tabla de abajo')))
-    const none = sources.length ? null : h('p', { class: 'note' }, icon('alert'), `No tienes otra versión con el mismo Minecraft y el mismo loader que ${targetName}. Puedes empezar con un perfil vacío.`)
+        }, h('b', {}, source.name), h('span', { class: 'muted' }, `v${source.packVersion} · ${plural(source.mods, 'mod', 'mods')}${source.active ? '' : ' · desactivado'}`))))
+    const none = sources.length ? null : h('p', { class: 'note' }, icon('alert'), `No tienes otra versión con el mismo Minecraft y el mismo loader que ${targetName}. Crea primero la otra versión (por ejemplo «${targetName} Lite») y luego añádela aquí como perfil.`)
 
     let detail = null
     if (importing.from && !plan) {
@@ -411,8 +386,8 @@ function paintImport() {
 
     slot.replaceChildren(h('div', { class: 'import-panel' },
         h('div', { class: 'module-head' }, h('h3', {}, 'Añadir perfil'), h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Cerrar', onclick: closeImport }, icon('x'))),
-        h('p', { class: 'muted small-help' }, `Elige la versión que quieras añadir como perfil de «${targetName}». Copio a este modpack los mods y archivos que solo tiene ella, calculo qué lleva cada perfil y lo dejo guardado. No se borra nada.`),
-        none, body, detail,
+        h('p', { class: 'muted small-help' }, `Elige una de las versiones que ya tienes para añadirla como perfil de «${targetName}». Copio a este modpack los mods y archivos que solo tiene ella, calculo qué lleva cada perfil y lo dejo guardado. No se borra nada.`),
+        none, sources.length ? body : null, detail,
         plan ? h('div', { class: 'form-actions', style: 'margin-top:14px' },
             h('button', { class: 'btn paper', type: 'button', disabled: importing.busy || !importing.name.trim(), onclick: runImport }, importing.busy ? 'Trayendo…' : 'Traer como perfil'),
             h('button', { class: 'btn', type: 'button', disabled: importing.busy, onclick: closeImport }, 'Cancelar'),
