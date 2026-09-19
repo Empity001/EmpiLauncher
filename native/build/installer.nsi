@@ -30,6 +30,9 @@ SetCompressorDictSize 32
 !define UNINSTALL_EXE "Uninstall Empi Launcher.exe"
 !define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_GUID}"
 !define INSTALL_KEY "Software\${APP_GUID}"
+!ifndef FALLBACK_DIR
+  !define FALLBACK_DIR "$LOCALAPPDATA\Programs\${APP_NAME}"   ; where a folder this person cannot write to is swapped for (tests point it elsewhere)
+!endif
 
 Name "${APP_NAME}"
 OutFile "${OUTFILE}"
@@ -70,6 +73,7 @@ Var HadStart
 Var OldUninstaller
 Var OldDir
 Var OldMachine
+Var FellBack
 
 ; Stops whatever runs from a folder (the launcher, its engine, the sign-in window) so its files can be replaced. It goes by the
 ; program's path, never by name: an unrelated Electron app (another launcher, an editor) must not be touched. The uninstaller
@@ -93,6 +97,26 @@ Var OldMachine
     StrCpy $INSTDIR "$INSTDIR\${APP_NAME}"
   ${EndIf}
 !macroend
+
+; This installer runs as the person, never as administrator, so it cannot write to Program Files: the place where a classic launcher
+; installed "for all users" lives, and where the updater points this installer to. Instead of failing on every single file (and
+; leaving nothing installed once the old program has been removed) such a folder is swapped for the per-user one.
+Function EnsureWritableFolder
+  Push $0
+  StrCpy $FellBack 0
+  ClearErrors
+  CreateDirectory "$INSTDIR"
+  ClearErrors
+  FileOpen $0 "$INSTDIR\.empi-write-test" w
+  ${If} ${Errors}
+    StrCpy $INSTDIR "${FALLBACK_DIR}"
+    StrCpy $FellBack 1
+  ${Else}
+    FileClose $0
+    Delete "$INSTDIR\.empi-write-test"
+  ${EndIf}
+  Pop $0
+FunctionEnd
 
 Function .onInit
   ; a second copy of the installer must not fight the first over the same files
@@ -118,10 +142,17 @@ Function .onInit
   ${EndIf}
   ClearErrors
   !insertmacro EnsureAppFolder
+  Call EnsureWritableFolder
 FunctionEnd
 
 Function DirectoryLeave
   !insertmacro EnsureAppFolder
+  Call EnsureWritableFolder
+  ${If} $FellBack = 1
+    ; stay on the page so the person sees the folder that will really be used
+    MessageBox MB_OK|MB_ICONINFORMATION "Esa carpeta necesita permisos de administrador. ${APP_NAME} se instala solo para tu usuario, en:$\r$\n$\r$\n$INSTDIR" /SD IDOK
+    Abort
+  ${EndIf}
 FunctionEnd
 
 ; Sets $OldUninstaller, $OldDir and $OldMachine from what the classic launcher (or a previous native one) registered.
@@ -202,6 +233,7 @@ FunctionEnd
 
 Section "Instalar"
   SetShellVarContext current
+  Call EnsureWritableFolder
 
   ; Shortcuts the person already has stay; a first install gets both. (The old uninstaller removes them, so look before.)
   Call FindPrevious
@@ -217,6 +249,15 @@ Section "Instalar"
     ${If} ${FileExists} "$SMPROGRAMS\${SHORTCUT_NAME}.lnk"
       StrCpy $HadStart 1
     ${EndIf}
+    ; a classic launcher installed for all users keeps its shortcuts in the shared folders
+    SetShellVarContext all
+    ${If} ${FileExists} "$DESKTOP\${SHORTCUT_NAME}.lnk"
+      StrCpy $HadDesktop 1
+    ${EndIf}
+    ${If} ${FileExists} "$SMPROGRAMS\${SHORTCUT_NAME}.lnk"
+      StrCpy $HadStart 1
+    ${EndIf}
+    SetShellVarContext current
   ${EndIf}
 
   Call RemovePrevious

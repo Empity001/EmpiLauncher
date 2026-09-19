@@ -46,6 +46,8 @@ const userData = path.join(root, 'userdata')
 fs.mkdirSync(userData, { recursive: true })
 fs.writeFileSync(path.join(userData, 'config.json'), '{"accounts":"stay"}')
 const uninstallLog = path.join(root, 'old-uninstaller-args.log')
+// where the installer goes when it is pointed at a folder it cannot write to (the real one is in the person's profile: never used by a test)
+const fallbackDir = path.join(root, 'Fallback', 'Empi Launcher')
 
 const uninstallKey = `HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${GUID}`
 const installKey = `HKCU\\Software\\${GUID}`
@@ -129,7 +131,7 @@ try {
     fs.writeFileSync(path.join(stage, 'engine', 'src', 'main.js'), '// engine')
     const build = (version) => {
         const out = path.join(root, `setup-${version}.exe`)
-        nsis(installerScript, { VERSION: version, STAGE: stage, OUTFILE: out, APP_GUID: GUID, SHORTCUT_NAME: SHORTCUT, ICON: icon, ESTIMATED_KB: 1000 })
+        nsis(installerScript, { VERSION: version, STAGE: stage, OUTFILE: out, APP_GUID: GUID, SHORTCUT_NAME: SHORTCUT, FALLBACK_DIR: fallbackDir, ICON: icon, ESTIMATED_KB: 1000 })
         return out
     }
     const setup300 = build('3.0.0')
@@ -186,6 +188,24 @@ const run = (exe, args) => execFileSync(exe, args, { windowsVerbatimArguments: t
     check('and does not start the launcher unless told to', runningFrom(appFolder).length === 0)
     run(path.join(appFolder, 'Uninstall Empi Launcher.exe'), ['/currentuser', '/S'])
     check('and uninstalls cleanly', await waitFor(() => !fs.existsSync(path.join(appFolder, 'Empi Launcher.exe')) && !fs.existsSync(path.join(desktop, `${SHORTCUT}.lnk`)), 30000))
+
+    // ---- 6: aimed at Program Files (where a classic launcher installed "for all users" lives) without being administrator ---------
+    // The installer runs as the person: writing there fails on every file. It has to land in the per-user folder instead.
+    const protectedDir = path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Empi Launcher')
+    const probe = path.join(path.dirname(protectedDir), `.empi-write-probe-${id}`)
+    let elevated = false
+    try { fs.writeFileSync(probe, 'x'); fs.rmSync(probe); elevated = true } catch { /* the normal case */ }
+    if (elevated) {
+        console.log('SKIP  installing into Program Files: this shell is administrator, so the folder is writable and there is nothing to fall back from')
+    } else {
+        run(setup300, ['/S', `/D=${protectedDir}`])
+        check('an install aimed at Program Files lands in the per-user folder instead', fs.existsSync(path.join(fallbackDir, 'Empi Launcher.exe')) && fs.existsSync(path.join(fallbackDir, 'runtime', 'electron.exe')) && fs.existsSync(path.join(fallbackDir, 'Uninstall Empi Launcher.exe')))
+        check('and nothing was written to Program Files', !fs.existsSync(protectedDir))
+        check('it is registered where it really is', regValue(installKey, 'InstallLocation') === fallbackDir && (regValue(uninstallKey, 'QuietUninstallString') || '').includes(fallbackDir), regValue(installKey, 'InstallLocation'))
+        check('and has its shortcuts', fs.existsSync(path.join(startMenu, `${SHORTCUT}.lnk`)) && fs.existsSync(path.join(desktop, `${SHORTCUT}.lnk`)))
+        run(path.join(fallbackDir, 'Uninstall Empi Launcher.exe'), ['/currentuser', '/S'])
+        check('and uninstalls cleanly', await waitFor(() => !fs.existsSync(path.join(fallbackDir, 'Empi Launcher.exe')), 30000))
+    }
 } catch (err) {
     check('the test itself ran', false, err.stack || String(err))
 } finally {
