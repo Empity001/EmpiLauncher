@@ -10,6 +10,10 @@
 //         "exclude": { "mods": [], "files": [] } },
 //       { "id": "lite", "name": "Lite", "exclude": { "mods": ["sodium", "iris"], "files": ["shaderpacks/"] }, ... } ] }
 //
+// `optionalOff` lists mods the profile takes but hands to the player switched OFF (an optional mod that starts disabled; if the mod is
+// required in the folders, it becomes optional for that profile). That is how a lighter profile ships the same mods with fewer of
+// them running.
+//
 // Mods are named by their "stem" (the file name up to its version), so putting a newer jar in the folder keeps every choice; a file is
 // named by its path inside "files", and a path ending in "/" means everything under it.
 //
@@ -28,6 +32,8 @@ const nebula = require('./nebula')
 const { snapRam, normalizeRam } = require('./ram')
 
 const MOD_TYPES = new Set(['FabricMod', 'ForgeMod', 'NeoForgeMod', 'LiteMod'])
+// an optional mod that starts switched off (what Nebula writes for the "optionaloff" folder)
+const OPTIONAL_OFF = { value: false, def: false }
 const MAX_PROFILES = 12
 const MAX_RULES = 2000
 // what the Apariencia tab looks after: every profile shows the same background, banner and theme
@@ -102,7 +108,8 @@ function normalize(input) {
             exclude: {
                 mods: cleanList(exclude.mods, MAX_RULES, (value) => value.toLowerCase()),
                 files: cleanList(exclude.files, MAX_RULES, fileKey)
-            }
+            },
+            optionalOff: cleanList(raw.optionalOff, MAX_RULES, (value) => value.toLowerCase())
         }
     })
     if (list.length < 2) return null
@@ -246,25 +253,51 @@ function applyToDistribution(distribution, metaOf) {
         const byProfile = new Map(profiles.list.map((profile) => [profile.id, excluder(profile)]))
         const main = byProfile.get(profiles.default)
 
-        const base = original.filter((module) => !excludes(main, module))
+        const offSets = new Map(profiles.list.map((profile) => [profile.id, new Set(profile.optionalOff)]))
+        const modStem = (module) => { const info = classify(module); return info && info.kind === 'mod' ? info.key : null }
+        // how the module is delivered to a profile: as published, or as an optional mod that starts off
+        const shapeFor = (profileId, module) => (modStem(module) !== null && offSets.get(profileId).has(modStem(module)) ? OPTIONAL_OFF : module.required)
+        const sameShape = (a, b) => JSON.stringify(a === undefined ? null : a) === JSON.stringify(b === undefined ? null : b)
+        const withShape = (module, shape) => { const { required: _old, ...rest } = module; return shape === undefined ? rest : { ...rest, required: shape } }
+
+        // the modpack itself is what the default profile plays, with the default profile's own way of delivering each mod
+        const kept = original.filter((module) => !excludes(main, module))
+        const base = kept.map((module) => { const shape = shapeFor(profiles.default, module); return sameShape(shape, module.required) ? module : withShape(module, shape) })
         const pool = original.filter((module) => excludes(main, module))
-        const positions = (modules, wanted) => {
-            const found = []
-            modules.forEach((module, index) => { if (wanted(module)) found.push(index) })
-            return found
+
+        // a copy of a module delivered in another way lives in the pool, once, however many profiles want it
+        const variants = new Map()
+        const variantFor = (module, shape) => {
+            const key = `${original.indexOf(module)}|${JSON.stringify(shape === undefined ? null : shape)}`
+            if (!variants.has(key)) { pool.push(withShape(module, shape)); variants.set(key, pool.length - 1) }
+            return variants.get(key)
         }
 
         const list = profiles.list.map((profile) => {
             const rules = byProfile.get(profile.id)
             const isDefault = profile.id === profiles.default
+            const remove = []
+            const add = []
+            if (!isDefault) {
+                kept.forEach((module, position) => {
+                    if (excludes(rules, module)) { remove.push(position); return }
+                    const shape = shapeFor(profile.id, module)
+                    if (!sameShape(shape, base[position].required)) { remove.push(position); add.push(variantFor(module, shape)) }
+                })
+                original.filter((module) => excludes(main, module)).forEach((module, index) => {
+                    if (excludes(rules, module)) return
+                    const shape = shapeFor(profile.id, module)
+                    add.push(sameShape(shape, module.required) ? index : variantFor(module, shape))
+                })
+            }
             return {
                 id: profile.id,
                 name: profile.name,
                 ...(profile.description ? { description: profile.description } : {}),
                 ...(profile.recommendedBelowGb ? { recommendedBelowGb: profile.recommendedBelowGb } : {}),
                 ram: profile.ram ? normalizeRam(profile.ram) : packRam,
-                remove: isDefault ? [] : positions(base, (module) => excludes(rules, module)),
-                add: isDefault ? [] : positions(pool, (module) => !excludes(rules, module))
+                remove,
+                add
             }
         })
 

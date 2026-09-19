@@ -11,13 +11,13 @@ const pKey = (path) => String(path).replace(/\\/g, '/').replace(/^\.?\/+/, '').t
 const ruleHits = (rule, path) => (rule.endsWith('/') ? pKey(path).startsWith(rule) : pKey(path) === rule)
 
 function slugOf(name) {
-    return String(name || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24)
+    return String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24)
 }
 
 // ---------------------------------------------------------------- the draft: stored profiles <-> what is being edited
 
 function newProfile(fields = {}) {
-    return { uid: ++profilesUi.uid, id: null, name: '', description: '', below: '', ram: null, mods: new Set(), files: new Set(), keep: { mods: [], files: [] }, ...fields }
+    return { uid: ++profilesUi.uid, id: null, name: '', description: '', below: '', ram: null, mods: new Set(), files: new Set(), off: new Set(), keep: { mods: [], files: [], off: [] }, ...fields }
 }
 
 /** Stored profiles -> the draft. Rules are expanded to the files they match; the ones that match nothing are kept as they are. */
@@ -28,14 +28,16 @@ function draftFromData(data) {
     const list = stored.list.map((profile) => {
         const mods = new Set()
         const files = new Set()
-        const keep = { mods: [], files: [] }
+        const keep = { mods: [], files: [], off: [] }
+        const off = new Set()
         for (const stem of profile.exclude.mods) { if (stems.has(stem)) mods.add(stem); else keep.mods.push(stem) }
+        for (const stem of profile.optionalOff || []) { if (stems.has(stem)) off.add(stem); else keep.off.push(stem) }
         for (const rule of profile.exclude.files) {
             const hits = data.items.files.filter((file) => ruleHits(rule, file.path))
             hits.forEach((file) => files.add(file.path))
             if (!hits.length) keep.files.push(rule)
         }
-        return newProfile({ id: profile.id, name: profile.name, description: profile.description || '', below: profile.recommendedBelowGb ?? '', ram: profile.ram ? { ...profile.ram } : null, mods, files, keep })
+        return newProfile({ id: profile.id, name: profile.name, description: profile.description || '', below: profile.recommendedBelowGb ?? '', ram: profile.ram ? { ...profile.ram } : null, mods, files, off, keep })
     })
     return { default: list.find((profile) => profile.id === stored.default).uid, list }
 }
@@ -79,7 +81,8 @@ function profilesPayload() {
             description: profile.description.trim(),
             recommendedBelowGb: profile.below === '' ? null : Number(profile.below),
             ram: profile.ram,
-            exclude: { mods: [...profile.keep.mods, ...profile.mods], files: filesRules(profile, data.items.files) }
+            exclude: { mods: [...profile.keep.mods, ...profile.mods], files: filesRules(profile, data.items.files) },
+            optionalOff: [...profile.keep.off, ...[...profile.off].filter((stem) => !profile.mods.has(stem))]
         }))
     }
 }
@@ -127,7 +130,11 @@ function tally(profile) {
     return { mods: mods.length, files: files.length, bytes: mods.reduce((sum, mod) => sum + mod.size, 0) + files.reduce((sum, file) => sum + file.size, 0) }
 }
 
-const tallyText = (profile) => { const t = tally(profile); return `${plural(t.mods, 'mod', 'mods')} · ${plural(t.files, 'archivo', 'archivos')} · ${formatSize(t.bytes)}` }
+const tallyText = (profile) => {
+    const t = tally(profile)
+    const off = [...profile.off].filter((stem) => !profile.mods.has(stem)).length
+    return `${plural(t.mods, 'mod', 'mods')}${off ? ` (${plural(off, "apagado", "apagados")} al empezar)` : ''} · ${plural(t.files, 'archivo', 'archivos')} · ${formatSize(t.bytes)}`
+}
 
 function paintSummaries() {
     for (const [uid, el] of profilesUi.cardSummaries) {
@@ -175,7 +182,7 @@ function paintProfiles() {
                 h('span', { class: 'hint-line' }, 'El nuevo empieza igual que el perfil por defecto.'))),
         h('section', { class: 'section' },
             h('h2', {}, 'Qué lleva cada perfil'),
-            h('p', { class: 'muted' }, 'Marcado: el perfil lo lleva. Vacío: no. Una carpeta entera se marca o desmarca de una vez. Si dejas fuera todos los archivos de una carpeta, también queda fuera lo que subas ahí después.'),
+            h('p', { class: 'muted' }, 'Marcado: el perfil lo lleva. Vacío: no. En un mod, cada clic pasa de «lo lleva» a «lo lleva apagado al empezar» (○, opcional: el jugador puede encenderlo) y a «no lo lleva». Una carpeta entera se marca o desmarca de una vez; si dejas fuera todos los archivos de una carpeta, también queda fuera lo que subas ahí después.'),
             h('div', { class: 'ptools' },
                 h('input', {
                     type: 'search', placeholder: 'Buscar un mod o un archivo…', 'aria-label': 'Buscar un mod o un archivo', value: profilesUi.filter,
@@ -195,7 +202,7 @@ function addProfile() {
     let n = draft.list.length + 1
     const names = new Set(draft.list.map((profile) => profile.name.toLowerCase()))
     while (names.has(`perfil ${n}`)) n++
-    draft.list.push(newProfile({ name: `Perfil ${n}`, mods: new Set(base.mods), files: new Set(base.files), keep: { mods: [...base.keep.mods], files: [...base.keep.files] } }))
+    draft.list.push(newProfile({ name: `Perfil ${n}`, mods: new Set(base.mods), files: new Set(base.files), off: new Set(base.off), keep: { mods: [...base.keep.mods], files: [...base.keep.files], off: [...base.keep.off] } }))
     markProfilesDirty()
     paintProfiles()
 }
@@ -249,9 +256,9 @@ function paintCards() {
                     oninput: (event) => { const n = parse(event.target.value); profile.below = n == null ? '' : n; markProfilesDirty() }
                 })),
             summary,
-            profile.keep.mods.length + profile.keep.files.length
-                ? h('p', { class: 'muted small-help' }, `${plural(profile.keep.mods.length + profile.keep.files.length, 'regla', 'reglas')} sin efecto ahora (un mod o archivo que ya no está). `,
-                    h('button', { type: 'button', class: 'link', onclick: () => { profile.keep = { mods: [], files: [] }; markProfilesDirty(); paintProfiles() } }, 'Limpiar'))
+            profile.keep.mods.length + profile.keep.files.length + profile.keep.off.length
+                ? h('p', { class: 'muted small-help' }, `${plural(profile.keep.mods.length + profile.keep.files.length + profile.keep.off.length, 'regla', 'reglas')} sin efecto ahora (un mod o archivo que ya no está). `,
+                    h('button', { type: 'button', class: 'link', onclick: () => { profile.keep = { mods: [], files: [], off: [] }; markProfilesDirty(); paintProfiles() } }, 'Limpiar'))
                 : null,
             h('div', { class: 'pcard-foot' },
                 h('button', {
@@ -267,8 +274,9 @@ function paintCards() {
 const cellState = (checked) => (checked === 'mixed' ? 'mixed' : String(checked))
 
 function cell(checked, label, onclick) {
-    return h('button', { type: 'button', class: 'mcell', role: 'checkbox', 'aria-checked': cellState(checked), 'aria-label': label, onclick },
-        checked === true ? icon('check') : checked === 'mixed' ? h('span', { class: 'mmix' }) : null)
+    // 'off': the profile takes the mod but hands it over switched off (an optional mod that starts disabled)
+    return h('button', { type: 'button', class: 'mcell', role: 'checkbox', 'data-state': checked === 'off' ? 'off' : null, 'aria-checked': checked === 'off' ? 'true' : cellState(checked), 'aria-label': checked === 'off' ? `${label} (opcional, apagado al empezar)` : label, title: checked === 'off' ? 'Lo lleva, pero apagado al empezar (el jugador puede encenderlo)' : null, onclick },
+        checked === true ? icon('check') : checked === 'mixed' ? h('span', { class: 'mmix' }) : checked === 'off' ? h('span', { class: 'moff' }) : null)
 }
 
 function matrixHead() {
@@ -291,7 +299,16 @@ function modRow(mod) {
             h('span', { class: 'ptext', title: mod.names.join('\n') }, mod.names[0]),
             many ? h('span', { class: 'pbadge', title: 'Hay varias versiones del mismo mod en las carpetas: el launcher las instalaría todas.' }, icon('alert'), `${mod.names.length} archivos`) : null),
         h('span', { class: 'pcount tnum' }, formatSize(mod.size)),
-        ...draft.list.map((profile) => cell(!profile.mods.has(mod.stem), `${mod.stem} en ${profile.name}`, () => { profile.mods.has(mod.stem) ? profile.mods.delete(mod.stem) : profile.mods.add(mod.stem); afterToggle() })))
+        ...draft.list.map((profile) => {
+            const state = profile.mods.has(mod.stem) ? false : profile.off.has(mod.stem) ? 'off' : true
+            // takes it -> takes it switched off -> does not take it -> takes it
+            return cell(state, `${mod.stem} en ${profile.name}`, () => {
+                if (state === true) profile.off.add(mod.stem)
+                else if (state === 'off') { profile.off.delete(mod.stem); profile.mods.add(mod.stem) }
+                else profile.mods.delete(mod.stem)
+                afterToggle()
+            })
+        }))
 }
 
 function fileRowFor(file, label, depth) {

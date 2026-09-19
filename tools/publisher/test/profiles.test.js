@@ -288,3 +288,67 @@ test('large files that only another profile plays still get their Release link',
     assert.strictEqual(changed, 1)
     assert.strictEqual(pooled.artifact.url, 'https://releases.test/vulkanmod.jar')
 })
+
+// ------------------------------------------------------------ optional mods that start switched off, per profile
+
+const OFF = { value: false, def: false }
+const requiredOf = (server, profile, id) => profiles.effectiveModules(server, profile).find((module) => module.id === id).required
+const compiled = (list, defaultId = 'completo') => {
+    const distribution = fixture()
+    compile(distribution, { profiles: { default: defaultId, list } })
+    return distribution.servers[0]
+}
+
+test('optionalOff is kept clean like the other rules', () => {
+    const result = profiles.normalize({ list: [{ name: 'A' }, { name: 'B', optionalOff: ['Iris-Fabric', 'iris-fabric', 4, ''] }] })
+    assert.deepStrictEqual(result.list[1].optionalOff, ['iris-fabric'])
+    assert.deepStrictEqual(result.list[0].optionalOff, [])
+})
+
+test('a profile can hand a required mod over as optional and switched off, and the others keep it as it was', () => {
+    const server = compiled([{ name: 'Completo', id: 'completo' }, { name: 'Lite', id: 'lite', optionalOff: ['fabric-api'] }])
+    const [completo, lite] = server.profiles.list
+    assert.strictEqual(requiredOf(server, completo, 'net.fabricmc:fabric-api:0.141.3@jar'), undefined)
+    assert.deepStrictEqual(requiredOf(server, lite, 'net.fabricmc:fabric-api:0.141.3@jar'), OFF)
+    // what a launcher without profiles gets is the default profile's way
+    assert.strictEqual(server.modules.find((module) => module.id === 'net.fabricmc:fabric-api:0.141.3@jar').required, undefined)
+})
+
+test('the default profile decides how the modpack itself delivers a mod; the others get the original as a copy', () => {
+    const server = compiled([{ name: 'Lite', id: 'lite', optionalOff: ['fabric-api'] }, { name: 'Completo', id: 'completo' }], 'lite')
+    assert.deepStrictEqual(server.modules.find((module) => module.id === 'net.fabricmc:fabric-api:0.141.3@jar').required, OFF)
+    const [lite, completo] = server.profiles.list
+    assert.deepStrictEqual(requiredOf(server, lite, 'net.fabricmc:fabric-api:0.141.3@jar'), OFF)
+    assert.strictEqual(requiredOf(server, completo, 'net.fabricmc:fabric-api:0.141.3@jar'), undefined)
+})
+
+test('a mod that only another profile plays can be handed over switched off too', () => {
+    const server = compiled([{ name: 'Completo', id: 'completo', exclude: { mods: ['vulkanmod'] } }, { name: 'Lite', id: 'lite', optionalOff: ['vulkanmod'] }])
+    const lite = server.profiles.list[1]
+    assert.deepStrictEqual(requiredOf(server, lite, 'net.vulkanmod:vulkanmod:0.6.8@jar'), OFF)
+    // the pool keeps the original untouched, and the copy sits after it
+    assert.strictEqual(server.profiles.pool.filter((module) => module.id === 'net.vulkanmod:vulkanmod:0.6.8@jar').length, 2)
+    assert.strictEqual(server.profiles.pool[0].required, undefined)
+})
+
+test('two profiles that want the same copy share it', () => {
+    const server = compiled([{ name: 'Completo', id: 'completo' }, { name: 'Lite', id: 'lite', optionalOff: ['iris-fabric'] }, { name: 'Medio', id: 'medio', optionalOff: ['iris-fabric'] }])
+    const [, lite, medio] = server.profiles.list
+    const copies = lite.add.filter((position) => medio.add.includes(position))
+    assert.strictEqual(copies.length, 1)
+    assert.strictEqual(server.profiles.pool.length, 1)
+})
+
+test('a mod that is already delivered that way needs no copy', () => {
+    const distribution = fixture()
+    distribution.servers[0].modules.find((module) => module.id === 'net.fabricmc:fabric-api:0.141.3@jar').required = { value: false, def: false }
+    compile(distribution, { profiles: { default: 'completo', list: [{ name: 'Completo', id: 'completo' }, { name: 'Lite', id: 'lite', optionalOff: ['fabric-api'] }] } })
+    const lite = distribution.servers[0].profiles.list[1]
+    assert.deepStrictEqual([lite.remove, lite.add], [[], []])
+})
+
+test('leaving a mod out wins over handing it over switched off', () => {
+    const server = compiled([{ name: 'Completo', id: 'completo' }, { name: 'Lite', id: 'lite', exclude: { mods: ['iris-fabric'] }, optionalOff: ['iris-fabric'] }])
+    const lite = server.profiles.list[1]
+    assert.ok(!profiles.effectiveModules(server, lite).some((module) => module.id === 'generated.fabricmod:iris:1.10.7@jar'))
+})

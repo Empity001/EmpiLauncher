@@ -994,4 +994,6 @@ button.link { background: none; border: 0; padding: 0; color: var(--text); font:
 .mcell[aria-checked=mixed] { border-color: var(--text-2); }
 .mcell .i { width: 14px; height: 14px; stroke-width: 2.2; }
 .mmix { width: 10px; height: 2px; background: var(--text-2); }
+.mcell[data-state=off] { border-style: dashed; border-color: var(--text-2); }
+.moff { width: 10px; height: 10px; border: 2px solid var(--text-2); border-radius: 50%; }
 @media (prefers-reduced-motion: reduce) { .mcell { transition: none; } .mcell:active { transform: none; } }
