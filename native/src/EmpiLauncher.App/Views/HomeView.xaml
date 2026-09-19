@@ -75,16 +75,23 @@
 
                     <Button x:Name="SettingsButton" Grid.Column="1" Style="{StaticResource IconButton}" Content="&#xE713;" Margin="0,0,10,0" ToolTip="Ajustes" AutomationProperties.Name="Ajustes"/>
 
-                    <Grid Grid.Column="2" Width="340" Height="52" VerticalAlignment="Center">
-                        <Grid.Clip><RectangleGeometry x:Name="PlayClip" Rect="0,0,340,52" RadiusX="26" RadiusY="26"/></Grid.Clip>
-                        <Button x:Name="PlayButton" Style="{StaticResource PrimaryButton}" Padding="0" Height="52" HorizontalContentAlignment="Stretch">
-                            <Grid>
-                                <Border x:Name="PlayFill" HorizontalAlignment="Left" Width="0" Background="{DynamicResource AccentBrush}" Visibility="Collapsed"/>
-                                <TextBlock x:Name="PlayLabel" Style="{StaticResource DisplayText}" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource AccentInkBrush}"/>
-                            </Grid>
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                        <Grid Width="340" Height="52">
+                            <Grid.Clip><RectangleGeometry x:Name="PlayClip" Rect="0,0,340,52" RadiusX="26" RadiusY="26"/></Grid.Clip>
+                            <Button x:Name="PlayButton" Style="{StaticResource PrimaryButton}" Padding="0" Height="52" HorizontalContentAlignment="Stretch">
+                                <Grid>
+                                    <Border x:Name="PlayFill" HorizontalAlignment="Left" Width="0" Background="{DynamicResource AccentBrush}" Visibility="Collapsed"/>
+                                    <TextBlock x:Name="PlayLabel" Style="{StaticResource DisplayText}" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource AccentInkBrush}"/>
+                                </Grid>
+                            </Button>
+                        </Grid>
+                        <!-- the way in for someone with no account (or no internet): only offered while nobody is signed in -->
+                        <Button x:Name="OfflineButton" Style="{StaticResource BareButton}" Visibility="Collapsed" HorizontalAlignment="Center" Margin="0,8,0,0" Padding="14,5"
+                                AutomationProperties.Name="Iniciar sin conexión">
+                            <TextBlock Text="Iniciar sin conexión" Style="{StaticResource LabelText}" FontSize="12" Foreground="{StaticResource Paper2Brush}"/>
                         </Button>
-                    </Grid>
+                    </StackPanel>
                 </Grid>
             </Border>
         </Grid>

@@ -5,6 +5,7 @@
  */
 const path = require('path')
 const { EngineError } = require('../ipc/server')
+const offline = require('../lib/offline')
 
 /** Loads the classic launcher's config and distribution API the way its preloader does, once. */
 function ensureCore(state) {
@@ -44,13 +45,21 @@ const SERVER_SETTINGS = {
     jvmOptions: ['getJVMOptions', 'setJVMOptions']
 }
 
+/** The accounts as the UI sees them. The offline player (see lib/offline.js) is listed like the others, with type "offline" and its 12-digit id. */
 function accountsView(ConfigManager) {
     const selected = ConfigManager.getSelectedAccount()
     const accounts = Object.values(ConfigManager.getAuthAccounts() || {}).map((a) => ({
         uuid: a.uuid, displayName: a.displayName, username: a.username, type: a.type,
         expiresAt: a.expiresAt || null
     }))
-    return { selected: selected ? selected.uuid : null, accounts }
+    let selectedUuid = selected ? selected.uuid : null
+    const saved = offline.read(ConfigManager.getLauncherDirectory())
+    if (saved) {
+        const player = offline.profile(saved.name)
+        accounts.push({ uuid: player.uuid, displayName: player.name, username: player.name, type: 'offline', expiresAt: null, offlineId: player.id })
+        if (saved.active) selectedUuid = player.uuid
+    }
+    return { selected: selectedUuid, accounts }
 }
 
 function register(handlers, state) {
@@ -75,7 +84,8 @@ function register(handlers, state) {
             launcherDirectory: ConfigManager.getLauncherDirectory(),
             commonDirectory: ConfigManager.getCommonDirectory(),
             instanceDirectory: ConfigManager.getInstanceDirectory(),
-            accounts: accountsView(ConfigManager)
+            accounts: accountsView(ConfigManager),
+            appVersion: require('electron').app.getVersion()
         }
     })
 
@@ -106,9 +116,16 @@ function register(handlers, state) {
     handlers.set('account.list', async () => accountsView(ensureCore(state).ConfigManager))
     handlers.set('account.select', async ({ uuid }) => {
         const { ConfigManager } = ensureCore(state)
+        const dir = ConfigManager.getLauncherDirectory()
+        const saved = offline.read(dir)
+        if (saved && offline.profile(saved.name).uuid === uuid) {
+            offline.setActive(dir, true)
+            return accountsView(ConfigManager)
+        }
         if (!ConfigManager.getAuthAccount(uuid)) throw new EngineError('no_account', 'that account is not saved')
         ConfigManager.setSelectedAccount(uuid)
         ConfigManager.save()
+        if (saved) offline.setActive(dir, false)   // picking a Microsoft account means it is the one that plays
         return accountsView(ConfigManager)
     })
 }

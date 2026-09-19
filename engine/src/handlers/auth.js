@@ -9,6 +9,19 @@ const path = require('path')
 const { ensureCore, accountsView } = require('./core')
 const { EngineError } = require('../ipc/server')
 const { runAuthHelper } = require('../lib/authhelper')
+const offline = require('../lib/offline')
+
+/**
+ * Is there a network at all? Any answer from Microsoft (even an error page) means yes; only a failure to connect means no.
+ * Used so that having no internet is never mistaken for "this account's session is no good".
+ */
+async function hasNetwork() {
+    if (process.env.EMPI_ENGINE_TEST === '1' && process.env.EMPI_FORCE_OFFLINE === '1') return false
+    try {
+        await fetch('https://login.microsoftonline.com/', { method: 'HEAD', signal: AbortSignal.timeout(4000) })
+        return true
+    } catch { return false }
+}
 
 function register(handlers, state) {
     const auth = { helper: null, busy: false }
@@ -59,12 +72,21 @@ function register(handlers, state) {
         } catch (err) {
             throw toEngineError(err)
         }
+        // The account just added is the one that plays now, not an offline player chosen earlier.
+        offline.setActive(ConfigManager.getLauncherDirectory(), false)
         return accountsView(ConfigManager)
     }))
 
     /** Signs an account out: Microsoft accounts clear the browser session in the helper window first, like the classic launcher. */
     handlers.set('account.remove', async ({ uuid }) => {
         const { ConfigManager } = ensureCore(state)
+        const dir = ConfigManager.getLauncherDirectory()
+        const saved = offline.read(dir)
+        if (saved && offline.profile(saved.name).uuid === uuid) {
+            // Nothing to sign out of: the offline player only exists in this launcher.
+            offline.clear(dir)
+            return accountsView(ConfigManager)
+        }
         const account = ConfigManager.getAuthAccount(uuid)
         if (!account) throw new EngineError('no_account', 'that account is not saved')
 
@@ -93,8 +115,12 @@ function register(handlers, state) {
      */
     handlers.set('auth.validate', async () => {
         const { ConfigManager } = ensureCore(state)
+        const saved = offline.read(ConfigManager.getLauncherDirectory())
+        if (saved && saved.active) return { valid: true, offline: true }   // no session to renew
         const selected = ConfigManager.getSelectedAccount()
         if (!selected) return { valid: false, none: true }
+        // Without a network the session cannot be renewed, and that says nothing about the account: keep it, it is renewed next time.
+        if (!(await hasNetwork())) return { valid: true, skipped: 'offline', accounts: accountsView(ConfigManager) }
         let valid = false
         try { valid = await authManager().validateSelected() } catch (err) { state.log.warn('Unable to validate the selected account.', err) }
         if (valid) return { valid: true, accounts: accountsView(ConfigManager) }

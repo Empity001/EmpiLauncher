@@ -1240,6 +1240,14 @@ function renderLauncher() {
     }, h('b', {}, id === 'same' ? info.version : info.next[id]), h('span', {}, `${title} · ${detail}`))
 
     const chosen = info.build && info.build.version === launcherVersion() && info.build.kind === launcherKind() ? info.build : null
+    // players are offered a version only when it is higher than the one they have, which is the published one
+    const notOffered = (() => {
+        const published = (info.latestTag || '').replace(/^v/, '').split('.').map(Number)
+        const next = launcherVersion().split('.').map(Number)
+        if (published.length !== 3 || next.length !== 3 || published.some(Number.isNaN) || next.some(Number.isNaN)) return false
+        for (let i = 0; i < 3; i++) if (next[i] !== published[i]) return next[i] < published[i]
+        return true
+    })()
 
     const tile = (name, value, sub) => h('div', { class: 'tile' }, h('span', { class: 'k' }, name), h('span', { class: 'v' }, value), sub ? h('span', { class: 'sub' }, sub) : null)
     box.replaceChildren(...[
@@ -1262,17 +1270,18 @@ function renderLauncher() {
                 choice('major', 'Mayor', 'cambio grande'),
                 choice('same', 'La misma', 'reintentar')),
             info.dirty > 0 ? h('p', { class: 'note' }, icon('alert'), `Tienes ${plural(info.dirty, 'archivo modificado', 'archivos modificados')} en el código: se subirán junto con esta versión.`) : null),
+        h('section', { class: 'module' },
+            h('div', { class: 'module-head' }, h('h2', {}, 'Qué cambia')),
+            h('p', { class: 'muted' }, 'Se muestra en la página de la versión en GitHub. Puedes dejarlo vacío.'),
+            h('textarea', { style: 'margin-top:14px', placeholder: '- Arreglado el login\n- Nuevo fondo', 'aria-label': 'Qué cambia en esta versión', oninput: (event) => { state.notes = event.target.value } }, state.notes)),
         h('section', { class: 'module span2' },
             h('div', { class: 'module-head' }, h('h2', {}, 'Instalador')),
             h('p', { class: 'muted' }, 'El nativo es el launcher nuevo (ligero, en WPF). El clásico es el de Electron, por si hay que volver atrás.'),
             h('div', { class: 'version-choices', role: 'radiogroup', 'aria-label': 'Tipo de instalador', style: 'margin-top:14px' },
                 kindChoice('native', 'Nativo', 'WPF + motor · recomendado'),
                 kindChoice('classic', 'Clásico', 'Electron · el de antes')),
-            info.migrates ? h('p', { class: 'note' }, icon('alert'), 'Los jugadores que todavía tienen el launcher viejo (Electron) recibirán este instalador como actualización: se les instala el nuevo y se les quita el viejo, y conservan sus cuentas, mods e instancias.') : null),
-        h('section', { class: 'module' },
-            h('div', { class: 'module-head' }, h('h2', {}, 'Qué cambia')),
-            h('p', { class: 'muted' }, 'Se muestra en la página de la versión en GitHub. Puedes dejarlo vacío.'),
-            h('textarea', { style: 'margin-top:14px', placeholder: '- Arreglado el login\n- Nuevo fondo', 'aria-label': 'Qué cambia en esta versión', oninput: (event) => { state.notes = event.target.value } }, state.notes)),
+            launcherKind() === 'native' && info.migrates ? h('p', { class: 'note' }, icon('alert'), 'Los jugadores que todavía tienen el launcher viejo (Electron) recibirán este instalador como actualización: se les instala el nuevo y se les quita el viejo, y conservan sus cuentas, mods e instancias.') : null,
+            notOffered ? h('p', { class: 'note' }, icon('alert'), `Los launchers solo se actualizan a una versión MAYOR que la publicada (${info.latestTag}). Con ${launcherVersion()} nadie recibirá esta actualización: elige Parche, Menor o Mayor.`) : null),
         chosen ? h('section', { class: 'module span2' },
             h('div', { class: 'build-row' }, icon('checkCircle'),
                 h('span', { class: 'tnum' }, h('b', {}, chosen.name), ` · ${formatSize(chosen.size)} · ${ago(chosen.at)}`),
@@ -1289,7 +1298,8 @@ function compileLauncher() {
 
 function sendLauncher() {
     const build = state.launcher.build
-    if (!confirm(`¿Publicar el launcher v${build.version}? Los jugadores lo recibirán como actualización.`)) return
+    const migrating = build.kind === 'native' && state.launcher.migrates
+    if (!confirm(`¿Publicar el launcher v${build.version}? Los jugadores lo recibirán como actualización.${migrating ? '\n\nQuienes tengan el launcher viejo (Electron) se pasarán al nativo: se les instala el nuevo y se les quita el viejo.' : ''}`)) return
     runJob(`Enviar el launcher v${build.version}`, '/api/jobs/send-launcher', { notes: state.notes }, (result) => {
         showBanner('ok', 'Publicado. El launcher de los jugadores se actualizará solo.', result && result.url ? { icon: 'external', label: 'Ver en GitHub', run: () => window.open(result.url, '_blank') } : null)
     })

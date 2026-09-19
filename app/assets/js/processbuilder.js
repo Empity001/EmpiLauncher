@@ -581,7 +581,7 @@ class ProcessBuilder {
                             val = this.authUser.accessToken
                             break
                         case 'user_type':
-                            val = this.authUser.type === 'microsoft' ? 'msa' : 'mojang'
+                            val = ProcessBuilder.userType(this.authUser)
                             break
                         case 'version_type':
                             val = this.vanillaManifest.type
@@ -665,7 +665,7 @@ class ProcessBuilder {
                         val = this.authUser.accessToken
                         break
                     case 'user_type':
-                        val = this.authUser.type === 'microsoft' ? 'msa' : 'mojang'
+                        val = ProcessBuilder.userType(this.authUser)
                         break
                     case 'user_properties': // 1.8.9 and below.
                         val = '{}'
@@ -893,6 +893,20 @@ class ProcessBuilder {
         }
 
         return libs
+    }
+
+    /**
+     * The value of Minecraft's --userType for an account: "msa" for Microsoft, "legacy" for a player without an account
+     * (the native launcher's offline mode) and "mojang" for the old Mojang accounts the launcher still knows about.
+     *
+     * @param {Object} account The account being launched with.
+     * @returns {string} The user type.
+     */
+    static userType(account){
+        if(account?.type === 'microsoft'){
+            return 'msa'
+        }
+        return account?.type === 'offline' ? 'legacy' : 'mojang'
     }
 
     /**

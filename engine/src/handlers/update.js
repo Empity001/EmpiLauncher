@@ -85,6 +85,11 @@ function register(handlers, state) {
 
     let installing = false
     let abort = null
+
+    // The installer of an update that already ran (140 MB) has no use after the launcher restarted: drop it a minute after start-up.
+    const leftovers = () => path.join(require('electron').app.getPath('userData'), 'updates')
+    setTimeout(() => { if (!installing) fs.rm(leftovers(), { recursive: true, force: true }, () => {}) }, 60000).unref()
+
     handlers.set('update.cancel', async () => { abort?.abort(); return { ok: true } })
     handlers.set('update.install', async (_params, ctx) => {
         if (installing) throw new EngineError('busy', 'La actualización ya está en marcha.')

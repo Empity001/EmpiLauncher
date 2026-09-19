@@ -10,8 +10,10 @@ import { fileURLToPath } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
-export async function startEngine({ label = 'test', env = {} } = {}) {
+export async function startEngine({ label = 'test', env = {}, prepare } = {}) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), `empi-${label}-`))
+    // A test may need files in place before the engine starts (a saved account, for instance).
+    if (prepare) prepare({ root, userDir: path.join(root, 'user'), dataDir: path.join(root, 'data') })
     const pipe = `empi-engine-${label}-${process.pid}`
     const token = crypto.randomBytes(16).toString('hex')
     const runtime = process.env.ENGINE_NODE || process.execPath

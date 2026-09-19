@@ -23,6 +23,7 @@ const { ensureCore } = require('./core')
 const { describeDistribution, refreshWithoutCache } = require('./distro')
 const { createPackState, getServerPackFingerprint } = require('../lib/packstate')
 const { onDistroLoaded } = require('../lib/distrosync')
+const { currentAccount } = require('../lib/offline')
 
 const GAME_LAUNCH_REGEX = /^\[.+\]: (?:MinecraftForge .+ Initialized|ModLauncher .+ starting: .+|Loading Minecraft .+ with Fabric Loader .+)$/
 const MIN_LINGER = 5000
@@ -259,8 +260,9 @@ function register(handlers, state) {
             if (installed != null && installed.fingerprint !== getServerPackFingerprint(serv)) cleanProtected = true
         }
 
-        if (login && ConfigManager.getSelectedAccount() == null) {
-            return fail('no_account', 'Cuenta necesaria', 'Inicia sesión con tu cuenta de Minecraft antes de jugar.')
+        // "Who plays" is the offline player when one is in use, otherwise the selected Microsoft account.
+        if (login && currentAccount(ConfigManager) == null) {
+            return fail('no_account', 'Cuenta necesaria', 'Inicia sesión con tu cuenta de Minecraft, o elige jugar sin conexión, antes de jugar.')
         }
 
         if (await pack().hasInstallation(serv)) {
@@ -384,8 +386,9 @@ function register(handlers, state) {
             return fail('metadata', 'Error al iniciar', 'Revisa el registro del launcher para más detalles.')
         }
 
-        const authUser = ConfigManager.getSelectedAccount()
-        log().info(`Sending selected account (${authUser.displayName}) to ProcessBuilder.`)
+        const authUser = currentAccount(ConfigManager)
+        if (authUser == null) return fail('no_account', 'Cuenta necesaria', 'Inicia sesión con tu cuenta de Minecraft, o elige jugar sin conexión, antes de jugar.')
+        log().info(`Sending ${authUser.type === 'offline' ? 'offline player' : 'selected account'} (${authUser.displayName}) to ProcessBuilder.`)
         const pb = new (rt().ProcessBuilder)(serv, versionData, modLoaderData, authUser, appVersion())
         detail('launch', TEXT.launching)
 

@@ -59,6 +59,10 @@
                 <StackPanel>
                     <TextBlock x:Name="DialogTitle" Style="{StaticResource DisplayText}" FontSize="24" TextWrapping="Wrap" TextTrimming="None"/>
                     <TextBlock x:Name="DialogMessage" Style="{StaticResource BodyText}" Foreground="{StaticResource Paper2Brush}" Margin="0,12,0,0"/>
+                    <!-- only used when the dialog asks for a name (playing without an account) -->
+                    <TextBox x:Name="DialogInput" Style="{StaticResource InputBox}" Visibility="Collapsed" Margin="0,18,0,0" MaxLength="16"
+                             AutomationProperties.Name="Nombre para jugar sin conexión"/>
+                    <TextBlock x:Name="DialogHint" Style="{StaticResource CaptionText}" Visibility="Collapsed" Margin="4,8,0,0" TextWrapping="Wrap"/>
                     <StackPanel x:Name="DialogButtons" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0"/>
                 </StackPanel>
             </Border>

@@ -301,6 +301,29 @@ public sealed class Launcher : IAsyncDisposable
 
     public Task CancelAuthAsync() => Client.CallAsync("auth.cancel");
 
+    /// <summary>True when the player in use has no account (only a name).</summary>
+    public bool IsOffline => Account?.Type == "offline";
+
+    /// <summary>What a name would become as an offline player: whether it is allowed, and its 12-digit id. The engine owns the rule.</summary>
+    public async Task<OfflinePreview> PreviewOfflineAsync(string name)
+    {
+        try { return await Client.CallAsync<OfflinePreview>("offline.preview", new { name }, TimeSpan.FromSeconds(5)); }
+        catch (Exception) { return new OfflinePreview(false, "No se pudo comprobar el nombre. Inténtalo de nuevo.", name, null, null); }
+    }
+
+    /// <summary>Plays without an account under this name (creating the offline player, or renaming it). Returns the reason it was refused, or null.</summary>
+    public async Task<string?> UseOfflineAsync(string name)
+    {
+        try
+        {
+            await Client.CallAsync<AccountList>("offline.set", new { name }, TimeSpan.FromSeconds(10));
+            await RefreshConfigAsync();
+            Notice?.Invoke($"Jugarás sin conexión como {Account?.DisplayName}.");
+            return null;
+        }
+        catch (EngineException ex) { return ex.Message; }
+    }
+
     /// <summary>Renews the saved session at start-up. Returns the name of an account that had to be taken off the list, if any.</summary>
     public async Task<string?> ValidateSessionAsync()
     {

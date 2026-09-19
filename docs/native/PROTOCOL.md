@@ -77,11 +77,29 @@ Códigos de error comunes: `unknown_method`, `bad_json`, `busy`, `no_server`, `n
 ### Cuentas
 | Método | Resultado |
 |---|---|
-| `account.list` / `account.select` `{uuid}` | `{selected, accounts[]}` |
-| `auth.microsoft.login` | Abre la ventana de Microsoft (ayudante Electron), canjea el código y guarda la cuenta. `{selected, accounts[]}`. Error `cancelled` si se cierra la ventana; `auth_failed` con `title` si Microsoft o Xbox lo rechazan |
-| `account.remove` `{uuid}` | Cuentas Microsoft: abre la ventana de cierre de sesión primero. Error `cancelled` si se cierra antes de terminar |
+| `account.list` / `account.select` `{uuid}` | `{selected, accounts[]}`. Cada cuenta: `{uuid, displayName, username, type: microsoft\|mojang\|offline, expiresAt, offlineId?}`. El jugador sin conexión aparece aquí como una cuenta más (`type:"offline"`, con su `offlineId` de 12 dígitos); elegirlo lo activa y elegir una cuenta Microsoft lo desactiva |
+| `auth.microsoft.login` | Abre la ventana de Microsoft (ayudante Electron), canjea el código y guarda la cuenta. `{selected, accounts[]}`. Error `cancelled` si se cierra la ventana; `auth_failed` con `title` si Microsoft o Xbox lo rechazan. La cuenta nueva pasa a ser la que juega |
+| `account.remove` `{uuid}` | Cuentas Microsoft: abre la ventana de cierre de sesión primero (error `cancelled` si se cierra antes de terminar). El jugador sin conexión se quita sin ventana |
 | `auth.cancel` | Cierra la ventana de inicio de sesión si está abierta |
-| `auth.validate` | Renueva la sesión guardada. `{valid}`; si no se puede renovar, quita la cuenta y devuelve `{valid:false, removed:<nombre>}` |
+| `auth.validate` | Renueva la sesión guardada. `{valid}`; si no se puede renovar, quita la cuenta y devuelve `{valid:false, removed:<nombre>}`. Con el jugador sin conexión en uso devuelve `{valid:true, offline:true}` y **sin red** `{valid:true, skipped:"offline"}`: no tener internet nunca borra una cuenta |
+| `offline.preview` `{name}` | `{valid, reason?, name, id, uuid}`: en qué se convertiría un nombre (o por qué no vale). La regla vive solo en el motor (`engine/src/lib/offline.js`) |
+| `offline.set` `{name}` | Crea el jugador sin conexión o lo renombra, y lo deja en uso. Devuelve `{selected, accounts[]}`. Error `bad_name` con la razón en `message` |
+
+**Jugar sin conexión** (sin cuenta, sin skin, solo un nombre). El nombre (3 a 16 de `a-z A-Z 0-9 _`) se pasa a minúsculas y cada
+carácter tiene un valor fijo (`a-z` = 1..26, `0-9` = 27..36, `_` = 37); los valores se combinan con FNV-1a de 64 bits y el resultado
+se reduce a 12 dígitos (`mod 10^12`, ceros a la izquierda). Mismo nombre, mismo id, siempre. El juego recibe
+`--username <nombre> --uuid 00000000000030008000<12 dígitos> --accessToken offline --userType legacy`. El jugador se guarda en
+`native-offline.json` junto a la configuración, nunca en `config.json`: el launcher clásico no debe encontrarse un tipo de cuenta que no conoce.
+
+### Preferencias, arte, estado del servidor y actualizaciones
+| Método | Resultado |
+|---|---|
+| `ui.get` / `ui.set` `{key, value}` | Preferencias que solo tiene la interfaz nativa (`native-ui.json`). Hoy: `fieldMode: auto\|always\|off` (el campo de puntos vivo) |
+| `art.get` `{id}` | `{serverId, banner, background}`: rutas de imágenes pequeñas ya listas (logo PNG ≤ 900 px con transparencia, fondo JPEG ≤ 1280 px) en la caché del launcher. Las remotas solo se bajan hasta 8 MB; un WebP animado enorme se reduce a su primer fotograma |
+| `server.status` `{id?}` | `{online, players?:{online,max}}` |
+| `update.check` | `{available, current, version?, releaseDate?, installer?, sha512?, size?, page?, reason?}`. Un solo canal: el `latest.yml` de la última release de GitHub (el mismo que lee el launcher clásico, por eso el clásico se actualiza al nativo). `reason`: `no_channel`, `bad_channel`, `offline` |
+| `update.install` | Descarga el instalador de la versión publicada, comprueba su sha512 y lo lanza en silencio (`/S --updated --force-run`). `{launched, file, version}`. Errores: `no_update bad_channel bad_checksum download_failed install_failed cancelled busy game_running`. No se instala nada sin huella, con un nombre que no sea un archivo, ni con Minecraft abierto |
+| `update.cancel` | Corta la descarga en curso (`update.install` responde `cancelled`) |
 
 ## Eventos
 
@@ -98,6 +116,7 @@ Códigos de error comunes: `unknown_method`, `bad_json`, `busy`, `no_server`, `n
 | `distro.refreshed` | igual que `distro.load` sin `tookMs` |
 | `config.changed` | `{serverId, key, value}` (por ejemplo el Java elegido tras una instalación) |
 | `auth.progress` | `{stage: window\|exchange\|logout}` |
+| `update.progress` | `{stage: download\|ready, received, total, bytesPerSecond?}` mientras `update.install` baja el instalador |
 | `engine.busy` | otro cliente ya está conectado |
 
 Los eventos de progreso se limitan en el motor: el porcentaje solo cuando cambia su parte entera y los bytes como mucho

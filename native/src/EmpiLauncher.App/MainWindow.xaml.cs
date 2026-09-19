@@ -39,7 +39,7 @@ public partial class MainWindow : Window
         _l.GameChanged += OnGameChanged;
         _l.ArtChanged += UpdateBackdrop;
         _l.Changed += OnUpdateChanged;
-        UpdateButton.Click += (_, _) => OnUpdateClick();
+        UpdateButton.Click += (_, _) => ShowUpdateDialog();
         _l.AuthWindow += (open, text) =>
         {
             if (open) ShowWaiting("Esperando a Microsoft", text, () => _ = _l.CancelAuthAsync());
@@ -91,7 +91,8 @@ public partial class MainWindow : Window
         if (update != null) UpdateButton.Content = $"NUEVA VERSIÓN {update.Version}";
     }
 
-    private void OnUpdateClick()
+    /// <summary>The question "install the new version now?" (also reachable from the About tab).</summary>
+    public void ShowUpdateDialog()
     {
         var update = _l.Update;
         if (update == null) return;
@@ -261,9 +262,69 @@ public partial class MainWindow : Window
         _waiting = false;
     }
 
+    private int _promptGeneration;
+    private string _promptName = "";
+    private TextChangedEventHandler? _promptChanged;
+    private KeyEventHandler? _promptKeys;
+
+    /// <summary>
+    /// Asks for the name to play with when there is no account. As the name is typed the engine says what it would become (its
+    /// 12-digit id) or why it cannot be used, and the button only works for a name that can be. The rule itself lives in the engine.
+    /// </summary>
+    public void ShowOfflinePrompt(string initial = "", Func<Task>? done = null)
+    {
+        if (_dialogOpen) { _dialogQueue.Enqueue(() => ShowOfflinePrompt(initial, done)); return; }
+        ShowDialog("Jugar sin conexión",
+            "Elige el nombre con el que quieres jugar. No usa ninguna cuenta ni skin: solo este nombre. Sirve para un jugador y para servidores que no verifican la cuenta.",
+            ("Cancelar", null, false),
+            ("Jugar sin conexión", () => _ = UseOfflineNameAsync(_promptName, done), true));
+        var confirm = (Button)DialogButtons.Children[^1];
+        confirm.IsEnabled = false;
+        System.Windows.Automation.AutomationProperties.SetName(confirm, "Confirmar y jugar sin conexión");   // the title has the same words: this one is the button
+
+        DialogInput.Text = initial;
+        DialogInput.Visibility = DialogHint.Visibility = Visibility.Visible;
+        SetHint("3 a 16 caracteres: letras, números y guion bajo.", false);
+
+        async void Check()
+        {
+            var text = _promptName = DialogInput.Text.Trim();
+            var generation = ++_promptGeneration;
+            if (text.Length == 0) { confirm.IsEnabled = false; SetHint("3 a 16 caracteres: letras, números y guion bajo.", false); return; }
+            var preview = await _l.PreviewOfflineAsync(text);
+            if (generation != _promptGeneration || DialogInput.Visibility != Visibility.Visible) return;   // typed on, or the dialog is gone
+            confirm.IsEnabled = preview.Valid;
+            SetHint(preview.Valid ? $"Tu identificador sin conexión: {preview.Id}. El mismo nombre siempre da el mismo." : preview.Reason ?? "Ese nombre no se puede usar.", !preview.Valid);
+        }
+        _promptChanged = (_, _) => Check();
+        _promptKeys = (_, e) => { if (e.Key == Key.Enter && confirm.IsEnabled) { e.Handled = true; confirm.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent)); } };
+        DialogInput.TextChanged += _promptChanged;
+        DialogInput.KeyDown += _promptKeys;
+        DialogInput.Focus();
+        DialogInput.SelectAll();
+        Check();
+    }
+
+    private void SetHint(string text, bool problem)
+    {
+        DialogHint.Text = text;
+        DialogHint.Foreground = (System.Windows.Media.Brush)FindResource(problem ? "DangerBrush" : "Paper3Brush");
+    }
+
+    private async Task UseOfflineNameAsync(string name, Func<Task>? done)
+    {
+        var error = await _l.UseOfflineAsync(name);
+        if (error != null) ShowDialog("No se pudo usar ese nombre", error, ("Entendido", null, true));
+        else if (done != null) await done();
+    }
+
     private void CloseDialog()
     {
         _waiting = false;
+        if (_promptChanged != null) { DialogInput.TextChanged -= _promptChanged; _promptChanged = null; }
+        if (_promptKeys != null) { DialogInput.KeyDown -= _promptKeys; _promptKeys = null; }
+        _promptGeneration++;
+        DialogInput.Visibility = DialogHint.Visibility = Visibility.Collapsed;
         DialogLayer.Visibility = Visibility.Collapsed;
         _dialogOpen = false;
         if (_dialogQueue.Count > 0) _dialogQueue.Dequeue()();

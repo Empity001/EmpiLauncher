@@ -64,6 +64,14 @@ foreach ($step in $Steps.Split(';')) {
         'wait'  { Start-Sleep -Milliseconds ([int]([double]$arg * 1000)) }
         'shot'  { Save-Shot $arg }
         'click' { Click-Named $arg }
+        # type:<automation name>=<text>  sets the text of a text box through UI Automation (raises TextChanged like typing does)
+        'type'  {
+            $name, $text = $arg.Split('=', 2)
+            $cond = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::NameProperty), $name
+            $el = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cond)
+            $pattern = $null
+            if ($null -ne $el -and $el.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$pattern)) { $pattern.SetValue($text) } else { Write-Host "type: '$name' not found or not a text box" }
+        }
         'size'  { $wh = $arg.Split('x'); [void][Win]::MoveWindow($hwnd, 40, 40, [int]$wh[0], [int]$wh[1], $true) }
         # tap:x,y  a real left click at x,y inside the window (unlike click:, which goes through UI Automation and raises no mouse events)
         'tap'   {

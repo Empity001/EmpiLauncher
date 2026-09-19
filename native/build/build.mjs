@@ -141,6 +141,9 @@ async function main() {
     step('Preparando la carpeta de trabajo')
     fs.rmSync(stage, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 })
     fs.mkdirSync(stage, { recursive: true })
+    // A build that dies half way must not leave the previous latest.yml (or blockmap) looking like the result of this one.
+    fs.mkdirSync(out, { recursive: true })
+    for (const stale of ['latest.yml', `Empi-Launcher-setup-${version}.exe`, `Empi-Launcher-setup-${version}.exe.blockmap`]) fs.rmSync(path.join(out, stale), { force: true })
 
     step('Compilando la interfaz WPF (autocontenida)')
     const dotnet = findDotnet()
@@ -194,7 +197,7 @@ async function main() {
     const installer = path.join(out, installerName)
     fs.mkdirSync(out, { recursive: true })
     fs.rmSync(installer, { force: true })
-    await run(findMakensis(), ['/V2', `/DVERSION=${version}`, `/DSTAGE=${stage}`, `/DOUTFILE=${installer}`, `/DAPP_GUID=${guid}`,
+    await run(findMakensis(), ['/V2', `/DVERSION=${version}`, `/DSTAGE=${stage}`, `/DOUTFILE=${installer}`, `/DAPP_GUID=${guid}`, ...(guid === APP_GUID ? [] : [`/DSHORTCUT_NAME=Empi Launcher (prueba ${guid.slice(-6)})`]),
         `/DICON=${path.join(repo, 'build', 'icon.ico')}`, `/DESTIMATED_KB=${Math.round(stageBytes / 1024)}`, path.join(here, 'installer.nsi')])
     const installerBytes = fs.statSync(installer).size
     console.log(`    ${installerName}: ${(installerBytes / MB).toFixed(0)} MB (${seconds()})`)

@@ -140,6 +140,28 @@ estado del juego, pero no se midió el efecto.
 En disco el nativo pesa **más** que el clásico (el .NET autocontenido se suma al Electron); en RAM, menos. La prioridad
 declarada es la RAM.
 
+### El paquete real (medido el 2026-09-19 con `native/build/build.mjs`)
+
+| Pieza | Medido |
+|---|---|
+| Instalado, en disco | **443 MB en 1.342 archivos** (WPF ~130 MB, Electron `runtime\` ~284 MB sin `default_app.asar` ni idiomas sobrantes, motor + módulos + 99 paquetes ~30 MB) |
+| Instalador (NSIS, LZMA sólido) | **134 MB** (140.111.579 bytes), frente a 115 MB del clásico |
+| Tiempo | 214 s en construirlo (casi todo comprimir); 28 s en instalarlo silenciosamente |
+
+El motor y la ventana de inicio de sesión comparten un solo Electron (no hay un Node aparte), y solo se copian los paquetes que salen
+de recorrer los `require` (99, no los 89 de la primera cuenta).
+
+### El launcher instalado, en marcha (una muestra, datos aislados, campo de puntos encendido)
+
+| Momento | WS | Private WS | Commit | Procesos | CPU |
+|---|---|---|---|---|---|
+| 6 s después de abrir (todavía cargando arte, índice y estado del servidor) | 80,6 MB | 46,6 MB | 188,6 MB | 2 | 17,7 % de un núcleo |
+| 25 s después, en reposo | 79,2 MB | 40,6 MB | 177,3 MB | 2 | 5,1 % de un núcleo |
+
+Contra el clásico con GPU apagada (132 MB de private WS y 207 MB de commit) son unos 69 % menos de private WS y unos 14 % menos de
+commit. El commit es mayor que los 148,6 MB de la sección 2 porque allí el motor era Node.js y aquí es el Electron-como-Node que se
+distribuye (el private WS recortado es el mismo). Es una sola muestra en una máquina, no un promedio.
+
 ## 8. Pendiente de medir
 
 | Medición pedida | Estado |

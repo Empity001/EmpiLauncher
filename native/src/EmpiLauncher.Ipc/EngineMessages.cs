@@ -33,12 +33,18 @@ public sealed record Modpack(
 
 public sealed record DistroResult(long TookMs, string SelectedServer, string MainServer, List<Modpack> Servers);
 
-/// <summary>ExpiresAt is a Unix time in milliseconds (a number in the engine's answer, not text).</summary>
-public sealed record AccountSummary(string Uuid, string DisplayName, string? Username, string Type, double? ExpiresAt);
+/// <summary>
+/// ExpiresAt is a Unix time in milliseconds (a number in the engine's answer, not text). Type is "microsoft", "mojang" or "offline";
+/// an offline player (no account, just a name) also carries its 12-digit OfflineId.
+/// </summary>
+public sealed record AccountSummary(string Uuid, string DisplayName, string? Username, string Type, double? ExpiresAt, string? OfflineId = null);
+
+/// <summary>What a name would become as an offline player (offline.preview); Reason says why not when Valid is false.</summary>
+public sealed record OfflinePreview(bool Valid, string? Reason, string Name, string? Id, string? Uuid);
 
 public sealed record AccountList(string? Selected, List<AccountSummary> Accounts);
 
-public sealed record ConfigResult(Dictionary<string, JsonElement> Settings, bool FirstLaunch, string LauncherDirectory, string CommonDirectory, string InstanceDirectory, AccountList Accounts);
+public sealed record ConfigResult(Dictionary<string, JsonElement> Settings, bool FirstLaunch, string LauncherDirectory, string CommonDirectory, string InstanceDirectory, AccountList Accounts, string? AppVersion = null);
 
 public sealed record EngineMemory(double RssMB, double HeapUsedMB, double ExternalMB);
 

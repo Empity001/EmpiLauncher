@@ -65,6 +65,7 @@ public partial class HomeView : UserControl
         };
         SettingsButton.Click += (_, _) => OpenSettings?.Invoke();
         PlayButton.Click += async (_, _) => await _l.PrimaryActionAsync();
+        OfflineButton.Click += (_, _) => ((MainWindow)Application.Current.MainWindow).ShowOfflinePrompt();
     }
 
     private void OnChanged() => Refresh();
@@ -172,10 +173,11 @@ public partial class HomeView : UserControl
     {
         var account = _l.Account;
         AccountName.Text = account?.DisplayName ?? "Sin cuenta";
-        AccountKind.Text = account == null ? "SIN SESIÓN" : account.Type == "microsoft" ? "MICROSOFT" : "MOJANG";
+        AccountKind.Text = account == null ? "SIN SESIÓN" : account.Type switch { "microsoft" => "MICROSOFT", "offline" => "SIN CONEXIÓN", _ => "MOJANG" };
         AvatarInitial.Text = string.IsNullOrEmpty(account?.DisplayName) ? "?" : account.DisplayName[..1].ToUpperInvariant();
 
-        if (account == null) { AvatarImage.Visibility = Visibility.Collapsed; _avatarFor = null; return; }
+        // No account, or no skin to fetch: the initial is the whole avatar (an offline player has no head to show).
+        if (account == null || account.Type == "offline") { AvatarImage.Visibility = Visibility.Collapsed; _avatarFor = null; return; }
         if (_avatarFor == account.Uuid) return;
         _avatarFor = account.Uuid;
         try
@@ -209,6 +211,7 @@ public partial class HomeView : UserControl
         };
         PlayLabel.Text = label;
         System.Windows.Automation.AutomationProperties.SetName(PlayButton, label);
+        OfflineButton.Visibility = _l.Account == null && !game.Busy && !game.Running ? Visibility.Visible : Visibility.Collapsed;
 
         if (game.Busy)
         {

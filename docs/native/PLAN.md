@@ -42,11 +42,12 @@ el "modo ligero" es una condición (`performanceMode` y el `FieldGovernor`) del 
 | 5. Integrar helios-core sin reescribir | Hecho: jugar, actualizar, restaurar, detener, Java, Discord (`handlers/game.js`); probado con actualización real, y ciclo de vida con proceso de sustitución. **Falta** una pasada completa con cuenta real |
 | 6. Ajustes | Hecho: cuenta, Minecraft, Mods (opcionales, propios, shaders), Java (RAM, ruta, JVM), Capturas (con visor), Acerca |
 | 7. Inicio de sesión | Hecho: ventana Microsoft a demanda (helper Electron), canje del código en el motor, cierre de sesión, renovación al arrancar. **Falta** que el autor inicie sesión de verdad una vez (yo no introduzco credenciales) |
-| 8. Pantalla principal | Hecho: rail de versiones, hero, estado del pack, jugadores, progreso, dock. **Falta** arte del modpack (banner y fondo) |
-| 9. Campo vivo adaptativo | Hecho: `LivingField` + `FieldGovernor`, medido |
-| 10. Bandeja, actualizaciones | Bandeja y aviso de versión nueva: hechos. **Falta** descargar e instalar (depende del paquete nativo, paso 11) |
-| 11. Empaquetado y Publisher | Diseñado abajo; **no implementado** |
-| 12. Pruebas completas | Pruebas automáticas del motor y de la interfaz hechas (abajo); lo que necesita cuenta real está listado |
+| 8. Pantalla principal | Hecho: rail de versiones, hero, estado del pack, jugadores, progreso, dock, logo y fondo del modpack (`art.get`) |
+| 9. Campo vivo adaptativo | Hecho: `LivingField` (una sola rejilla, olas al clic, contorno al pasar el ratón) + `FieldGovernor` + ajuste Automático / Siempre / Apagado, medido |
+| 10. Bandeja, actualizaciones | Hecho: bandeja, aviso de versión nueva, descarga con sha512, instalación silenciosa y reapertura (`update.install`) |
+| 11. Empaquetado y Publisher | Hecho: instalador NSIS propio, `latest.yml` único, el clásico se actualiza al nativo, Publisher con "Nativo / Clásico" (abajo) |
+| 12. Pruebas completas | Pruebas automáticas del motor, del instalador y de la interfaz hechas (abajo); lo que necesita cuenta real o una desconexión real está listado |
+| Extra: jugar sin conexión | Hecho: jugador sin cuenta con id determinista de 12 dígitos ([PROTOCOL.md](PROTOCOL.md), "Jugar sin conexión") |
 
 ## Pruebas
 
@@ -56,6 +57,12 @@ el "modo ligero" es una condición (`performanceMode` y el `FieldGovernor`) del 
 | `node engine/test/repair.mjs [--probe ...]` | actualización real: verificación, receptor de helios-core, descarga, progreso; en Node y en Electron-como-Node (`ENGINE_NODE`, `ELECTRON_RUN_AS_NODE=1`) |
 | `node engine/test/lifecycle.mjs` | arranque detectado, parada, caída del juego, con un proceso de sustitución |
 | `node engine/test/auth.mjs [--probe ...]` | la ventana de Microsoft se abre como proceso aparte, se mide, se cancela y desaparece |
+| `node engine/test/art.mjs` | arte del modpack: tamaños, transparencia, WebP animado enorme, límites de descarga |
+| `node engine/test/classpath.mjs` | qué jars de NeoForge / Minecraft quedan fuera del classpath (FML 10) |
+| `node engine/test/update.mjs` | `update.install`: descarga, sha512 falso, nombre con ruta, sin huella, cancelar, no con el juego abierto |
+| `node engine/test/offline.mjs` | la regla del id sin conexión (fija, sin mayúsculas, 12 dígitos) y cómo convive con las cuentas Microsoft; sin red no se borra una sesión |
+| `node native/build/test/migration.mjs` | el instalador contra un "launcher clásico" de mentira (registro, carpeta y accesos propios): lo cierra, lo desinstala con el protocolo de electron-builder, instala en la misma carpeta, conserva accesos y datos, `--force-run`, nativo → nativo, desinstalar, carpeta ajena |
+| `node --test "tools/publisher/test/*.test.js"` | Publisher: activar/desactivar modpacks, banderas, lectura de lo que dejó la compilación del launcher |
 | `native/tools/shot.ps1` | maneja la interfaz por UI Automation y guarda capturas (y mide con `-Probe`) |
 
 Todas las pruebas usan carpetas temporales (`--user-data` y `--data-dir`): ninguna toca la instalación real.
@@ -92,27 +99,51 @@ cambia cuándo existe: el ayudante arranca al pulsar "Añadir cuenta" y se cierr
 Quitar Electron por completo exigiría otro método (navegador del sistema con redirección local, o código de dispositivo), que
 depende de cómo esté registrada la aplicación de Azure. Queda para más adelante; no bloquea nada.
 
-## Empaquetado y Publisher (paso 11, diseñado)
+## Empaquetado, publicación y paso del clásico al nativo (paso 11, hecho)
 
-Hoy el Publisher construye el launcher con electron-builder y sube el `.exe`, el `.blockmap` y `latest.yml` a una release de
-GitHub; el launcher clásico se actualiza con electron-updater. El nativo necesita su propio camino, sin sustituir todavía el
-del clásico:
+`node native/build/build.mjs [--version 3.0.0]` (el Publisher lo llama al compilar "Nativo") deja en `dist/` los mismos tres
+archivos que dejaba electron-builder: `Empi-Launcher-setup-<v>.exe`, su `.blockmap` y `latest.yml`. Medido en esta máquina:
 
-- **Qué se empaqueta**: la interfaz WPF autocontenida (140 MB sin comprimir), el motor (`engine/`, 11 MB de dependencias) y el
-  Electron ya distribuido (motor con `ELECTRON_RUN_AS_NODE` y ayudante de inicio de sesión: un solo runtime). El .NET puede ir
-  autocontenido (sin requisitos) o dependiente del framework (0,6 MB, pero exige el Runtime).
-- **Instalador**: NSIS (o WiX) con las mismas opciones que hoy (`oneClick: false`, elegir carpeta, accesos directos).
-  El Publisher puede seguir invocando electron-builder para el instalador si la carpeta de la aplicación nativa se pasa como
-  `extraResources`; alternativa: un script `dotnet publish` + NSIS propio. Decisión pendiente, no urgente.
-- **Versiones y actualización**: fichero de canal propio, `latest-native.yml` (mismo formato que `latest.yml`), para que el clásico
-  y el nativo no se ofrezcan instaladores el uno al otro mientras convivan. El motor ya lo lee (`update.check`) y la interfaz
-  muestra el aviso; falta descargar (con sha512, ya está en el fichero) y lanzar el instalador.
-- **Datos**: el nativo usa la misma carpeta de datos y la misma configuración que el clásico (`EMPI_USER_DATA=shared`), así que
-  las cuentas y las instalaciones se conservan. En desarrollo va siempre aislado.
+| Parte | Tamaño |
+|---|---|
+| Interfaz WPF autocontenida (no exige instalar .NET) | ~130 MB sin comprimir |
+| Electron una sola vez (`runtime\`, sin `default_app.asar` y solo los idiomas en-US / es / es-419): motor con `ELECTRON_RUN_AS_NODE` y ventana de inicio de sesión | ~284 MB |
+| Motor + módulos del clásico + solo los 99 paquetes que hacen falta (se recorren los `require` y sus dependencias) | ~30 MB |
+| **Instalador** (NSIS, LZMA sólido; el clásico pesaba 115 MB) | **134 MB**, unos 3,5 min en comprimir |
+
+- **Una sola vía de actualización.** El canal es el `latest.yml` de la última release, el mismo que lee electron-updater del
+  launcher clásico. Un jugador que aún tiene el clásico recibe el instalador nativo como cualquier actualización; el nativo lo
+  ejecuta con `--updated /S --force-run`, igual que hacía electron-updater. (Ya no existe `latest-native.yml`.) El nativo lee ese mismo
+  archivo (`update.check`) y se actualiza a sí mismo con `update.install`: descarga, sha512, instalador silencioso, reapertura.
+- **El instalador quita el viejo** (`native/build/installer.nsi`): cierra lo que corre desde la carpeta (por ruta, nunca por nombre: no
+  toca otras apps Electron), lee la clave de desinstalación del clásico (`92d6aedd-…`, la misma que usará el nativo: una sola entrada en
+  "Aplicaciones"), ejecuta su desinstalador en silencio y en el sitio (`/S /KEEP_APP_DATA /currentuser --updated _?=<carpeta>`, el mismo
+  protocolo de electron-builder), instala en la misma carpeta con el mismo `Empi Launcher.exe` (los accesos y anclajes a la barra
+  siguen valiendo), deja los accesos directos que ya había (el del menú Inicio siempre; el del escritorio solo si estaba o es
+  primera instalación) y arranca el launcher nuevo. Nativo → nativo usa exactamente el mismo camino.
+- **Datos intactos.** Cuentas, ajustes y juego viven en `%APPDATA%` (`Empi Launcher` y `.EmpiLauncher`), no en la carpeta del
+  programa: ni el desinstalador viejo ni el nuevo los tocan. La instalación nativa usa esos mismos datos (`EMPI_USER_DATA=shared`
+  por defecto cuando está instalada; en desarrollo va aislada). Lo propio del nativo (`native-ui.json`, `native-offline.json`,
+  `art-cache`, `updates`) va en archivos aparte para que el clásico nunca se encuentre algo que no conoce.
+- **Seguridad de carpeta.** La carpeta de instalación siempre acaba en `Empi Launcher` (si se elige otra, se añade); el desinstalador
+  se niega a borrar cualquier otra. Así no puede llevarse por delante "Documentos".
+- **Firma de código (pendiente, del autor).** Los binarios no están firmados. Con Smart App Control activado en Windows 11 el
+  sistema puede bloquear un instalador o un `.dll` sin reputación (pasó en esta máquina con una DLL recién compilada). Con SmartScreen
+  normal basta "Ejecutar de todos modos", y las descargas que hace el propio launcher no llevan la marca de la web. La solución
+  de fondo es un certificado de firma; no se toca ninguna configuración de seguridad del sistema.
+- **Publisher.** La pestaña Launcher tiene "Instalador: Nativo / Clásico" (por defecto Nativo), avisa de que esa versión sustituirá el
+  launcher viejo de los jugadores y muestra los pasos reales de `build.mjs`. El clásico sigue compilándose con electron-builder como
+  vuelta atrás. **Primera versión nativa**: elige "Mayor" (3.0.0) para que se note el cambio; cualquier número mayor que el publicado la ofrece.
 
 ## Lo que no se ha podido comprobar (y por qué)
 
 - Jugar de punta a punta con una cuenta real: hace falta iniciar sesión, algo que se deja al autor.
+- Jugar sin conexión con el juego abierto de verdad y **sin red de verdad**: la regla, las cuentas, los argumentos (`--userType legacy`) y
+  el "sin red no se borra la sesión" están probados; lanzar Minecraft como jugador sin conexión y cortar internet no se hizo aquí
+  (el juego de pruebas comparte carpeta con la sesión real del autor y no se toca) ni se puede cortar la red del equipo.
+- El instalador contra el **launcher clásico real**: se probó con un clásico de mentira que habla el mismo protocolo de desinstalación
+  (`migration.mjs`, 25 comprobaciones), no ejecutando el instalador real 2.6.2 (habría tocado la instalación del autor). El instalador
+  completo (134 MB) se instaló en una carpeta de prueba con su propia identidad de registro.
 - Cómo se comporta el consumo justo al arrancar Minecraft: mismo motivo, más Java 25 en el equipo de pruebas.
 - Descargas completas (1,2 GB) y la instalación de Java: se probó el inicio de la descarga real y el resto es el mismo código del clásico.
 - Aceleración de GPU de otros fabricantes: solo hay una máquina.

@@ -54,9 +54,24 @@ internal sealed class AboutTab : SettingsTab
         catch (EngineException) { ui.Text = engine.Text = "sin datos"; }
 
         var about = Ui.Section(null, out var a);
-        a.Children.Add(Ui.Text("EmpiLauncher nativo, versión de prueba", "BodyText"));
+        var version = config.AppVersion is { Length: > 0 } v && !v.StartsWith("0.0.0") ? "versión " + v : "versión de desarrollo";
+        a.Children.Add(Ui.Text($"Empi Launcher, {version}", "BodyText"));
         a.Children.Add(Ui.Text("La interfaz es nativa de Windows. La lógica de descarga, verificación y lanzamiento es la misma del launcher clásico, ejecutada en un motor aparte sin Chromium.", "CaptionText"));
-        ((TextBlock)a.Children[1]).Margin = new Thickness(0, 6, 0, 0);
+        ((TextBlock)a.Children[1]).Margin = new Thickness(0, 6, 0, 10);
+        var checkText = Ui.Text("", "CaptionText");
+        var check = Ui.Button("Buscar actualizaciones", async () =>
+        {
+            checkText.Text = "Buscando…";
+            await _l.CheckUpdateAsync();
+            if (_l.Update != null) { checkText.Text = $"Hay una versión nueva: {_l.Update.Version}."; ((MainWindow)Application.Current.MainWindow).ShowUpdateDialog(); }
+            else checkText.Text = "Tienes la última versión, o no hay conexión para comprobarlo.";
+        });
+        var checkRow = new StackPanel { Orientation = Orientation.Horizontal };
+        checkRow.Children.Add(check);
+        checkText.VerticalAlignment = VerticalAlignment.Center;
+        checkText.Margin = new Thickness(12, 0, 0, 0);
+        checkRow.Children.Add(checkText);
+        a.Children.Add(checkRow);
         Root.Children.Add(about);
     }
 

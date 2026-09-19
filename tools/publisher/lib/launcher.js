@@ -181,6 +181,17 @@ async function send(config, options, log, step) {
         if (!assets.includes(name)) throw new Error(`En GitHub falta ${name}. Vuelve a pulsar "Enviar".`)
     }
 
+    // What players' launchers read is the "latest release" copy of latest.yml. It is normally live right away; if GitHub still serves
+    // the old one this says so instead of leaving a silent "published" that nobody is offered yet.
+    try {
+        const response = await fetch(`https://github.com/${config.launcherGithubRepo}/releases/latest/download/latest.yml`, { headers: { 'User-Agent': 'EmpiPublisher' }, cache: 'no-store', signal: AbortSignal.timeout(15000) })
+        const served = response.ok ? (/^version:\s*(.+)$/m.exec(await response.text()) || [])[1] : null
+        if (served && served.trim() === state.version) log(`Los launchers ya ven la version ${state.version} como la ultima.`)
+        else log(`Aviso: GitHub todavia sirve ${served ? `la version ${served.trim()}` : 'otra cosa'} como ultima. Suele arreglarse en unos minutos; comprueba que el release no sea un borrador ni una prueba.`)
+    } catch (err) {
+        log(`No pude comprobar el canal de actualizacion (${err.message}); el release si se subio.`)
+    }
+
     // Old installers pile up ~100 MB each; only the one just released is worth keeping.
     const dist = path.dirname(build.exe)
     for (const name of fs.readdirSync(dist)) {

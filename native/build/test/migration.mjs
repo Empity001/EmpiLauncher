@@ -75,6 +75,7 @@ const alive = (pid) => execFileSync('tasklist', ['/FI', `PID eq ${pid}`, '/NH'],
 const bystanders = []   // children the test started that it must clean up
 function start(exe) {
     const child = spawn(exe, [], { stdio: 'ignore', detached: true, env: { ...process.env, EMPI_USER_DATA: userData } })
+    child.on('error', () => {})   // a program that cannot start is reported by the checks, not by a crash that skips the clean-up
     child.unref()
     bystanders.push(child.pid)
     return child.pid
