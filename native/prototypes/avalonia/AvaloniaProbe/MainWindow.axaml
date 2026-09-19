@@ -1,0 +1,19 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="AvaloniaProbe.MainWindow" Title="Probe" Width="1100" Height="650" Background="#0b0b0d" Foreground="#f1efe8">
+  <Grid Margin="20" ColumnDefinitions="300,*">
+    <Border CornerRadius="22" Background="#111114" BorderBrush="#26FFFFFF" BorderThickness="1" Padding="14">
+      <StackPanel>
+        <TextBlock Text="Versiones" FontSize="16" Margin="6,0,0,12"/>
+        <Border CornerRadius="14" Background="#f1efe8" Padding="12" Margin="0,0,0,6"><TextBlock Text="PanolisSMP" Foreground="#050506" FontWeight="Bold"/></Border>
+        <Border CornerRadius="14" Background="#18181c" Padding="12" Margin="0,0,0,6"><TextBlock Text="PanolisSMP Lite"/></Border>
+        <Border CornerRadius="14" Background="#18181c" Padding="12"><TextBlock Text="Testeo"/></Border>
+      </StackPanel>
+    </Border>
+    <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Width="360">
+      <Border CornerRadius="26" Background="#ff3d8b" Padding="16"><TextBlock Text="JUGAR" HorizontalAlignment="Center" Foreground="#050506" FontWeight="Bold" FontSize="20"/></Border>
+      <ProgressBar Value="62" Height="8" Margin="0,16,0,0" Foreground="#ff3d8b" Background="#222"/>
+      <TextBlock Text="568 MB / 915 MB" Margin="0,8,0,0" Foreground="#a5a598"/>
+    </StackPanel>
+  </Grid>
+</Window>

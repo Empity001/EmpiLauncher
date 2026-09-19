@@ -1,0 +1,11 @@
+using System.Drawing;
+using System.Windows.Forms;
+ApplicationConfiguration.Initialize();
+var f = new Form { Text = "Probe", Width = 1100, Height = 650, BackColor = Color.FromArgb(11, 11, 13), ForeColor = Color.FromArgb(241, 239, 232), Font = new Font("Segoe UI", 10) };
+var list = new ListBox { Left = 20, Top = 20, Width = 300, Height = 560, BackColor = Color.FromArgb(17, 17, 20), ForeColor = f.ForeColor, BorderStyle = BorderStyle.None };
+list.Items.AddRange(new object[] { "PanolisSMP", "PanolisSMP Lite", "Testeo" });
+var play = new Button { Text = "JUGAR", Left = 520, Top = 260, Width = 360, Height = 56, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(255, 61, 139), ForeColor = Color.Black };
+var bar = new ProgressBar { Left = 520, Top = 330, Width = 360, Height = 8, Value = 62 };
+var lbl = new Label { Left = 520, Top = 346, Width = 360, Text = "568 MB / 915 MB", ForeColor = Color.Gray };
+f.Controls.AddRange(new Control[] { list, play, bar, lbl });
+Application.Run(f);

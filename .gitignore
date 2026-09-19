@@ -5,3 +5,7 @@
 /logs/
 /dist/
 /.impeccable/review/
+/native/**/bin/
+/native/**/obj/
+/native/**/publish/
+/native/**/out/
