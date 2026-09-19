@@ -89,7 +89,11 @@ test('the candidates are the other modpacks with the same Minecraft and loader, 
     pack('Off-1.21.11', 'Off', {}, {}, {}, 'hide')
     pack('Old-1.20.1', 'Old', {}, {}, {})
     const list = importer.candidates(config, 'Pack-1.21.11')
-    assert.deepStrictEqual(list.map((entry) => [entry.id, entry.active]).sort(), [['Off-1.21.11', false], ['Other-1.21.11', true]])
+    assert.deepStrictEqual(list.filter((entry) => entry.compatible).map((entry) => [entry.id, entry.active]).sort(), [['Off-1.21.11', false], ['Other-1.21.11', true]])
+    const old = list.find((entry) => entry.id === 'Old-1.20.1')
+    assert.strictEqual(old.compatible, false)
+    assert.match(old.reason, /Minecraft 1\.20\.1 y este de 1\.21\.11/)
+    assert.strictEqual(list[list.length - 1].id, 'Old-1.20.1', 'the ones that can be chosen come first')
 })
 
 test('the plan says what would be copied, left out, switched off and kept as the profile\'s own', () => {

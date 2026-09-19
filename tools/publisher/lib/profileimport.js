@@ -25,12 +25,29 @@ function dirOf(config, id) {
     throw new Error(`No existe el modpack "${id}".`)
 }
 
-/** The modpacks that could become a profile of this one: same Minecraft and same loader, published or not. */
+const LOADER_NAMES = { fabric: 'Fabric', forge: 'Forge', neoforge: 'NeoForge' }
+
+/**
+ * Every other modpack, published or not, and whether it could become a profile of this one (same Minecraft and same loader: they share
+ * the instance folder and the mods have to run on the same game). The ones that cannot say why, so the list never looks like it forgot one.
+ */
 function candidates(config, id) {
     const target = nebula.getPack(config, id)
     return nebula.listPacks(config)
-        .filter((pack) => pack.id !== id && pack.minecraft === target.minecraft && pack.loader.type === target.loader.type)
-        .map((pack) => ({ id: pack.id, name: pack.name, packVersion: pack.packVersion, active: pack.active, mods: pack.counts.required + pack.counts.optionalon + pack.counts.optionaloff }))
+        .filter((pack) => pack.id !== id)
+        .map((pack) => {
+            const sameMinecraft = pack.minecraft === target.minecraft
+            const sameLoader = pack.loader.type === target.loader.type
+            const reason = sameMinecraft && sameLoader ? null
+                : !sameMinecraft ? `Es de Minecraft ${pack.minecraft} y este de ${target.minecraft}`
+                    : `Usa ${LOADER_NAMES[pack.loader.type] || 'otro loader'} y este ${LOADER_NAMES[target.loader.type] || 'otro'}`
+            return {
+                id: pack.id, name: pack.name, packVersion: pack.packVersion, active: pack.active,
+                mods: pack.counts.required + pack.counts.optionalon + pack.counts.optionaloff,
+                compatible: reason === null, reason
+            }
+        })
+        .sort((a, b) => Number(b.compatible) - Number(a.compatible) || String(a.name).localeCompare(String(b.name), undefined, { sensitivity: 'base' }))
 }
 
 // ---------------------------------------------------------------- comparing

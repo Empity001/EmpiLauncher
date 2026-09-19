@@ -120,6 +120,12 @@ async function saveProfiles(remove = false) {
     }
 }
 
+/** The modpack goes back to having no profiles (what the server stores) or, if they were never saved, the draft is dropped. */
+function removeAllProfiles() {
+    if (!profilesUi.data.profiles) { profilesUi.draft = null; profilesUi.dirty = false; paintProfiles(); return }
+    saveProfiles(true)
+}
+
 function markProfilesDirty() {
     profilesUi.dirty = true
     paintProfilesBar()
@@ -203,6 +209,12 @@ function paintProfiles() {
 
 function removeProfile(profile) {
     const { draft } = profilesUi
+    // a modpack with a single profile is just a modpack: taking one of two away takes them all away
+    if (draft.list.length <= 2) {
+        const other = draft.list.find((candidate) => candidate.uid !== profile.uid)
+        if (confirm(`Al quitar «${profile.name || 'este perfil'}» solo queda «${other ? other.name : 'uno'}», y con un solo perfil el modpack deja de tener perfiles: se quitan todos. Los mods y archivos del modpack no se borran (sí los archivos propios que se hayan guardado para cada perfil). ¿Seguro?`)) removeAllProfiles()
+        return
+    }
     draft.list = draft.list.filter((candidate) => candidate.uid !== profile.uid)
     if (draft.default === profile.uid) draft.default = draft.list[0].uid
     markProfilesDirty()
@@ -257,8 +269,8 @@ function paintCards() {
                 : null,
             h('div', { class: 'pcard-foot' },
                 h('button', {
-                    class: 'btn small', type: 'button', disabled: draft.list.length <= 2,
-                    title: draft.list.length <= 2 ? 'Un modpack con perfiles necesita al menos dos. Para dejar de usarlos, quita todos los perfiles.' : 'Quitar este perfil',
+                    class: 'btn small', type: 'button',
+                    title: draft.list.length <= 2 ? 'Con un solo perfil el modpack deja de tener perfiles: se quitan todos' : 'Quitar este perfil',
                     onclick: () => removeProfile(profile)
                 }, withIcon('trash', 'Quitar'))))
     }))
@@ -349,12 +361,16 @@ function paintImport() {
         : null)
 
     const targetName = (state.pack && state.pack.name) || 'este modpack'
+    const usable = sources.filter((source) => source.compatible !== false)
     const body = h('div', { class: 'import-sources', role: 'radiogroup', 'aria-label': 'Versión a añadir como perfil' },
-        ...sources.map((source) => h('button', {
-            type: 'button', role: 'radio', 'aria-checked': String(importing.from === source.id), class: `import-src${importing.from === source.id ? ' on' : ''}`, disabled: importing.busy,
-            onclick: () => chooseSource(source.id)
-        }, h('b', {}, source.name), h('span', { class: 'muted' }, `v${source.packVersion} · ${plural(source.mods, 'mod', 'mods')}${source.active ? '' : ' · desactivado'}`))))
-    const none = sources.length ? null : h('p', { class: 'note' }, icon('alert'), `No tienes otra versión con el mismo Minecraft y el mismo loader que ${targetName}. Crea primero la otra versión (por ejemplo «${targetName} Lite») y luego añádela aquí como perfil.`)
+        ...sources.map((source) => (source.compatible !== false
+            ? h('button', {
+                type: 'button', role: 'radio', 'aria-checked': String(importing.from === source.id), class: `import-src${importing.from === source.id ? ' on' : ''}`, disabled: importing.busy,
+                onclick: () => chooseSource(source.id)
+            }, h('b', {}, source.name), h('span', { class: 'muted' }, `v${source.packVersion} · ${plural(source.mods, 'mod', 'mods')}${source.active ? '' : ' · desactivado'}`))
+            : h('div', { class: 'import-src disabled', role: 'radio', 'aria-checked': 'false', 'aria-disabled': 'true' },
+                h('b', {}, source.name), h('span', { class: 'muted' }, `${source.reason}: no puede ser un perfil de ${targetName}`)))))
+    const none = usable.length ? null : h('p', { class: 'note' }, icon('alert'), `${sources.length ? 'Ninguna de tus otras versiones' : 'No tienes otra versión'} tiene el mismo Minecraft y el mismo loader que ${targetName} (Minecraft ${state.pack ? state.pack.minecraft : ''}, ${state.pack ? (LOADER_NAMES[state.pack.loader.type] || '') : ''}). Un perfil tiene que ser de la misma versión de Minecraft y del mismo loader: crea primero la otra versión (por ejemplo «${targetName} Lite») y luego añádela aquí.`)
 
     let detail = null
     if (importing.from && !plan) {
