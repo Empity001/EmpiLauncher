@@ -285,10 +285,10 @@ public partial class MainWindow : Window
     {
         ShowDialog(title, message, ("Cancelar", cancel, false));
         _waiting = _dialogOpen;
-        if (_waiting)
+        if (_waiting && Art.Cloud(360) is { } cloud)
         {
             // work is going on: a halftone cloud sits behind the text (the Publisher's activity drawer does the same) and drifts as it advances
-            DialogCloud.Source = Art.Cloud(360);
+            DialogCloud.Source = cloud;
             DialogCloud.Visibility = Visibility.Visible;
             Motion.Snap(DialogCloudShift, TranslateTransform.XProperty, 20);
         }

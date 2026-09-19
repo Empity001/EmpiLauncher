@@ -168,6 +168,15 @@ internal static class Program
         Wait(250);
         Check("...and the element is back at full opacity for the next time", left && gone.Opacity == 1);
 
+        // ---- a replaced animation must not be able to undo the one that replaced it (a dialog closed and shown again at once stayed wrong) ----
+        var swap = new Border { Width = 40, Height = 10, Background = Brushes.White }; panel.Children.Add(swap); Wait(50);
+        Motion.Animate(swap, UIElement.OpacityProperty, 1, 0, 120);      // fading out ...
+        Motion.Animate(swap, UIElement.OpacityProperty, 0, 1, 500);      // ... and shown again straight away
+        Wait(300);
+        Check("the old fade ending does not stop the new one half-way", Between(swap.Opacity, 0, 1), $"opacity={swap.Opacity:0.00}");
+        Wait(500);
+        Check("the new one arrives", swap.Opacity == 1, $"opacity={swap.Opacity}");
+
         Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILED");
         window.Close();
         return failures == 0 ? 0 : 1;

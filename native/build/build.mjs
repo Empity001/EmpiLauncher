@@ -53,6 +53,34 @@ function run(command, commandArgs, options = {}) {
     })
 }
 
+/**
+ * The bundled Electron has to be able to open the Microsoft window: a runtime pruned too far starts and dies at once, and the
+ * launcher cannot tell that from "the player closed it". So the build opens the helper for real (its window exists for a second and a
+ * half) and refuses to go on if it does not stay up. The helper prints {"type":"started"} once its window exists.
+ */
+async function checkSignInWindow(stageDir) {
+    const electron = path.join(stageDir, 'runtime', 'electron.exe')
+    const helper = path.join(stageDir, 'engine', 'auth-helper')
+    const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'empi-signin-check-'))
+    const env = { ...process.env }
+    delete env.ELECTRON_RUN_AS_NODE
+    const child = spawn(electron, [helper, '--login', `--user-data-dir=${profile}`, '--client-id', 'build-check'], { env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+    let out = ''
+    let exited = null
+    child.stdout.on('data', (chunk) => { out += chunk })
+    child.on('exit', (code) => { exited = code ?? 'signal' })
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+    for (const deadline = Date.now() + 15000; Date.now() < deadline && !out.includes('"started"') && exited === null;) await sleep(100)
+    const started = out.includes('"started"')
+    if (started) await sleep(1500)
+    const alive = exited === null
+    if (child.pid) spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
+    await sleep(300)
+    fs.rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+    if (!started || !alive) fail(`El Electron empaquetado no llega a abrir la ventana de inicio de sesion (${started ? 'se cerro solo' : exited === null ? 'no arranco en 15 s' : `salio con ${exited} sin abrirla`}). Sin ella el launcher no podria anadir ni cerrar cuentas de Microsoft.`)
+    console.log('    la ventana se abre y se mantiene')
+}
+
 function findDotnet() {
     if (process.env.DOTNET) return process.env.DOTNET
     const user = path.join(os.homedir(), '.dotnet', 'dotnet.exe')
@@ -179,13 +207,16 @@ async function main() {
     step('Copiando Electron (motor y ventana de inicio de sesion)')
     const electronDist = path.join(repo, 'node_modules', 'electron', 'dist')
     if (!fs.existsSync(path.join(electronDist, 'electron.exe'))) fail('node_modules/electron is missing. Run npm install.')
+    // Only the languages the launcher speaks. resources/default_app.asar STAYS: without it this Electron starts and dies at once when
+    // it is asked to run the sign-in helper, so adding an account or signing out "did nothing" in the installed launcher (found in
+    // 3.3.0; the development launcher runs the full Electron from node_modules, which is why it never showed there).
     const keepLocales = new Set(['en-US.pak', 'es.pak', 'es-419.pak'])
     copyTree(electronDist, path.join(stage, 'runtime'), {
-        skip: (source, entry) => {
-            if (entry.isFile() && path.basename(path.dirname(source)) === 'locales') return !keepLocales.has(entry.name)
-            return entry.isFile() && entry.name === 'default_app.asar'
-        }
+        skip: (source, entry) => entry.isFile() && path.basename(path.dirname(source)) === 'locales' && !keepLocales.has(entry.name)
     })
+
+    step('Comprobando que la ventana de inicio de sesion abre con el Electron empaquetado')
+    await checkSignInWindow(stage)
 
     const size = (dir) => { let total = 0; for (const e of fs.readdirSync(dir, { withFileTypes: true })) { const p = path.join(dir, e.name); total += e.isDirectory() ? size(p) : fs.statSync(p).size } return total }
     const stageBytes = size(stage)

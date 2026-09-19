@@ -41,6 +41,7 @@ function runAuthHelper(mode, { electron, userDataDir, clientId, onStart }) {
 
         let out = ''
         let settled = false
+        let started = false   // the helper said its window exists
         const finish = (value, error) => {
             if (settled) return
             settled = true
@@ -60,13 +61,19 @@ function runAuthHelper(mode, { electron, userDataDir, clientId, onStart }) {
                 if (!line.startsWith('{')) continue
                 try {
                     const message = JSON.parse(line)
-                    if (message && typeof message.type === 'string') finish(message)
+                    if (message && message.type === 'started') started = true
+                    else if (message && typeof message.type === 'string') finish(message)
                 } catch { /* not ours */ }
             }
         })
         child.on('error', (err) => finish(null, err))
-        // Closing the window (or killing the helper) without a result is the player cancelling.
-        child.on('exit', () => finish({ type: 'cancelled' }))
+        // Closing the window (or killing the helper) without a result is the player cancelling. But a helper that ends WITHOUT ever
+        // saying its window exists is Electron failing to start (a runtime with a file missing, a second helper holding the lock...):
+        // reporting that as "cancelled" made adding an account or signing out look like it did nothing.
+        child.on('exit', (code, signal) => {
+            if (started || child.empiCancelled) finish({ type: 'cancelled' })
+            else finish(null, Object.assign(new Error(`El componente que abre la ventana de Microsoft se cerró al arrancar (${code != null ? `código ${code}` : `señal ${signal}`}).`), { helperFailed: true }))
+        })
     })
 }
 

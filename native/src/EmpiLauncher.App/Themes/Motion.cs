@@ -112,6 +112,11 @@ public static class Motion
     public static void Animate(DependencyObject target, DependencyProperty property, double from, double to, double ms, double delayMs = 0, IEasingFunction? ease = null, Action? done = null)
     {
         var animatable = (IAnimatable)target;
+        // The newest animation of a property is the only one allowed to finish it. An older one that is replaced keeps its clock alive
+        // and would still raise Completed later, undoing the new one (a dialog fading out that is shown again a moment later would be
+        // left invisible). So the old clock is taken out of the timing tree, and a completion only acts if its clock is still the current one.
+        var slot = Running.GetOrCreateValue(target);
+        if (slot.Remove(property, out var older)) older.Controller?.Remove();
         animatable.ApplyAnimationClock(property, null);
         if (ms <= 0)
         {
@@ -122,14 +127,19 @@ public static class Motion
         target.SetValue(property, from);
         var animation = new DoubleAnimation(from, to, Ms(ms)) { BeginTime = TimeSpan.FromMilliseconds(delayMs), EasingFunction = ease ?? Out, FillBehavior = FillBehavior.HoldEnd };
         var clock = animation.CreateClock();
+        slot[property] = clock;
         clock.Completed += (_, _) =>
         {
+            if (!slot.TryGetValue(property, out var current) || !ReferenceEquals(current, clock)) return;   // replaced meanwhile: not ours to finish
+            slot.Remove(property);
             target.SetValue(property, to);
             animatable.ApplyAnimationClock(property, null);
             done?.Invoke();
         };
         animatable.ApplyAnimationClock(property, clock);
     }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<DependencyObject, Dictionary<DependencyProperty, AnimationClock>> Running = new();
 
     private static TranslateTransform Shift(UIElement element)
     {

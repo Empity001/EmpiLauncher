@@ -286,9 +286,9 @@ public sealed class Launcher : IAsyncDisposable
     {
         if (AuthBusy) return false;
         AuthBusy = true;
-        AuthWindow?.Invoke(true, "Termina de iniciar sesión en la ventana de Microsoft. Cuando acabes, esta pantalla continúa sola.");
         try
         {
+            ShowAuthWindow(true, "Termina de iniciar sesión en la ventana de Microsoft. Cuando acabes, esta pantalla continúa sola.");
             await Client.CallAsync<AccountList>("auth.microsoft.login", timeout: TimeSpan.FromMinutes(11));
             await RefreshConfigAsync();
             Notice?.Invoke($"Sesión iniciada como {Account?.DisplayName}.");
@@ -300,7 +300,18 @@ public sealed class Launcher : IAsyncDisposable
             Failure?.Invoke(new GameFailure("auth", ex.Title ?? "Error al iniciar sesión", ex.Message));
             return false;
         }
-        finally { AuthBusy = false; AuthWindow?.Invoke(false, ""); }
+        finally { AuthBusy = false; ShowAuthWindow(false, ""); }
+    }
+
+    /// <summary>
+    /// Tells the interface a sign-in or sign-out window is (no longer) open. Whatever the interface does with it (a dialog, a picture)
+    /// can fail, and that must never leave the launcher believing a sign-in is still in progress: while AuthBusy is set every later
+    /// attempt is silently refused, which is exactly how "I cannot sign out or add an account" looks.
+    /// </summary>
+    private void ShowAuthWindow(bool open, string text)
+    {
+        try { AuthWindow?.Invoke(open, text); }
+        catch (Exception ex) { App.Log("auth window", ex); }
     }
 
     /// <summary>Signs an account out (Microsoft accounts also clear the browser session in the helper window).</summary>
@@ -309,9 +320,9 @@ public sealed class Launcher : IAsyncDisposable
         if (AuthBusy) return false;
         AuthBusy = true;
         var microsoft = Config?.Accounts.Accounts.FirstOrDefault(a => a.Uuid == uuid)?.Type == "microsoft";
-        if (microsoft) AuthWindow?.Invoke(true, "Cierra sesión en la ventana de Microsoft. Se cerrará sola al terminar.");
         try
         {
+            if (microsoft) ShowAuthWindow(true, "Cierra sesión en la ventana de Microsoft. Se cerrará sola al terminar.");
             await Client.CallAsync<AccountList>("account.remove", new { uuid }, TimeSpan.FromMinutes(11));
             await RefreshConfigAsync();
             return true;
@@ -322,7 +333,7 @@ public sealed class Launcher : IAsyncDisposable
             Failure?.Invoke(new GameFailure("auth", ex.Title ?? "No se pudo cerrar la sesión", ex.Message));
             return false;
         }
-        finally { AuthBusy = false; if (microsoft) AuthWindow?.Invoke(false, ""); }
+        finally { AuthBusy = false; if (microsoft) ShowAuthWindow(false, ""); }
     }
 
     public Task CancelAuthAsync() => Client.CallAsync("auth.cancel");

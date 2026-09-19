@@ -51,12 +51,22 @@ function register(handlers, state) {
         try { return await fn() } finally { auth.busy = false; auth.helper = null; state.keepAlive.delete('auth') }
     }
 
+    /** Runs the helper; a helper that could not even start is an error the player is told about, never a silent "cancelled". */
+    async function helperResult(mode, options) {
+        try {
+            return await runAuthHelper(mode, { ...options, onStart: (child) => { auth.helper = child } })
+        } catch (err) {
+            state.log.error(`The ${mode} helper failed to start.`, err)
+            const error = new EngineError('auth_failed', `${err.message} Cierra el launcher y ábrelo de nuevo; si sigue igual, reinstálalo.`)
+            error.title = 'No se pudo abrir la ventana de Microsoft'
+            throw error
+        }
+    }
+
     handlers.set('auth.microsoft.login', async () => withHelper('login', async () => {
         const { ConfigManager } = ensureCore(state)
         emit('auth.progress', { stage: 'window' })
-        const result = await runAuthHelper('login', {
-            electron: state.electron, userDataDir: sessionDir(), clientId: AZURE_CLIENT_ID, onStart: (child) => { auth.helper = child }
-        })
+        const result = await helperResult('login', { electron: state.electron, userDataDir: sessionDir(), clientId: AZURE_CLIENT_ID })
         if (result.type !== 'result') throw new EngineError('cancelled', 'Cancelaste el inicio de sesión.')
 
         // Microsoft answered with an error instead of a code (usually a misconfigured app registration).
@@ -93,7 +103,7 @@ function register(handlers, state) {
         if (account.type === 'microsoft') {
             await withHelper('logout', async () => {
                 emit('auth.progress', { stage: 'logout' })
-                const result = await runAuthHelper('logout', { electron: state.electron, userDataDir: sessionDir(), onStart: (child) => { auth.helper = child } })
+                const result = await helperResult('logout', { electron: state.electron, userDataDir: sessionDir() })
                 if (result.type !== 'loggedout') throw new EngineError('cancelled', 'Cancelaste el cierre de sesión.')
             })
             await authManager().removeMicrosoftAccount(uuid)
@@ -105,7 +115,7 @@ function register(handlers, state) {
 
     /** Closes the sign-in window if it is open (the UI's cancel button). */
     handlers.set('auth.cancel', async () => {
-        if (auth.helper) { try { auth.helper.kill() } catch { /* already gone */ } }
+        if (auth.helper) { auth.helper.empiCancelled = true; try { auth.helper.kill() } catch { /* already gone */ } }
         return { cancelled: auth.helper != null }
     })
 

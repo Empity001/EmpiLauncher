@@ -329,9 +329,12 @@ public partial class HomeView : UserControl
         {
             Motion.Snap(ProgressBar, System.Windows.Controls.Primitives.RangeBase.ValueProperty, 0);
             Motion.Rise(ProgressPanel, 0, 220, 8);
-            ProgressCloud.Source = Art.Cloud(320);
-            ProgressCloud.Visibility = Visibility.Visible;
-            Motion.Snap(ProgressCloudShift, TranslateTransform.XProperty, 24);
+            if (Art.Cloud(320) is { } cloud)
+            {
+                ProgressCloud.Source = cloud;
+                ProgressCloud.Visibility = Visibility.Visible;
+                Motion.Snap(ProgressCloudShift, TranslateTransform.XProperty, 24);
+            }
         }
         else if (!game.Busy && ProgressCloud.Source != null) { ProgressCloud.Source = null; ProgressCloud.Visibility = Visibility.Collapsed; }   // the picture is let go of with the panel
         if (game.Busy)

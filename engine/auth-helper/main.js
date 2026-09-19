@@ -42,6 +42,9 @@ app.whenReady().then(() => {
         webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false }
     })
     win.removeMenu()
+    // Says "my window exists": if the helper ends without ever saying this, Electron itself failed to start, which is not the
+    // same as the player closing the window (see lib/authhelper.js).
+    process.stdout.write(JSON.stringify({ type: 'started' }) + '\n')
 
     win.on('closed', () => {
         report({ type: 'cancelled' })

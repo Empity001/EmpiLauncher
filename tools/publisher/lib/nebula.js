@@ -4,6 +4,7 @@ const { pipeline } = require('stream/promises')
 const { spawn } = require('child_process')
 const { runNode } = require('./exec')
 const { readJson, writeJson } = require('./config')
+const { normalizeRam } = require('./ram')
 
 const LOADERS = ['fabric', 'forge', 'neoforge']
 const CATEGORIES = ['required', 'optionalon', 'optionaloff']
@@ -234,32 +235,11 @@ const JAVA_OPTIONS = (major) => ({ supported: `>=${major} <${Number(major) + 1}`
 
 // ---------------------------------------------------------------- memory (javaOptions.ram)
 
-const RAM_STEP_MB = 512
-const RAM_LIMIT_MB = 128 * 1024
-
-/**
- * The memory the author asked for, in megabytes, or null. The distribution spec only has `recommended` and `minimum`; the launcher
- * also reads `maximum` (see ConfigManager: it is where a player STARTS, the player can change it afterwards), and `recommended` is
- * written equal to the maximum so an older launcher that only knows the spec starts at the same value as before.
- */
+/** The memory the author asked for (see ram.js for how it is written), in megabytes, or null. */
 function ramOf(data) {
     const ram = data && data.meta && data.meta.javaOptions && data.meta.javaOptions.ram
     if (!ram || !Number.isFinite(ram.maximum)) return null
     return { minimumMb: Number.isFinite(ram.minimum) ? ram.minimum : ram.maximum, maximumMb: ram.maximum }
-}
-
-/** { minimumMb, maximumMb } typed by a person -> what goes in servermeta.json, or throws with something they can act on. */
-function normalizeRam(input) {
-    const minimum = Number(input && input.minimumMb)
-    const maximum = Number(input && input.maximumMb)
-    if (!Number.isFinite(minimum) || !Number.isFinite(maximum)) throw new Error('Escribe la memoria mínima y la máxima en números.')
-    const snap = (mb) => Math.round(mb / RAM_STEP_MB) * RAM_STEP_MB
-    const min = snap(minimum)
-    const max = snap(maximum)
-    if (min < RAM_STEP_MB) throw new Error('La memoria mínima no puede ser menos de 0,5 GB.')
-    if (max < min) throw new Error('La memoria máxima no puede ser menor que la mínima.')
-    if (max > RAM_LIMIT_MB) throw new Error('La memoria máxima no puede pasar de 128 GB.')
-    return { recommended: max, minimum: min, maximum: max }
 }
 
 /** Edits the handful of servermeta fields the UI exposes and leaves everything else in the file alone. */

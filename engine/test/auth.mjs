@@ -2,7 +2,27 @@
 // Opens the Microsoft sign-in helper (no credentials are entered), checks that it is a separate short-lived Electron process,
 // optionally measures what it costs while open (--probe), then cancels it and checks that Chromium is gone again.
 import { execFileSync } from 'node:child_process'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 import { startEngine, check } from './harness.mjs'
+
+const here = path.dirname(fileURLToPath(import.meta.url))
+const { runAuthHelper } = createRequire(import.meta.url)(path.join(here, '..', 'src', 'lib', 'authhelper.js'))
+
+// A helper that ends without ever opening its window (plain Node stands in for a broken Electron: it cannot run the helper) must be
+// reported as a failure the player can read, never as "cancelled": that is what made adding an account or signing out look like it did
+// nothing in an installer whose Electron had a file missing.
+{
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'empi-helper-'))
+    const started = Date.now()
+    const broken = await runAuthHelper('login', { electron: process.execPath, userDataDir: scratch, clientId: 'x' }).then((value) => ({ value }), (error) => ({ error }))
+    check('a helper that dies before opening its window is an error, not a cancel', broken.error?.helperFailed === true && !broken.value, broken.error?.message ?? JSON.stringify(broken.value))
+    check('and it is reported at once, not after the ten-minute timeout', Date.now() - started < 15000, `${Date.now() - started} ms`)
+    fs.rmSync(scratch, { recursive: true, force: true })
+}
 
 const probeAt = process.argv.indexOf('--probe')
 const seconds = Number(process.argv[process.argv.indexOf('--seconds') + 1]) || 8
@@ -44,4 +64,57 @@ try {
 } finally {
     if (process.exitCode) console.log('\n--- engine output (tail) ---\n' + engine.output().slice(-3000))
     await engine.stop()
+}
+
+// (Microsoft finishes a sign-out about 6 s after its page loads, so these steps look and cancel at 3 s, not later.)
+const holdMs = 3000
+// ---- a launcher that already has a Microsoft account: signing out of it and adding another one, and being able to try again ----
+// The account is invented (never a real session) and only ever exists in a scratch folder.
+const fakeUuid = '11111111222233334444555555555555'
+const far = '2999-01-01T00:00:00.000Z'
+const seeded = await startEngine({
+    label: 'auth-existing',
+    prepare: ({ userDir }) => {
+        fs.mkdirSync(userDir, { recursive: true })
+        fs.writeFileSync(path.join(userDir, 'config.json'), JSON.stringify({
+            authenticationDatabase: { [fakeUuid]: { type: 'microsoft', accessToken: 'x', username: 'fake@example.test', uuid: fakeUuid, displayName: 'CuentaDePrueba', expiresAt: far, microsoft: { access_token: 'x', refresh_token: 'y', expires_at: far, redirect_uri: 'https://login.microsoftonline.com/common/oauth2/nativeclient' } } },
+            selectedAccount: fakeUuid
+        }))
+    }
+})
+try {
+    const listed = await seeded.call('account.list')
+    check('the seeded Microsoft account is there', listed.ok && listed.result.accounts.some((a) => a.uuid === fakeUuid), JSON.stringify(listed.result))
+
+    const signOut = seeded.call('account.remove', { uuid: fakeUuid })
+    await new Promise((r) => setTimeout(r, holdMs))
+    check('signing out opens the Microsoft window', helperPids().length === 1, `pids ${helperPids().join(',')}`)
+    await seeded.call('auth.cancel')
+    const cancelledOut = await signOut
+    check('cancelling that window is "cancelled", not a failure', cancelledOut.ok === false && cancelledOut.error.code === 'cancelled', JSON.stringify(cancelledOut.error))
+    check('and the account is still there (nothing was removed)', (await seeded.call('account.list')).result.accounts.some((a) => a.uuid === fakeUuid))
+    await new Promise((r) => setTimeout(r, 1500))
+    check('no window is left behind', helperPids().length === 0)
+
+    const addAnother = seeded.call('auth.microsoft.login')
+    await new Promise((r) => setTimeout(r, holdMs))
+    check('adding another account opens the Microsoft window even with one already saved', helperPids().length === 1, `pids ${helperPids().join(',')}`)
+    await seeded.call('auth.cancel')
+    const cancelledAdd = await addAnother
+    check('cancelling it is "cancelled"', cancelledAdd.ok === false && cancelledAdd.error.code === 'cancelled', JSON.stringify(cancelledAdd.error))
+    await new Promise((r) => setTimeout(r, 1500))
+
+    const again = seeded.call('account.remove', { uuid: fakeUuid })
+    await new Promise((r) => setTimeout(r, holdMs))
+    check('after cancelling, signing out can be tried again (the engine is not stuck as busy)', helperPids().length === 1, `pids ${helperPids().join(',')}`)
+    await seeded.call('auth.cancel')
+    await again
+    await new Promise((r) => setTimeout(r, 1500))
+    check('and again nothing is left behind', helperPids().length === 0)
+} catch (err) {
+    console.log('FAIL  ' + err.message)
+    process.exitCode = 1
+} finally {
+    if (process.exitCode) console.log('\n--- engine output (tail) ---\n' + seeded.output().slice(-3000))
+    await seeded.stop()
 }

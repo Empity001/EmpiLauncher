@@ -9,23 +9,35 @@ using EmpiLauncher.App.Themes;
 
 namespace EmpiLauncher.App.Views;
 
-/// <summary>The Publisher's halftone art (the cloud and the glitch stripes), decoded at the size it is drawn and never kept around.</summary>
+/// <summary>
+/// The Publisher's halftone art (the cloud and the glitch stripes), decoded at the size it is drawn and never kept around.
+/// It is decoration: when a picture cannot be loaded the answer is null (no picture), never an exception, because what draws it (a
+/// waiting dialog, a progress panel) does something that matters and must not fail with it.
+/// </summary>
 internal static class Art
 {
-    private static BitmapImage Load(string name, int pixelWidth)
+    private static BitmapImage? Load(string name, int pixelWidth)
     {
-        var image = new BitmapImage();
-        image.BeginInit();
-        image.UriSource = new Uri($"pack://application:,,,/Assets/Art/{name}");
-        image.DecodePixelWidth = pixelWidth;
-        image.CacheOption = BitmapCacheOption.OnLoad;
-        image.EndInit();
-        image.Freeze();
-        return image;
+        try
+        {
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.UriSource = new Uri($"pack://application:,,,/Assets/Art/{name}");
+            image.DecodePixelWidth = pixelWidth;
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.EndInit();
+            image.Freeze();
+            return image;
+        }
+        catch (Exception ex)
+        {
+            App.Log($"art {name}", ex);
+            return null;
+        }
     }
 
-    public static BitmapImage Cloud(int pixelWidth) => Load("cloud.png", pixelWidth);
-    public static BitmapImage Tear(int pixelWidth) => Load("tear.png", pixelWidth);
+    public static BitmapImage? Cloud(int pixelWidth) => Load("cloud.png", pixelWidth);
+    public static BitmapImage? Tear(int pixelWidth) => Load("tear.png", pixelWidth);
 }
 
 /// <summary>
@@ -215,9 +227,10 @@ internal sealed class SplashLayer : Grid
     public static async Task OpenAsync(Panel host, Action<Point>? lit = null)
     {
         Playing = true;
-        var layer = new SplashLayer();
+        SplashLayer? layer = null;
         try
         {
+            layer = new SplashLayer();
             host.Children.Add(layer);
             layer.UpdateLayout();
             layer.Focusable = true;
@@ -244,12 +257,15 @@ internal sealed class SplashLayer : Grid
                 Motion.Animate(layer._shift[i], TranslateTransform.XProperty, 0, (i % 2 == 0 ? -1 : 1) * width, 300, i * 5 % Bands * 12, Motion.InOut);
             await Task.Delay(520);
         }
-        catch (Exception) { /* an opening that fails is no opening: the launcher is there anyway */ }
+        catch (Exception ex) { App.Log("splash", ex); /* an opening that fails is no opening: the launcher is there anyway */ }
         finally
         {
-            ReleaseWaiting();
-            host.Children.Remove(layer);
-            layer.Release();
+            ReleaseWaiting();   // whatever happened, the screens that were waiting for the opening must not wait for ever
+            if (layer != null)
+            {
+                host.Children.Remove(layer);
+                layer.Release();
+            }
         }
     }
 
@@ -258,7 +274,7 @@ internal sealed class SplashLayer : Grid
     /// <summary>Covers the window with the mark and the bands; completes when it is time to really close it. The layer stays: the window is going away.</summary>
     public static async Task CoverAsync(Panel host)
     {
-        var layer = new SplashLayer();
+        var layer = new SplashLayer();   // if this throws, the caller closes the window without the animation (MainWindow.GoodbyeAsync)
         host.Children.Add(layer);
         layer.UpdateLayout();
         var width = layer.ActualWidth + 40;
