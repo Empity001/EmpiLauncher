@@ -169,6 +169,15 @@ route('POST', '/api/packs/:id/mods/move', async ({ req, params }) => {
     nebula.moveMod(config.load(), params.id, from, to, name)
     return { ok: true }
 })
+route('GET', '/api/packs/:id/files', ({ params }) => nebula.packFiles(config.load(), params.id))
+route('POST', '/api/packs/:id/files', async ({ req, params, query }) => {
+    await nebula.saveFile(config.load(), params.id, query.get('folder') || '', query.get('name'), req)
+    return nebula.packFiles(config.load(), params.id)
+})
+route('DELETE', '/api/packs/:id/files', ({ params, query }) => {
+    nebula.deleteFile(config.load(), params.id, query.get('folder') || '', query.get('name'))
+    return nebula.packFiles(config.load(), params.id)
+})
 route('POST', '/api/packs/:id/icon', async ({ req, params }) => {
     await nebula.saveIcon(config.load(), params.id, req)
     return { ok: true }

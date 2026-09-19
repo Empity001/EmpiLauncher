@@ -73,6 +73,20 @@
     dotHex = readDot()
     buildMix()
 
+    // How visible the whole ground is (10 to 100 %, the launcher's "Intensidad del fondo"). It fades the canvas as one piece, so a big dot
+    // still hides the small one under it, and it costs nothing per frame.
+    const OPACITY_KEY = 'empi.dotOpacity'
+    let dotOpacity = 1
+    const readOpacity = () => { try { const v = Number(localStorage.getItem(OPACITY_KEY)); return v >= 0.1 && v <= 1 ? Math.round(v * 100) / 100 : 1 } catch { return 1 } }
+    function setDotOpacity(value, persist = true) {
+        const v = Math.min(1, Math.max(0.1, Math.round(Number(value) * 100) / 100))
+        if (!Number.isFinite(v)) return
+        dotOpacity = v
+        if (canvas) canvas.style.opacity = v < 1 ? String(v) : ''
+        if (persist) { try { localStorage.setItem(OPACITY_KEY, String(v)) } catch { /* private window */ } }
+    }
+    setDotOpacity(readOpacity(), false)
+
     function size() {
         dpr = 1   // dots are soft by nature; one canvas pixel per CSS pixel keeps the raster cost down on dense screens
         W = window.innerWidth
@@ -422,7 +436,7 @@
 
     // ---------------------------------------------------------------- wiring
     if (!ctx) {
-        window.Life = { enter() {}, ink() {}, scramble() {}, burst() {}, busy() {}, refresh() {}, setDotColor() {}, dotColor: () => '#64635f', defaultDot: '#64635f' }
+        window.Life = { enter() {}, ink() {}, scramble() {}, burst() {}, busy() {}, refresh() {}, setDotColor() {}, dotColor: () => '#64635f', defaultDot: '#64635f', setDotOpacity() {}, dotOpacity: () => 1 }
         return
     }
 
@@ -432,6 +446,7 @@
         refresh: () => { lastQuiet = 0; nextProbe = 0 },
         reink: () => { for (const args of Object.values(inkArgs)) if (args[0].isConnected) ink(...args) },
         setDotColor, dotColor: () => dotHex, defaultDot: DEFAULT_DOT,
+        setDotOpacity, dotOpacity: () => dotOpacity,
         stats: () => ({ alive, pitch, cost: +cost.toFixed(2), dots: sets.reduce((n, set) => n + set.reduce((m, a) => m + a.length / 2, 0), 0) })
     }
 

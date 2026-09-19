@@ -66,8 +66,10 @@ el "modo ligero" es una condición (`performanceMode` y el `FieldGovernor`) del 
 | `node engine/test/javascan.mjs` | la búsqueda de Java nunca deja el lanzamiento esperando: primero los sitios baratos del propio disco (el Java que instaló el launcher, JAVA_HOME, Program Files), un Java que no responde se salta, la búsqueda completa tiene un límite y, si se rinde, se ofrece instalar Java; incluye una comprobación con el JDK real de la máquina |
 | `node engine/test/offline.mjs` | la regla del id sin conexión (fija, sin mayúsculas, 12 dígitos) y cómo convive con las cuentas Microsoft; sin red no se borra una sesión |
 | `node native/build/test/migration.mjs` | el instalador contra un "launcher clásico" de mentira (registro, carpeta y accesos propios): lo cierra, lo desinstala con el protocolo de electron-builder, instala en la misma carpeta, conserva accesos y datos, `--force-run`, nativo → nativo, desinstalar, carpeta ajena |
-| `node --test "tools/publisher/test/*.test.js"` | Publisher: activar/desactivar modpacks, banderas, lectura de lo que dejó la compilación del launcher |
-| `native/tools/shot.ps1` | maneja la interfaz por UI Automation y guarda capturas (y mide con `-Probe`) |
+| `node engine/test/ram.mjs` | la memoria que fija el autor de un modpack (`javaOptions.ram`, mínima y máxima): el jugador nuevo empieza ahí, quien ya tenía el modpack la recibe una vez cuando el autor la cambia, lo que el jugador toque después es suyo, nunca más de lo que da el equipo ni menos de 512 MB, y un modpack con solo los números del spec no cambia |
+| `node --test "tools/publisher/test/*.test.js"` | Publisher: activar/desactivar modpacks, banderas, lectura de lo que dejó la compilación del launcher, memoria por modpack (redondeo a 512 MB, errores con motivo, no se pierde al cambiar de Java) y la carpeta `files` (shaders, resource packs, configs; rutas que se escapan, archivos de Apariencia) |
+| `dotnet run -c Release --project native/tools/MotionCheck` | las animaciones con el reloj real: un botón ya se mueve a los 50 ms, cambiar de idea a mitad continúa desde donde estaba, un interruptor creado encendido no se desliza, lo que espera su turno no parpadea, las curvas son las de CSS (`native/tools/MotionCheck/README.md`) |
+| `native/tools/shot.ps1` | maneja la interfaz por UI Automation y guarda capturas (y mide con `-Probe`); también `burst` (varias capturas seguidas para ver una animación a medias), `wheel` y `range` |
 
 Todas las pruebas usan carpetas temporales (`--user-data` y `--data-dir`): ninguna toca la instalación real.
 

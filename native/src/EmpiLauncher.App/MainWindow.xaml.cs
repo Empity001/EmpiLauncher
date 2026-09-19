@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using EmpiLauncher.App.Services;
+using EmpiLauncher.App.Themes;
 using EmpiLauncher.App.Views;
 using EmpiLauncher.Ipc;
 
@@ -87,8 +88,10 @@ public partial class MainWindow : Window
     private void OnUpdateChanged()
     {
         var update = _l.Update;
+        var appearing = update != null && UpdateButton.Visibility != Visibility.Visible;
         UpdateButton.Visibility = update == null ? Visibility.Collapsed : Visibility.Visible;
         if (update != null) UpdateButton.Content = $"NUEVA VERSIÓN {update.Version}";
+        if (appearing) Motion.Pop(UpdateButton, new Point(0, 0.5), 240, 0.9);   // news: it arrives, it does not just appear
     }
 
     /// <summary>The question "install the new version now?" (also reachable from the About tab).</summary>
@@ -190,6 +193,7 @@ public partial class MainWindow : Window
         if (generation != _backdropGeneration) return;
         Backdrop.Source = image;
         Backdrop.Visibility = BackdropScrim.Visibility = image == null ? Visibility.Collapsed : Visibility.Visible;
+        if (image != null) Motion.Animate(Backdrop, OpacityProperty, 0, 1, 280);   // the picture arrives when it has been decoded: it fades in instead of popping in
     }
 
     /// <summary>Whatever the player just did touched memory: give it back after a quiet moment (mouse moves postpone it).</summary>
@@ -213,15 +217,30 @@ public partial class MainWindow : Window
 
     // ---- toast and dialog -----------------------------------------------------------------------------------------
 
+    private bool _toastLeaving;
+
+    /// <summary>
+    /// A toast rises into place from below (220 ms) and goes back down (160 ms). One that is already up only changes its text and
+    /// restarts its timer: nothing replays, so messages that come one after another do not make it flicker.
+    /// </summary>
     public void ShowToast(string text)
     {
         ToastText.Text = text;
+        var appearing = Toast.Visibility != Visibility.Visible || _toastLeaving;
+        _toastLeaving = false;
         Toast.Visibility = Visibility.Visible;
+        if (appearing) Motion.Rise(Toast, 0, 220, 12);
         _toastTimer.Stop();
         _toastTimer.Start();
     }
 
-    private void HideToast() { _toastTimer.Stop(); Toast.Visibility = Visibility.Collapsed; }
+    private void HideToast()
+    {
+        _toastTimer.Stop();
+        if (Toast.Visibility != Visibility.Visible || _toastLeaving) return;
+        _toastLeaving = true;
+        Motion.Leave(Toast, () => { if (!_toastLeaving) return; _toastLeaving = false; Toast.Visibility = Visibility.Collapsed; }, 160, 8);
+    }
 
     /// <summary>Buttons are (label, action, primary). The dialog closes when any of them is pressed; dialogs queue up if several arrive.</summary>
     public void ShowDialog(string title, string message, params (string Label, Action? Action, bool Primary)[] buttons)
@@ -237,7 +256,11 @@ public partial class MainWindow : Window
             button.Click += (_, _) => { CloseDialog(); action?.Invoke(); };
             DialogButtons.Children.Add(button);
         }
+        DialogLayer.IsHitTestVisible = true;
         DialogLayer.Visibility = Visibility.Visible;
+        // a modal is not attached to anything, so it grows from its own centre: the backdrop fades in (160 ms) while the panel settles from 96 % (220 ms)
+        Motion.Animate(DialogLayer, OpacityProperty, 0, 1, 160);
+        Motion.Pop(DialogPanel, new Point(0.5, 0.5), 220, 0.96, fade: false);
         if (DialogButtons.Children.Count > 0) ((Button)DialogButtons.Children[^1]).Focus();
     }
 
@@ -428,9 +451,16 @@ public partial class MainWindow : Window
         DialogInput.MaxLength = 16;
         if (_linkClick != null) { DialogLink.Click -= _linkClick; _linkClick = null; }
         DialogLink.Visibility = Visibility.Collapsed;
-        DialogLayer.Visibility = Visibility.Collapsed;
         _dialogOpen = false;
-        if (_dialogQueue.Count > 0) _dialogQueue.Dequeue()();
+        if (_dialogQueue.Count > 0)
+        {
+            DialogLayer.Visibility = Visibility.Collapsed;   // the next question is already waiting: no fade out and in between them
+            _dialogQueue.Dequeue()();
+            return;
+        }
+        // leaving is quicker than arriving (the player has already answered), and the buttons stop answering at once
+        DialogLayer.IsHitTestVisible = false;
+        Motion.Leave(DialogLayer, () => { if (!_dialogOpen) DialogLayer.Visibility = Visibility.Collapsed; }, 120);
     }
 
     // ---- window ---------------------------------------------------------------------------------------------------

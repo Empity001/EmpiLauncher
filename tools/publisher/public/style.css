@@ -925,3 +925,32 @@ dialog { border-radius: 24px; border: 1px solid var(--hair-strong); }
 .pk-reset { padding: 7px 12px; font-size: 12px; }
 .pk-presets { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 10px; }
 @media (prefers-reduced-motion: reduce) { .swatch { transition: none; } .swatch:active { transform: none; } .picker { animation: none; } }
+
+/* ------------------------------------------------------------ the ground's intensity (Ajustes): a slider like the launcher's */
+.range-row { display: flex; align-items: center; gap: 14px; }
+.range-row output { min-width: 4.5ch; text-align: right; font: 600 14px var(--font-ui); color: var(--text); }
+input[type=range] {
+    -webkit-appearance: none; appearance: none; flex: 1; min-width: 0; height: 28px; margin: 0; padding: 0; border: 0; background: none; box-shadow: none; cursor: pointer;
+    --fill: 100%;
+}
+input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--accent) var(--fill), rgb(255 255 255 / .1) var(--fill)); }
+input[type=range]::-moz-range-track { height: 6px; border-radius: 3px; background: rgb(255 255 255 / .1); }
+input[type=range]::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--accent); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; margin-top: -7px; border-radius: 50%; background: var(--text); border: 3px solid var(--bg); transition: transform .12s var(--ease-out); }
+input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--text); border: 3px solid var(--bg); }
+input[type=range]:active::-webkit-slider-thumb { transform: scale(1.12); }
+input[type=range]:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; box-shadow: none; }
+@media (prefers-reduced-motion: reduce) { input[type=range]::-webkit-slider-thumb { transition: none; } input[type=range]:active::-webkit-slider-thumb { transform: none; } }
+
+/* ------------------------------------------------------------ memory (Ajustes of a modpack) and the files folder */
+.ram-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 14rem)) auto; justify-content: start; gap: 16px; align-items: end; margin-top: 14px; }
+.ram-hint { display: block; margin-top: 12px; font-family: var(--font-ui); }
+.ram-hint.warn { color: var(--warn); }
+.ram-hint.bad { color: var(--danger); }
+.entry.file { display: inline-flex; align-items: center; gap: 6px; }
+.entry.file small { color: var(--text-3); font-size: 11px; }
+.entry.file button { display: grid; place-items: center; width: 18px; height: 18px; padding: 0; margin-right: -6px; background: none; border: 0; border-radius: 50%; color: var(--text-3); cursor: pointer; transition: color .12s var(--ease), background .12s var(--ease); }
+.entry.file button:hover { color: var(--danger); background: rgb(255 255 255 / .06); }
+.entry.file button .i { width: 12px; height: 12px; }
+.entry.managed { border-style: dashed; }
+@media (max-width: 720px) { .ram-fields { grid-template-columns: minmax(0, 1fr); } }

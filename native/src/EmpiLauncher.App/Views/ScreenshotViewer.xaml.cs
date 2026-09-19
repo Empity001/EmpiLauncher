@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
+using EmpiLauncher.App.Themes;
 
 namespace EmpiLauncher.App.Views;
 
@@ -27,7 +28,7 @@ public partial class ScreenshotViewer : UserControl
         PrevButton.Click += (_, _) => Move(-1);
         NextButton.Click += (_, _) => Move(1);
         OpenFolderButton.Click += (_, _) => Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{_shots[_index].Path}\"") { UseShellExecute = true });
-        Loaded += (_, _) => { Focus(); Show(); };
+        Loaded += (_, _) => { Focus(); Motion.Animate(this, OpacityProperty, 0, 1, 180); Show(); };
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Key.Escape) { Close(); e.Handled = true; }
@@ -54,6 +55,7 @@ public partial class ScreenshotViewer : UserControl
         var image = await Task.Run(() => Decode(shot.Path, width));
         if (generation != _generation) return;   // the player already moved on
         Picture.Source = image;
+        Motion.Animate(Picture, OpacityProperty, 0.2, 1, 120);   // a picture that took a moment to decode settles in instead of popping in
     }
 
     private double VisualTreeHelperDpi() => System.Windows.Media.VisualTreeHelper.GetDpi(this).DpiScaleX;

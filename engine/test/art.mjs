@@ -60,6 +60,14 @@ try {
     check('ui.set persists a valid value', set.ok && (await engine.call('ui.get')).result.fieldMode === 'always')
     const bad = await engine.call('ui.set', { key: 'fieldMode', value: 'sometimes' })
     check('ui.set refuses an invalid value', bad.ok === false && bad.error.code === 'bad_key')
+    check('ui.get defaults the background to full intensity', prefs.result.dotOpacity === 1, JSON.stringify(prefs.result))
+    const dim = await engine.call('ui.set', { key: 'dotOpacity', value: 0.334 })
+    check('ui.set keeps the background intensity to two decimals', dim.ok && (await engine.call('ui.get')).result.dotOpacity === 0.33, JSON.stringify(dim.result))
+    for (const value of [0.05, 1.5, '0.5', null, Number.NaN]) {
+        const refused = await engine.call('ui.set', { key: 'dotOpacity', value })
+        check(`ui.set refuses a background intensity of ${JSON.stringify(value)}`, refused.ok === false && refused.error.code === 'bad_key')
+    }
+    check('the other preferences are untouched by it', (await engine.call('ui.get')).result.fieldMode === 'always')
 } catch (err) {
     console.log('FAIL  ' + err.message)
     process.exitCode = 1

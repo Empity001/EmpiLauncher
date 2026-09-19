@@ -6,6 +6,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Shapes;
+using EmpiLauncher.App.Themes;
 
 namespace EmpiLauncher.App.Views;
 
@@ -185,19 +186,15 @@ internal sealed class ColorPicker : Border
         return Color.FromRgb((byte)Math.Round((r + m) * 255), (byte)Math.Round((g + m) * 255), (byte)Math.Round((b + m) * 255));
     }
 
-    /// <summary>Opens the picker under an element, in a popup that closes when the player clicks elsewhere. It fades and settles in quickly (ease-out, 150 ms) unless Windows animations are off.</summary>
+    /// <summary>
+    /// Opens the picker under an element, in a popup that closes when the player clicks elsewhere. It grows from the corner nearest the
+    /// swatch (a popover comes out of what opened it) and fades in, in 160 ms, on the launcher's ease-out.
+    /// </summary>
     public static Popup Show(FrameworkElement anchor, ColorPicker picker)
     {
-        var host = new Border { Margin = new Thickness(6, 4, 30, 34), Child = picker, RenderTransformOrigin = new Point(0.1, 0), RenderTransform = new ScaleTransform(1, 1), Opacity = 1 };
+        var host = new Border { Margin = new Thickness(6, 4, 30, 34), Child = picker };
         var popup = new Popup { AllowsTransparency = true, StaysOpen = false, Placement = PlacementMode.Bottom, PlacementTarget = anchor, Child = host, PopupAnimation = PopupAnimation.None };
-        popup.Opened += (_, _) =>
-        {
-            if (!SystemParameters.ClientAreaAnimation) return;
-            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
-            host.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(150)) { EasingFunction = ease });
-            ((ScaleTransform)host.RenderTransform).BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(0.96, 1, TimeSpan.FromMilliseconds(150)) { EasingFunction = ease });
-            ((ScaleTransform)host.RenderTransform).BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0.96, 1, TimeSpan.FromMilliseconds(150)) { EasingFunction = ease });
-        };
+        popup.Opened += (_, _) => Motion.Pop(host, new Point(0.1, 0), 160, 0.96);
         popup.IsOpen = true;
         return popup;
     }

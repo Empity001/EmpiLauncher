@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using EmpiLauncher.App.Services;
+using EmpiLauncher.App.Themes;
 using EmpiLauncher.App.Views.Tabs;
 
 namespace EmpiLauncher.App.Views;
@@ -38,7 +39,14 @@ public partial class SettingsView : UserControl
             pill.Checked += async (_, _) => await ShowAsync(tab);
             Tabs.Children.Add(pill);
         }
-        Loaded += async (_, _) => { LivingField.Quiet.Add(Header); await ShowAsync(tabs.First(t => t.Id == initialTab)); };
+        Loaded += async (_, _) =>
+        {
+            LivingField.Quiet.Add(Header);
+            // the screen arrives: the header settles in and the title tears once (the same glitch the Publisher plays on a new selection)
+            Motion.Rise(Header, 0, 220, 8);
+            Motion.Tear(TitleText);
+            await ShowAsync(tabs.First(t => t.Id == initialTab));
+        };
         Unloaded += (_, _) => LivingField.Quiet.Remove(Header);
     }
 
@@ -49,8 +57,17 @@ public partial class SettingsView : UserControl
         _current = tab;
         var token = ++_loadToken;
         TabHost.Content = tab.Root;
+        // Nothing of the previous visit to this tab shows while it loads: the content arrives (a block after another) instead of flashing old and then new.
+        tab.Root.Opacity = 0;
         Scroller.ScrollToTop();
-        try { await tab.LoadAsync(); }
+        var load = tab.LoadAsync();
+        await Task.WhenAny(load, Task.Delay(600));   // a slow tab is shown as it is, and keeps filling in
+        if (token == _loadToken)
+        {
+            tab.Root.Opacity = 1;
+            Motion.Reveal(Motion.ChildrenOf(tab.Root), 40, 0, 220, 8);
+        }
+        try { await load; }
         catch (Exception ex)
         {
             if (token == _loadToken) tab.Root.Children.Add(Ui.Text("No se pudo cargar esta pestaña: " + ex.Message, "CaptionText", Ui.Res("DangerBrush")));

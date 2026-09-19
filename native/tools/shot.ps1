@@ -64,6 +64,25 @@ foreach ($step in $Steps.Split(';')) {
         'wait'  { Start-Sleep -Milliseconds ([int]([double]$arg * 1000)) }
         'shot'  { Save-Shot $arg }
         'click' { Click-Named $arg }
+        # range:<automation name>=<value>  sets a slider through UI Automation (raises ValueChanged like dragging does)
+        'range' {
+            $name, $val = $arg.Split('=', 2)
+            $cond = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::NameProperty), $name
+            $el = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cond)
+            $pattern = $null
+            if ($null -ne $el -and $el.TryGetCurrentPattern([System.Windows.Automation.RangeValuePattern]::Pattern, [ref]$pattern)) { $pattern.SetValue([double]$val) } else { Write-Host "range: '$name' not found or not a slider" }
+        }
+        # wheel:<x>,<y>,<ticks>  turns the mouse wheel at x,y inside the window (negative ticks scroll down, 120 units per tick)
+        'wheel' {
+            $p = $arg.Split(','); $r = New-Object Win+RECT; [void][Win]::GetWindowRect($hwnd, [ref]$r)
+            [void][Win]::SetCursorPos($r.L + [int]$p[0], $r.T + [int]$p[1]); Start-Sleep -Milliseconds 80
+            for ($i = 0; $i -lt [math]::Abs([int]$p[2]); $i++) { [Win]::mouse_event(0x0800, 0, 0, [BitConverter]::ToUInt32([BitConverter]::GetBytes([int](120 * [math]::Sign([int]$p[2]))), 0), [UIntPtr]::Zero); Start-Sleep -Milliseconds 30 }
+        }
+        # burst:<name>:<count>:<ms>  <count> shots <ms> apart (name-0, name-1, ...), to catch an animation part-way; each shot itself takes ~40-80 ms
+        'burst' {
+            $bn, $bc, $bm = $arg.Split(':')
+            for ($i = 0; $i -lt [int]$bc; $i++) { Save-Shot "$bn-$i"; if ($i -lt [int]$bc - 1) { Start-Sleep -Milliseconds ([int]$bm) } }
+        }
         # screen:<name>  what is on the screen where the window is (PrintWindow cannot see popups, which are windows of their own)
         'screen' {
             $r = New-Object Win+RECT; [void][Win]::GetWindowRect($hwnd, [ref]$r)

@@ -9,7 +9,7 @@
         </Grid.ColumnDefinitions>
 
         <!-- rail: the modpacks ("versiones") -->
-        <Border Style="{StaticResource Module}" Padding="14,16,10,14">
+        <Border x:Name="RailModule" Style="{StaticResource Module}" Padding="14,16,10,14">
             <DockPanel>
                 <DockPanel DockPanel.Dock="Top" Margin="6,0,10,12">
                     <Border DockPanel.Dock="Right" Style="{StaticResource Pill}"><TextBlock x:Name="RailCount" Style="{StaticResource LabelText}" FontSize="11"/></Border>
@@ -36,7 +36,7 @@
                 <TextBlock x:Name="PackTitle" Style="{StaticResource DisplayText}" FontSize="46" TextWrapping="Wrap" TextTrimming="None" LineHeight="50"/>
                 <TextBlock x:Name="PackDescription" Style="{StaticResource BodyText}" Foreground="{StaticResource Paper2Brush}" Margin="0,12,0,0" MaxWidth="560" HorizontalAlignment="Left"/>
 
-                <Border Style="{StaticResource Module}" Margin="0,28,0,0" MaxWidth="560" HorizontalAlignment="Left" Padding="20,16">
+                <Border x:Name="FactsModule" Style="{StaticResource Module}" Margin="0,28,0,0" MaxWidth="560" HorizontalAlignment="Left" Padding="20,16">
                     <UniformGrid x:Name="Facts" Columns="4"/>
                 </Border>
 
@@ -53,7 +53,7 @@
             </StackPanel>
 
             <!-- the dock: account, settings and the main action -->
-            <Border Grid.Row="1" CornerRadius="{StaticResource RadiusDock}" Background="#F20E0F11" BorderBrush="{StaticResource HairBrush}" BorderThickness="1" Padding="14,12">
+            <Border x:Name="Dock" Grid.Row="1" CornerRadius="{StaticResource RadiusDock}" Background="#F20E0F11" BorderBrush="{StaticResource HairBrush}" BorderThickness="1" Padding="14,12">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -80,7 +80,10 @@
                             <Grid.Clip><RectangleGeometry x:Name="PlayClip" Rect="0,0,340,52" RadiusX="26" RadiusY="26"/></Grid.Clip>
                             <Button x:Name="PlayButton" Style="{StaticResource PrimaryButton}" Padding="0" Height="52" HorizontalContentAlignment="Stretch">
                                 <Grid>
-                                    <Border x:Name="PlayFill" HorizontalAlignment="Left" Width="0" Background="{DynamicResource AccentBrush}" Visibility="Collapsed"/>
+                                    <!-- the progress fill is as wide as the button and grows by scaling from its left edge (a transform, not a layout change) -->
+                                    <Border x:Name="PlayFill" HorizontalAlignment="Left" Width="340" Background="{DynamicResource AccentBrush}" Visibility="Collapsed" RenderTransformOrigin="0,0.5">
+                                        <Border.RenderTransform><ScaleTransform x:Name="PlayFillScale" ScaleX="0"/></Border.RenderTransform>
+                                    </Border>
                                     <TextBlock x:Name="PlayLabel" Style="{StaticResource DisplayText}" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                Foreground="{DynamicResource AccentInkBrush}"/>
                                 </Grid>

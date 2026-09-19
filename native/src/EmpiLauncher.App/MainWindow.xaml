@@ -59,7 +59,7 @@
 
         <!-- dialog: a question or a failure that needs an answer -->
         <Grid x:Name="DialogLayer" Grid.RowSpan="2" Visibility="Collapsed" Background="#B3060607">
-            <Border Style="{StaticResource Module}" Background="#FF111114" Width="480" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="28,24">
+            <Border x:Name="DialogPanel" Style="{StaticResource Module}" Background="#FF111114" Width="480" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="28,24">
                 <StackPanel>
                     <TextBlock x:Name="DialogTitle" Style="{StaticResource DisplayText}" FontSize="24" TextWrapping="Wrap" TextTrimming="None"/>
                     <TextBlock x:Name="DialogMessage" Style="{StaticResource BodyText}" Foreground="{StaticResource Paper2Brush}" Margin="0,12,0,0"/>

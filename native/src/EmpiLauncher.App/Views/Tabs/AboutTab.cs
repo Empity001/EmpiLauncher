@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using EmpiLauncher.App.Services;
+using EmpiLauncher.App.Themes;
 using EmpiLauncher.Ipc;
 
 namespace EmpiLauncher.App.Views.Tabs;
@@ -14,6 +15,7 @@ namespace EmpiLauncher.App.Views.Tabs;
 internal sealed class AboutTab : SettingsTab
 {
     private readonly Launcher _l = Launcher.Instance;
+    private readonly Ui.Debounce _opacitySave = new(350);
     public override string Id => "about";
     public override string Title => "Launcher";
 
@@ -54,11 +56,10 @@ internal sealed class AboutTab : SettingsTab
             engine.Text = $"{memory.RssMB:0} MB";
         }
         catch (EngineException) { ui.Text = engine.Text = "sin datos"; }
-
-        var about = Ui.Section(null, out var a);
-        a.Children.Add(Ui.Text("La interfaz es nativa de Windows. La lógica de descarga, verificación y lanzamiento es la misma del launcher clásico, ejecutada en un motor aparte sin Chromium.", "CaptionText"));
-        Root.Children.Add(about);
     }
+
+    /// <summary>The opacity slider sends every step to the screen at once but saves once it stops.</summary>
+    public override void Release() => _opacitySave.Flush();
 
     private Task Set(string key, object value) => _l.Client.CallAsync("config.set", new { key, value });
 
@@ -86,6 +87,7 @@ internal sealed class AboutTab : SettingsTab
                 status.Text = notes.Entries.Count > 1 ? $"Hay {notes.Entries.Count} versiones nuevas hasta la {_l.Update.Version}." : $"Hay una versión nueva: {_l.Update.Version}.";
                 foreach (var entry in notes.Entries) trail.Children.Add(TrailEntry(entry));
                 if (notes.Entries.Count == 0) trail.Children.Add(Ui.Text("No se pudieron leer las notas de las versiones, pero la actualización está disponible.", "CaptionText"));
+                Motion.Reveal(Motion.ChildrenOf(trail), 40, 0, 220, 8);   // the trail of versions arrives one by one, newest first
                 if (askDialog) ((MainWindow)Application.Current.MainWindow).ShowUpdateDialog();
             }
             else status.Text = notes.Reason == "offline" && _l.Update == null ? "Tienes la última versión, o no hay conexión para comprobarlo." : "Tienes la última versión.";
@@ -183,7 +185,33 @@ internal sealed class AboutTab : SettingsTab
         status.Margin = new Thickness(0, 4, 0, 0);
         body.Children.Add(status);
         body.Children.Add(Ui.Row("Color de los puntos y las ondas", "El gris es el de siempre. Elige uno de la lista o crea el tuyo. Cuando una onda del color del modpack se cruza con la tuya, los puntos se mezclan.", DotColorChoice()));
+        body.Children.Add(Ui.Row("Intensidad del fondo", "Baja el porcentaje para un fondo más calmado. Los puntos y las ondas se ven más tenues, sin cambiar cómo se mueven.", DotOpacityChoice()));
         return section;
+    }
+
+    /// <summary>A slider from 10 to 100 %. The background follows it live; the value is saved when the slider stops.</summary>
+    private FrameworkElement DotOpacityChoice()
+    {
+        var slider = new Slider
+        {
+            Style = (Style)Application.Current.FindResource("RangeSlider"), Minimum = 10, Maximum = 100, SmallChange = 5, LargeChange = 10,
+            TickFrequency = 5, IsSnapToTickEnabled = true, Width = 190, Value = Math.Round(Math.Clamp(_l.Prefs.DotOpacity ?? 1, 0.1, 1) * 100 / 5) * 5
+        };
+        System.Windows.Automation.AutomationProperties.SetName(slider, "Deslizador de intensidad del fondo");   // not the row's own words: the title is a different element
+        // the value in the readable face: the dot-matrix face draws its percent sign like an X at this size
+        var value = Ui.Text($"{slider.Value:0} %", "BodyText", null, 16);
+        value.FontWeight = FontWeights.SemiBold; value.MinWidth = 56; value.TextAlignment = TextAlignment.Right; value.VerticalAlignment = VerticalAlignment.Center; value.Margin = new Thickness(10, 0, 0, 0);
+        slider.ValueChanged += (_, _) =>
+        {
+            value.Text = $"{slider.Value:0} %";
+            var opacity = slider.Value / 100;
+            _l.PreviewDotOpacity(opacity);
+            _opacitySave.Run(() => _ = _l.SetDotOpacityAsync(opacity));
+        };
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        row.Children.Add(slider);
+        row.Children.Add(value);
+        return row;
     }
 
     private const string DefaultDots = "#64635f";

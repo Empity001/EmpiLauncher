@@ -109,8 +109,8 @@ public sealed record ValidResult(bool Valid);
 /// <summary>Small still images of a modpack's art (cached by the engine); null where there is none or it is too big to fetch.</summary>
 public sealed record ArtResult(string ServerId, string? Banner, string? Background);
 
-/// <summary>Preferences only the native interface has. FieldMode: auto | always | off. DotColor: #rrggbb of the field's dots.</summary>
-public sealed record UiPrefs(string FieldMode, string? DotColor = null);
+/// <summary>Preferences only the native interface has. FieldMode: auto | always | off. DotColor: #rrggbb of the field's dots. DotOpacity: 0.1 to 1, how visible the whole field is.</summary>
+public sealed record UiPrefs(string FieldMode, string? DotColor = null, double? DotOpacity = null);
 
 /// <summary>Answer of update.check. Reason is set when nothing is offered: no_channel (nothing published), bad_channel, offline.</summary>
 public sealed record UpdateInfo(bool Available, string? Current, string? Version, string? Installer, string? Sha512, long? Size, string? Page, string? Reason);

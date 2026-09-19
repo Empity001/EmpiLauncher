@@ -130,4 +130,15 @@
     panel.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !panel.hidden) { event.stopPropagation(); event.preventDefault(); toggle(false); custom.focus() } })
 
     mark()
+
+    // How visible the dots are: a slider from 10 to 100 %. The ground follows it while it moves and keeps it (in this browser) when it stops.
+    const slider = document.getElementById('dotOpacity')
+    const readout = document.getElementById('dotOpacityValue')
+    if (slider) {
+        const show = () => { readout.textContent = `${slider.value} %`; slider.style.setProperty('--fill', `${((slider.value - slider.min) / (slider.max - slider.min)) * 100}%`) }
+        slider.value = String(Math.round(life.dotOpacity() * 100))
+        show()
+        slider.addEventListener('input', () => { life.setDotOpacity(slider.value / 100, false); show() })
+        slider.addEventListener('change', () => life.setDotOpacity(slider.value / 100, true))
+    }
 })()

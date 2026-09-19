@@ -49,7 +49,11 @@ Los avisos de la barra superior te dicen si falta algo. Las rutas se pueden camb
 
 ## Ficha de cada modpack
 
-- **Ajustes**: nombre, versión, IP, Java, opciones y Discord (Rich Presence).
+- **Ajustes**: nombre, versión, IP, Java, opciones, **Memoria** y Discord (Rich Presence). En **Memoria** pones la RAM
+  mínima y máxima (en GB, de 0,5 en 0,5) con la que empieza un jugador que abre el modpack; se guarda en
+  `servermeta.json` (`javaOptions.ram`, con `recommended` igual a la máxima para los launchers antiguos). Cada jugador
+  puede cambiarla luego en Ajustes › Java, y si cambias los números aquí la reciben una sola vez al actualizar.
+  Nunca se pasa de lo que el equipo del jugador puede dar.
 - **Apariencia**: icono, color de acento, fondo y banner (con su vista previa ligera opcional). Las imágenes van
   a la carpeta `files` con los nombres que busca el launcher; si pesan más de 40 MB, **Enviar** las sube solas a un Release.
 - **Protección**: un explorador de los archivos del modpack donde marcas cada carpeta o archivo como
@@ -58,4 +62,10 @@ Los avisos de la barra superior te dicen si falta algo. Las rutas se pueden camb
   guardan en `servermeta.json` (`protection`) y se ven también en la lista "Reglas". "Volver a entregar" hace que
   todos reciban de nuevo los archivos libres. Los jugadores con un launcher anterior a esta función siguen viendo todo
   como protegido.
-- **Mods** y **Archivos**: como antes.
+- **Mods**: arrastra los `.jar` a Obligatorios / Opcional activado / Opcional apagado.
+- **Archivos**: todo lo que no es un mod y se copia al Minecraft de cada jugador. Tres columnas con su propio sitio
+  (**Shaders** `.zip` en `shaderpacks`, **Resource packs** `.zip` en `resourcepacks` y **Configuraciones** en `config`),
+  cada una con arrastrar y soltar, el **+** y quitar; debajo, **Otros archivos** (`options.txt`, `servers.dat`, datapacks…).
+  El fondo, el banner y el color siguen en Apariencia. El botón de arriba abre la carpeta `files` en el Explorador.
+- **Ajustes del Publisher** (⚙): además del color de los puntos del fondo, su **intensidad** (10 a 100 %). Se guarda en
+  el navegador, como el color.

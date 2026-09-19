@@ -73,7 +73,27 @@ exports.getAbsoluteMaxRAM = function(_ram){
     return Math.floor((mem-(gT16 > 0 ? (Number.parseInt(gT16/8) + (16*1073741824)/4) : mem/4))/1073741824)
 }
 
-function resolveSelectedRAM(ram) {
+/**
+ * The memory a modpack asks for, when its author (through the Publisher) gave both ends: { min, max } in megabytes, or null.
+ * These are where a player STARTS: the player can change them afterwards in Ajustes > Java. A modpack that only carries the
+ * distribution spec's own `recommended`/`minimum` (no `maximum`) keeps behaving exactly as before.
+ * Never above what this machine can give (the sliders' own ceiling) and never a minimum above the maximum.
+ */
+function packRam(ram) {
+    if(ram == null || !Number.isFinite(ram.maximum) || ram.maximum <= 0) {
+        return null
+    }
+    const ceiling = exports.getAbsoluteMaxRAM(ram) * 1024
+    const max = Math.max(512, Math.min(ram.maximum, ceiling))
+    const min = Math.max(512, Math.min(Number.isFinite(ram.minimum) ? ram.minimum : max, max))
+    return { min, max }
+}
+
+function resolveSelectedRAM(ram, which) {
+    const asked = which != null ? packRam(ram) : null
+    if(asked != null) {
+        return `${which === 'min' ? asked.min : asked.max}M`
+    }
     if(ram?.recommended != null) {
         return `${ram.recommended}M`
     } else {
@@ -642,8 +662,9 @@ function defaultJavaConfig(effectiveJavaOptions, ram) {
 
 function defaultJavaConfig8(ram) {
     return {
-        minRAM: resolveSelectedRAM(ram),
-        maxRAM: resolveSelectedRAM(ram),
+        minRAM: resolveSelectedRAM(ram, 'min'),
+        maxRAM: resolveSelectedRAM(ram, 'max'),
+        ...packRamMark(ram),
         executable: null,
         jvmOptions: [
             '-XX:+UseConcMarkSweepGC',
@@ -656,8 +677,9 @@ function defaultJavaConfig8(ram) {
 
 function defaultJavaConfig17(ram) {
     return {
-        minRAM: resolveSelectedRAM(ram),
-        maxRAM: resolveSelectedRAM(ram),
+        minRAM: resolveSelectedRAM(ram, 'min'),
+        maxRAM: resolveSelectedRAM(ram, 'max'),
+        ...packRamMark(ram),
         executable: null,
         jvmOptions: [
             '-XX:+UnlockExperimentalVMOptions',
@@ -679,7 +701,30 @@ function defaultJavaConfig17(ram) {
 exports.ensureJavaConfig = function(serverid, effectiveJavaOptions, ram) {
     if(!Object.prototype.hasOwnProperty.call(config.javaConfig, serverid)) {
         config.javaConfig[serverid] = defaultJavaConfig(effectiveJavaOptions, ram)
+    } else {
+        applyPackRam(config.javaConfig[serverid], ram)
     }
+}
+
+/** Which memory setting of a modpack a Java config was last set from (null when the modpack sets none). */
+function packRamMark(ram) {
+    const asked = packRam(ram)
+    return asked != null ? { packRam: `${asked.min}-${asked.max}` } : {}
+}
+
+/**
+ * When the author of a modpack changes its memory (Publisher > Ajustes > Memoria), players who already have the modpack get the new
+ * values once. What they change afterwards is theirs: nothing is applied again until the author changes the numbers again.
+ */
+function applyPackRam(javaConfig, ram) {
+    const asked = packRam(ram)
+    const mark = asked != null ? `${asked.min}-${asked.max}` : null
+    if(mark == null || javaConfig.packRam === mark) {
+        return
+    }
+    javaConfig.minRAM = `${asked.min}M`
+    javaConfig.maxRAM = `${asked.max}M`
+    javaConfig.packRam = mark
 }
 
 /**

@@ -169,6 +169,19 @@ public sealed class Launcher : IAsyncDisposable
         PrefsChanged?.Invoke();
     }
 
+    /// <summary>Shows a background opacity right away (while the slider is dragged) without saving it; SetDotOpacityAsync saves.</summary>
+    public void PreviewDotOpacity(double opacity)
+    {
+        Prefs = Prefs with { DotOpacity = opacity };
+        PrefsChanged?.Invoke();
+    }
+
+    public async Task SetDotOpacityAsync(double opacity)
+    {
+        Prefs = await Client.CallAsync<UiPrefs>("ui.set", new { key = "dotOpacity", value = Math.Round(Math.Clamp(opacity, 0.1, 1), 2) });
+        PrefsChanged?.Invoke();
+    }
+
     public async Task SetFieldModeAsync(string mode)
     {
         Prefs = await Client.CallAsync<UiPrefs>("ui.set", new { key = "fieldMode", value = mode });

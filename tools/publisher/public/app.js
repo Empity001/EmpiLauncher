@@ -50,6 +50,7 @@ const state = {
     protectionOpen: new Set(),
     protectionFilter: '',
     visuals: null,
+    files: null,
     packsStatus: { compiled: null, stale: false },
     launcher: null,
     launcherChoice: 'patch',
@@ -459,6 +460,7 @@ async function selectPack(id) {
     state.protectionOpen = new Set()
     state.protectionFilter = ''
     state.visuals = null
+    state.files = null
     try { state.pack = await api(`/api/packs/${encodeURIComponent(id)}`) } catch (err) { toast(err.message, true) }
     render()
     tear($('.pack-head h1'))
@@ -542,12 +544,13 @@ function renderPackDetail() {
         state.subtab === 'settings' ? settingsForm(pack)
             : state.subtab === 'appearance' ? appearanceView(pack)
                 : state.subtab === 'protection' ? protectionView(pack)
-                    : state.subtab === 'mods' ? modsView(pack) : filesView(pack))
+                    : state.subtab === 'mods' ? modsView(pack) : filesView())
 
     Life?.ink($('.subtabs'), 'sub', '.subtab[aria-selected="true"]', 0)
     if (state.subtab === 'settings') fillLoaderVersions(pack)
     if (state.subtab === 'appearance') loadVisuals()
     if (state.subtab === 'protection') loadProtection()
+    if (state.subtab === 'files') loadFiles()
 }
 
 /** A pill you press to switch one thing on or off. It saves at once (these are not part of the form's draft). */
@@ -618,6 +621,32 @@ function settingsForm(pack) {
     }
     const imageInput = h('input', { value: discord.largeImageKey, oninput: setDiscord('largeImageKey'), placeholder: 'https://…/icon.png' })
 
+    // Memory: where a player STARTS with this modpack (Ajustes > Java in the launcher lets each one change it afterwards). Typed in GB, kept in MB.
+    const ram = 'ram' in state.draft ? state.draft.ram : pack.ram
+    const gbText = (mb) => (mb == null ? '' : String(Math.round((mb / 1024) * 10) / 10))
+    const ramField = (label, mb) => h('input', { type: 'number', min: '0.5', step: '0.5', inputmode: 'decimal', class: 'tnum', value: gbText(mb), placeholder: 'sin definir', 'aria-label': label, oninput: () => setRam() })
+    const ramMin = ramField('Memoria mínima en GB', ram && ram.minimumMb)
+    const ramMax = ramField('Memoria máxima en GB', ram && ram.maximumMb)
+    const ramHint = h('small', { class: 'muted ram-hint' })
+    const ramNumber = (input) => { const n = parseFloat(String(input.value).replace(',', '.')); return Number.isFinite(n) ? n : null }
+    const paintRamHint = () => {
+        const min = ramNumber(ramMin), max = ramNumber(ramMax)
+        ramHint.classList.remove('warn', 'bad')
+        if (min == null && max == null) { ramHint.textContent = 'Sin definir: cada jugador empieza con lo que el launcher calcula según la memoria de su equipo.'; return }
+        const lo = min ?? max, hi = max ?? min
+        if (hi < lo) { ramHint.textContent = 'La máxima no puede ser menor que la mínima.'; ramHint.classList.add('bad'); return }
+        ramHint.textContent = `Los jugadores empiezan con ${gbText(lo * 1024)} a ${gbText(hi * 1024)} GB. Si el equipo de un jugador no llega, el launcher lo baja a lo que pueda dar.`
+        if (hi > 16) { ramHint.textContent += ' Más de 16 GB casi nunca ayuda: el juego necesita margen para el sistema.'; ramHint.classList.add('warn') }
+    }
+    function setRam() {
+        const min = ramNumber(ramMin), max = ramNumber(ramMax)
+        // one filled in: the other follows it, so there is never half a setting
+        state.draft.ram = min == null && max == null ? null : { minimumMb: Math.round((min ?? max) * 1024), maximumMb: Math.round((max ?? min) * 1024) }
+        paintRamHint()
+        markDirty()
+    }
+    paintRamHint()
+
     const head = (title) => h('div', { class: 'module-head' }, h('h3', {}, title))
     return h('form', { class: 'bento', onsubmit: (event) => { event.preventDefault(); saveMeta() } },
         h('section', { class: 'module' }, head('Identidad'),
@@ -642,6 +671,13 @@ function settingsForm(pack) {
                 // "Servidor principal", "Whitelist" and "Publicado" live in the head of the modpack and save at once.
                 ...[['autoconnect', 'Conectar solo']].map(([key, label]) =>
                     h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: value(key, !!meta[key]), onchange: set(key) }), label)))),
+        h('section', { class: 'module span2' }, head('Memoria'),
+            h('p', { class: 'muted small-help' }, 'Con cuánta memoria (RAM) empieza un jugador que abre este modpack. Cada jugador puede cambiarla después en su launcher (Ajustes › Java). Si la cambias aquí, la reciben una sola vez todos los jugadores, cuando actualizan.'),
+            h('div', { class: 'ram-fields' },
+                h('label', {}, 'Mínima (GB)', ramMin),
+                h('label', {}, 'Máxima (GB)', ramMax),
+                h('button', { type: 'button', class: 'btn small', onclick: () => { ramMin.value = ''; ramMax.value = ''; setRam() } }, 'Quitar')),
+            ramHint),
         h('details', { class: 'module advanced span2', open: !!(meta.discord && meta.discord.shortId) },
             h('summary', {}, 'Discord (Rich Presence)'),
             h('p', { class: 'muted' }, 'Lo que ven tus amigos en Discord mientras juegas este modpack. Déjalo vacío para no mostrar nada.'),
@@ -1095,16 +1131,117 @@ function paintProtection() {
     paintTree()
 }
 
-function filesView(pack) {
-    return h('div', {},
-        h('p', { class: 'prose' }, 'Aquí van las cosas que no son mods: ',
-            h('b', {}, 'configuraciones, resource packs, shaders, options.txt, servers.dat'),
-            '… Todo lo que pongas en la carpeta “files” se copia al Minecraft de cada jugador.'),
-        h('div', { class: 'form-actions' },
-            h('button', { class: 'btn paper', onclick: () => openFolder('files') }, withIcon('folder', 'Abrir carpeta “files”')),
-            h('span', { class: 'hint-line' }, 'Cuando termines de copiar cosas, vuelve aquí y pulsa Compilar.')),
-        h('h3', { style: 'margin-top:32px' }, 'Contenido actual'),
-        h('div', { class: 'entries' }, pack.filesEntries.length ? pack.filesEntries.map((name) => h('span', { class: 'entry' }, name)) : h('span', { class: 'muted' }, 'La carpeta está vacía.')))
+// ---- files: shaders, resource packs, configs and the rest of what every player receives (everything that is not a mod)
+
+const FILE_ZONES = [
+    { id: 'shaders', title: 'Shaders', desc: 'Paquetes de shaders (.zip). Los jugadores los eligen en Iris u OptiFine.', accept: ['.zip'] },
+    { id: 'resourcepacks', title: 'Resource packs', desc: 'Paquetes de recursos (.zip): texturas, sonidos, idiomas.', accept: ['.zip'] },
+    { id: 'config', title: 'Configuraciones', desc: 'Archivos de la carpeta config: los ajustes de los mods.', accept: null }
+]
+
+function filesView() {
+    return h('div', { class: 'files-view' },
+        h('div', { class: 'mods-toolbar' },
+            h('span', { class: 'muted mods-help', style: 'flex:1;margin:0' }, 'Todo esto se copia al Minecraft de cada jugador (no son mods: esos van en la pestaña Mods). Arrastra los archivos a la columna que corresponda, o usa el + de cada una.'),
+            h('button', { class: 'btn', type: 'button', onclick: () => openFolder('files') }, withIcon('folder', 'Abrir carpeta “files”'))),
+        h('div', { id: 'filesBox' }, h('div', { class: 'skeleton', style: 'height:240px' })))
+}
+
+async function loadFiles() {
+    try { state.files = await api(`/api/packs/${encodeURIComponent(state.selectedId)}/files`) } catch (err) { toast(err.message, true) }
+    paintFiles()
+}
+
+function paintFiles() {
+    const box = $('#filesBox')
+    if (!box || !state.files) return
+    box.replaceChildren(
+        h('div', { class: 'zones' }, ...FILE_ZONES.map((zone) => fileZone(zone, state.files.kinds[zone.id]))),
+        otherFiles(state.files))
+}
+
+function fileZone(zone, kind) {
+    const picker = h('input', {
+        type: 'file', accept: zone.accept ? zone.accept.join(',') : null, multiple: true, class: 'sr-only', tabindex: '-1',
+        onchange: (event) => { uploadFiles([...event.target.files], kind.folder, zone.accept); event.target.value = '' }
+    })
+    const el = h('div', { class: 'zone' },
+        h('div', { class: 'zone-head' },
+            h('h3', {}, zone.title),
+            h('span', { class: 'count tnum' }, String(kind.entries.length)),
+            h('button', { class: 'icon-btn', type: 'button', title: `Añadir a ${zone.title}`, 'aria-label': `Añadir a ${zone.title}`, onclick: () => picker.click() }, icon('plus')),
+            picker),
+        h('div', { class: 'zone-desc' }, zone.desc),
+        h('div', { class: 'zone-list' },
+            kind.entries.length === 0
+                ? h('div', { class: 'zone-empty' }, icon('upload'), 'Suelta aquí los archivos')
+                : kind.entries.map((entry) => fileRow(entry, kind.folder))))
+    el.addEventListener('dragover', (event) => { event.preventDefault(); el.classList.add('over') })
+    el.addEventListener('dragleave', (event) => { if (!el.contains(event.relatedTarget)) el.classList.remove('over') })
+    el.addEventListener('drop', (event) => {
+        event.preventDefault()
+        el.classList.remove('over')
+        uploadFiles([...event.dataTransfer.files], kind.folder, zone.accept)
+    })
+    return el
+}
+
+function fileRow(entry, folder) {
+    return h('div', { class: 'mod-row' },
+        h('span', { class: 'name', title: entry.dir ? `${entry.name} (carpeta, ${plural(entry.files, 'archivo', 'archivos')})` : entry.name }, entry.dir ? `${entry.name}/` : entry.name),
+        h('span', { class: 'size' }, formatSize(entry.size)),
+        h('span', { class: 'mod-actions' },
+            h('button', { class: 'del', title: 'Quitar del modpack', 'aria-label': `Quitar ${entry.name} del modpack`, onclick: () => deleteFileEntry(entry.name, folder) }, icon('trash'))))
+}
+
+function otherFiles(files) {
+    const picker = h('input', { type: 'file', multiple: true, class: 'sr-only', tabindex: '-1', onchange: (event) => { uploadFiles([...event.target.files], '', null); event.target.value = '' } })
+    const chip = (entry) => h('span', { class: `entry file${entry.managed ? ' managed' : ''}`, title: entry.managed ? 'Se cambia en la pestaña Apariencia' : formatSize(entry.size) },
+        entry.dir ? `${entry.name}/` : entry.name,
+        entry.managed
+            ? h('small', {}, 'Apariencia')
+            : h('button', { type: 'button', title: 'Quitar del modpack', 'aria-label': `Quitar ${entry.name} del modpack`, onclick: () => deleteFileEntry(entry.name, '') }, icon('x')))
+    return h('section', { class: 'section', style: 'margin-top:28px' },
+        h('h2', {}, 'Otros archivos'),
+        h('p', { class: 'muted' }, 'options.txt, servers.dat, datapacks… lo demás que va en la carpeta “files”. El fondo, el banner y el color se cambian en Apariencia.'),
+        h('div', { class: 'entries' }, files.other.length ? files.other.map(chip) : h('span', { class: 'muted' }, 'No hay otros archivos.')),
+        h('div', { class: 'form-actions', style: 'margin-top:14px' },
+            h('button', { class: 'btn small', type: 'button', onclick: () => picker.click() }, withIcon('upload', 'Añadir archivos')), picker,
+            h('span', { class: 'hint-line' }, 'Cuando termines, pulsa Compilar abajo.')))
+}
+
+async function uploadFiles(files, folder, accept) {
+    const ok = accept ? files.filter((file) => accept.some((ext) => file.name.toLowerCase().endsWith(ext))) : files
+    if (ok.length < files.length) toast(`Aquí solo se aceptan archivos ${accept.join(' o ')}`, true)
+    let added = 0
+    for (const [index, file] of ok.entries()) {
+        toast(`Subiendo ${index + 1} de ${ok.length}: ${file.name}`)
+        try {
+            state.files = await api(`/api/packs/${encodeURIComponent(state.selectedId)}/files?folder=${encodeURIComponent(folder)}&name=${encodeURIComponent(file.name)}`, { method: 'POST', raw: file })
+            added++
+        } catch (err) {
+            toast(`${file.name}: ${err.message}`, true)
+            break
+        }
+    }
+    if (added) {
+        toast(plural(added, 'archivo añadido', 'archivos añadidos'))
+        paintFiles()
+        await refreshStatus()
+        renderPipeline()
+    }
+}
+
+async function deleteFileEntry(name, folder) {
+    if (!confirm(`¿Quitar ${name} del modpack?`)) return
+    try {
+        state.files = await api(`/api/packs/${encodeURIComponent(state.selectedId)}/files?folder=${encodeURIComponent(folder)}&name=${encodeURIComponent(name)}`, { method: 'DELETE' })
+        paintFiles()
+        await refreshStatus()
+        renderPipeline()
+    } catch (err) {
+        toast(err.message, true)
+    }
 }
 
 // ------------------------------------------------------------------ pipeline footer (Editar -> Compilar -> Enviar)

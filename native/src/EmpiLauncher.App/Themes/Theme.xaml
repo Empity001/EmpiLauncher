@@ -2,9 +2,15 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:themes="clr-namespace:EmpiLauncher.App.Themes">
     <!-- Empi Proof Bench, native. Tokens come from DESIGN.md: halftone black and paper-white, ONE accent (the modpack's own colour,
-         electric pink when a pack sets none). Everything here is static: nothing animates at rest. -->
+         electric pink when a pack sets none). Nothing animates at rest: things move only when the player does something or when
+         something arrives (see Motion.cs for how they move). -->
 
     <themes:PillRadiusConverter x:Key="PillRadius"/>
+
+    <!-- the two curves the interface moves on: CSS cubic-bezier(.23,1,.32,1) for things that enter, leave or answer a touch, and
+         cubic-bezier(.77,0,.175,1) for things that travel across the screen (the same in Motion.cs) -->
+    <themes:BezierEase x:Key="EaseOut" X1="0.23" Y1="1" X2="0.32" Y2="1"/>
+    <themes:BezierEase x:Key="EaseInOut" X1="0.77" Y1="0" X2="0.175" Y2="1"/>
 
     <Color x:Key="WellColor">#060607</Color>
     <Color x:Key="BgColor">#0b0b0d</Color>

@@ -211,7 +211,7 @@ function getPack(config, id) {
     if (!fs.existsSync(path.join(serversDir(config), id, 'servermeta.json')) && fs.existsSync(path.join(hideDir(config), id, 'servermeta.json'))) {
         const dir = path.join(hideDir(config), id)
         const meta = readJson(path.join(dir, 'servermeta.json'), null)
-        return { ...summarize(config, id, false), meta: meta.meta, mods: modsOf(dir), filesEntries: [], path: dir, javaMajor: null }
+        return { ...summarize(config, id, false), meta: meta.meta, mods: modsOf(dir), filesEntries: [], path: dir, javaMajor: null, ram: ramOf(meta) }
     }
     const dir = assertPackId(config, id)
     const summary = summarize(config, id)
@@ -223,6 +223,7 @@ function getPack(config, id) {
         meta: meta.meta,
         defaultDiscordImage: `${baseUrl(config)}servers/${id}/icon.png`,
         javaMajor: meta.meta.javaOptions ? meta.meta.javaOptions.suggestedMajor || null : null,
+        ram: ramOf(meta),
         mods,
         filesEntries: fs.existsSync(filesDir) ? fs.readdirSync(filesDir).slice(0, 60) : [],
         path: dir
@@ -230,6 +231,36 @@ function getPack(config, id) {
 }
 
 const JAVA_OPTIONS = (major) => ({ supported: `>=${major} <${Number(major) + 1}`, suggestedMajor: Number(major), distribution: 'TEMURIN' })
+
+// ---------------------------------------------------------------- memory (javaOptions.ram)
+
+const RAM_STEP_MB = 512
+const RAM_LIMIT_MB = 128 * 1024
+
+/**
+ * The memory the author asked for, in megabytes, or null. The distribution spec only has `recommended` and `minimum`; the launcher
+ * also reads `maximum` (see ConfigManager: it is where a player STARTS, the player can change it afterwards), and `recommended` is
+ * written equal to the maximum so an older launcher that only knows the spec starts at the same value as before.
+ */
+function ramOf(data) {
+    const ram = data && data.meta && data.meta.javaOptions && data.meta.javaOptions.ram
+    if (!ram || !Number.isFinite(ram.maximum)) return null
+    return { minimumMb: Number.isFinite(ram.minimum) ? ram.minimum : ram.maximum, maximumMb: ram.maximum }
+}
+
+/** { minimumMb, maximumMb } typed by a person -> what goes in servermeta.json, or throws with something they can act on. */
+function normalizeRam(input) {
+    const minimum = Number(input && input.minimumMb)
+    const maximum = Number(input && input.maximumMb)
+    if (!Number.isFinite(minimum) || !Number.isFinite(maximum)) throw new Error('Escribe la memoria mínima y la máxima en números.')
+    const snap = (mb) => Math.round(mb / RAM_STEP_MB) * RAM_STEP_MB
+    const min = snap(minimum)
+    const max = snap(maximum)
+    if (min < RAM_STEP_MB) throw new Error('La memoria mínima no puede ser menos de 0,5 GB.')
+    if (max < min) throw new Error('La memoria máxima no puede ser menor que la mínima.')
+    if (max > RAM_LIMIT_MB) throw new Error('La memoria máxima no puede pasar de 128 GB.')
+    return { recommended: max, minimum: min, maximum: max }
+}
 
 /** Edits the handful of servermeta fields the UI exposes and leaves everything else in the file alone. */
 function patchMeta(config, id, patch) {
@@ -250,8 +281,21 @@ function patchMeta(config, id, patch) {
         }
     }
     if ('javaMajor' in patch) {
-        if (patch.javaMajor) meta.javaOptions = JAVA_OPTIONS(patch.javaMajor)
+        // choosing another Java must not take the memory the author set with it
+        const ram = meta.javaOptions && meta.javaOptions.ram
+        if (patch.javaMajor) meta.javaOptions = { ...JAVA_OPTIONS(patch.javaMajor), ...(ram ? { ram } : {}) }
+        else if (ram) meta.javaOptions = { ram }
         else delete meta.javaOptions
+    }
+    if ('ram' in patch) {
+        const current = meta.javaOptions || {}
+        if (patch.ram) {
+            meta.javaOptions = { ...current, ram: normalizeRam(patch.ram) }
+        } else {
+            const { ram: _removed, ...rest } = current
+            if (Object.keys(rest).length > 0) meta.javaOptions = rest
+            else delete meta.javaOptions
+        }
     }
     if (patch.loaderVersion) {
         const { type } = loaderOf(data)
@@ -391,12 +435,101 @@ function iconPath(config, id) {
     return fs.existsSync(file) ? file : null
 }
 
+// ---------------------------------------------------------------- the files folder (shaders, resource packs, configs, the rest)
+
+// What the launcher hands to every player from "files": these three folders get their own place in the Publisher (with the kind of
+// file each takes); anything else in "files" (options.txt, servers.dat, data packs...) is listed as "other".
+const FILE_KINDS = [
+    { id: 'shaders', folder: 'shaderpacks', extensions: ['.zip'] },
+    { id: 'resourcepacks', folder: 'resourcepacks', extensions: ['.zip'] },
+    { id: 'config', folder: 'config', extensions: null }
+]
+// what the Apariencia tab looks after (see appearance.js): they are not uploaded or deleted from here
+const APPEARANCE_FILE = /^(background|banner)(-preview)?\.[a-z0-9]+$|^theme\.json$/i
+
+function filesRoot(config, id) {
+    return path.join(assertPackId(config, id), 'files')
+}
+
+/** Size and number of files of a folder (stops counting after 5,000 files: this is for showing, not for accounting). */
+function treeSize(dir) {
+    let size = 0
+    let files = 0
+    const walk = (current) => {
+        for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+            if (files >= 5000) return
+            const full = path.join(current, entry.name)
+            if (entry.isDirectory()) walk(full)
+            else if (entry.isFile()) { size += fs.statSync(full).size; files++ }
+        }
+    }
+    try { walk(dir) } catch { /* a folder that vanished while listing */ }
+    return { size, files }
+}
+
+function entriesOf(dir) {
+    if (!fs.existsSync(dir)) return []
+    return fs.readdirSync(dir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() || (entry.isFile() && !entry.name.endsWith('.part')))
+        .map((entry) => {
+            const full = path.join(dir, entry.name)
+            if (entry.isDirectory()) return { name: entry.name, dir: true, ...treeSize(full) }
+            return { name: entry.name, dir: false, size: fs.statSync(full).size, files: 1 }
+        })
+        .sort((a, b) => (a.dir === b.dir ? a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true }) : a.dir ? -1 : 1))
+}
+
+/** Everything in a modpack's "files" folder: the three known folders, each with its entries, and the rest. */
+function packFiles(config, id) {
+    const root = filesRoot(config, id)
+    const known = new Set(FILE_KINDS.map((kind) => kind.folder))
+    const kinds = {}
+    for (const kind of FILE_KINDS) kinds[kind.id] = { folder: kind.folder, extensions: kind.extensions, entries: entriesOf(path.join(root, kind.folder)) }
+    const other = entriesOf(root).filter((entry) => !known.has(entry.name)).map((entry) => ({ ...entry, managed: APPEARANCE_FILE.test(entry.name) }))
+    return { dir: root, kinds, other }
+}
+
+/** Where a file would go, having checked that it is allowed there. `folder` is one of the known folders, or '' for the top of "files". */
+function fileTarget(config, id, folder, name) {
+    const root = filesRoot(config, id)
+    const kind = folder ? FILE_KINDS.find((candidate) => candidate.folder === folder) : null
+    if (folder && !kind) throw new Error('Esa carpeta no es válida.')
+    const base = safeName(name)
+    if (kind && kind.extensions && !kind.extensions.includes(path.extname(base).toLowerCase())) {
+        throw new Error(`En ${folder} solo se aceptan archivos ${kind.extensions.join(' o ')}.`)
+    }
+    if (!folder && APPEARANCE_FILE.test(base)) throw new Error(`${base} se cambia en la pestaña Apariencia.`)
+    return { dir: folder ? path.join(root, folder) : root, base }
+}
+
+async function saveFile(config, id, folder, name, stream) {
+    const { dir, base } = fileTarget(config, id, folder, name)
+    fs.mkdirSync(dir, { recursive: true })
+    const target = path.join(dir, base)
+    if (fs.existsSync(target) && fs.statSync(target).isDirectory()) throw new Error(`Ya hay una carpeta llamada ${base}.`)
+    await pipeline(stream, fs.createWriteStream(`${target}.part`))
+    fs.renameSync(`${target}.part`, target)
+}
+
+/** Removes a file or a folder of "files" (a shader pack that was unzipped is a folder). The known folders themselves stay. */
+function deleteFile(config, id, folder, name) {
+    const root = filesRoot(config, id)
+    if (folder && !FILE_KINDS.some((kind) => kind.folder === folder)) throw new Error('Esa carpeta no es válida.')
+    const base = safeName(name)
+    if (!folder && (APPEARANCE_FILE.test(base) || FILE_KINDS.some((kind) => kind.folder === base))) {
+        throw new Error(APPEARANCE_FILE.test(base) ? `${base} se cambia en la pestaña Apariencia.` : `La carpeta ${base} se vacía archivo por archivo.`)
+    }
+    fs.rmSync(path.join(folder ? path.join(root, folder) : root, base), { recursive: true, force: true })
+}
+
 /** Opens a folder in Explorer (the easiest way to drop configs, resource packs, shaders into "files"). */
 function openFolder(config, id, what) {
     const dir = assertPackId(config, id)
+    const kind = FILE_KINDS.find((candidate) => candidate.folder === what)
     const folder = what === 'files' ? path.join(dir, 'files')
-        : what === 'mods' ? path.join(dir, modsFolder(dir) || '')
-            : dir
+        : kind ? path.join(dir, 'files', kind.folder)
+            : what === 'mods' ? path.join(dir, modsFolder(dir) || '')
+                : dir
     fs.mkdirSync(folder, { recursive: true })
     if (process.platform === 'win32') spawn('explorer.exe', [folder], { detached: true, stdio: 'ignore' }).unref()
     return folder
@@ -405,5 +538,6 @@ function openFolder(config, id, what) {
 module.exports = {
     LOADERS, CATEGORIES, env, rootPath, baseUrl, serversDir, hideDir, generateDistro, runNebula, ensureBuilt,
     listPacks, getPack, setActive, patchMeta, createPack, saveMod, deleteMod, moveMod, saveIcon, iconPath, openFolder,
-    packDir, readServerMeta, writeServerMeta, modsOf, loaderOf, minecraftVersionOf
+    packDir, readServerMeta, writeServerMeta, modsOf, loaderOf, minecraftVersionOf,
+    FILE_KINDS, packFiles, saveFile, deleteFile
 }

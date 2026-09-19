@@ -140,8 +140,19 @@ internal sealed class LivingField : Grid
     /// <summary>True while it is actually moving; Ajustes > Acerca shows this and why not.</summary>
     public bool Moving => _running;
 
+    /// <summary>
+    /// How visible the field is, the player's choice (Ajustes > Launcher). The two layers are faded together as one group, not dot by dot:
+    /// a bigger live dot has to keep hiding the base dot under it, which translucent brushes would not do.
+    /// </summary>
+    private void ApplyOpacity()
+    {
+        var wanted = Math.Clamp(Launcher.Instance.Prefs.DotOpacity ?? 1, 0.1, 1);
+        if (Math.Abs(Opacity - wanted) > 0.001) Opacity = wanted;
+    }
+
     private void Gate()
     {
+        ApplyOpacity();
         if (SyncColors()) DrawLive();   // a colour changed in Ajustes: show it even if the field is standing still
         FieldGovernor.Evaluate(Window.GetWindow(this));
         if (FieldGovernor.Allowed && !_running)

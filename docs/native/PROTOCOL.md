@@ -105,7 +105,7 @@ Cómo la ve el juego: al lanzar, el motor arranca un servidor de skins **solo en
 ### Preferencias, arte, estado del servidor y actualizaciones
 | Método | Resultado |
 |---|---|
-| `ui.get` / `ui.set` `{key, value}` | Preferencias que solo tiene la interfaz nativa (`native-ui.json`). Hoy: `fieldMode: auto\|always\|off` (el campo de puntos vivo) y `dotColor: #rrggbb` (el color de los puntos y de las ondas; gris `#64635f` por defecto) |
+| `ui.get` / `ui.set` `{key, value}` | Preferencias que solo tiene la interfaz nativa (`native-ui.json`). Hoy: `fieldMode: auto\|always\|off` (el campo de puntos vivo) `dotColor: #rrggbb` (el color de los puntos y de las ondas; gris `#64635f` por defecto) y `dotOpacity: 0.1 a 1` (cuánto se ve todo el fondo; 1 por defecto, se guarda con dos decimales) |
 | `art.get` `{id}` | `{serverId, banner, background}`: rutas de imágenes pequeñas ya listas (logo PNG ≤ 900 px con transparencia, fondo JPEG ≤ 1280 px) en la caché del launcher. Las remotas solo se bajan hasta 8 MB; un WebP animado enorme se reduce a su primer fotograma |
 | `server.status` `{id?}` | `{online, players?:{online,max}}` |
 | `update.check` | `{available, current, version?, releaseDate?, installer?, sha512?, size?, page?, reason?}`. Un solo canal: el `latest.yml` de la última release de GitHub (el mismo que lee el launcher clásico, por eso el clásico se actualiza al nativo). `reason`: `no_channel`, `bad_channel`, `offline` |

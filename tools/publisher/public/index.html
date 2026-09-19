@@ -142,6 +142,14 @@
                 <p class="muted">El gris es el de siempre. Cuando una onda rosa se cruza con la tuya, los puntos se mezclan. Se guarda en este navegador.</p>
                 <div id="dotColor"></div>
             </div>
+            <div class="dot-setting">
+                <span class="label" id="dotOpacityLabel">Intensidad del fondo</span>
+                <p class="muted">Baja el porcentaje para un fondo más calmado: los puntos y las ondas se ven más tenues, sin cambiar cómo se mueven. Se guarda en este navegador.</p>
+                <div class="range-row">
+                    <input type="range" id="dotOpacity" min="10" max="100" step="5" value="100" aria-labelledby="dotOpacityLabel">
+                    <output id="dotOpacityValue" class="tnum" for="dotOpacity">100 %</output>
+                </div>
+            </div>
             <div class="dialog-actions">
                 <button type="button" class="btn" id="settingsCancel">Cancelar</button>
                 <button type="submit" class="btn paper">Guardar</button>
