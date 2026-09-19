@@ -42,6 +42,8 @@ require('./handlers/settings').register(handlers, state)
 require('./handlers/auth').register(handlers, state)
 require('./handlers/status').register(handlers, state)
 require('./handlers/update').register(handlers, state)
+require('./handlers/art').register(handlers, state)
+require('./handlers/ui').register(handlers, state)
 
 const ipc = createServer({
     pipeName, token, handlers, log,

@@ -20,6 +20,7 @@ public static class Win {
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
     [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr dc, uint flags);
     [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr h, int x, int y, int w, int hgt, bool repaint);
+    [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
 }
 '@
 
@@ -63,6 +64,12 @@ foreach ($step in $Steps.Split(';')) {
         'shot'  { Save-Shot $arg }
         'click' { Click-Named $arg }
         'size'  { $wh = $arg.Split('x'); [void][Win]::MoveWindow($hwnd, 40, 40, [int]$wh[0], [int]$wh[1], $true) }
+        # move:x,y  puts the real mouse pointer at x,y inside the window (in small steps, so the app sees it moving)
+        'move'  {
+            $xy = $arg.Split(','); $r = New-Object Win+RECT; [void][Win]::GetWindowRect($hwnd, [ref]$r)
+            $tx = $r.L + [int]$xy[0]; $ty = $r.T + [int]$xy[1]
+            for ($i = 1; $i -le 8; $i++) { [void][Win]::SetCursorPos($tx - 24 + 6 * $i, $ty - 12 + 3 * $i); Start-Sleep -Milliseconds 40 }
+        }
     }
 }
 

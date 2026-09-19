@@ -33,7 +33,8 @@ public sealed record Modpack(
 
 public sealed record DistroResult(long TookMs, string SelectedServer, string MainServer, List<Modpack> Servers);
 
-public sealed record AccountSummary(string Uuid, string DisplayName, string? Username, string Type, string? ExpiresAt);
+/// <summary>ExpiresAt is a Unix time in milliseconds (a number in the engine's answer, not text).</summary>
+public sealed record AccountSummary(string Uuid, string DisplayName, string? Username, string Type, double? ExpiresAt);
 
 public sealed record AccountList(string? Selected, List<AccountSummary> Accounts);
 
@@ -84,6 +85,12 @@ public sealed record ModsList(string ServerId, List<ModNode> Required, List<ModN
 public sealed record ThemeResult(string Source, JsonElement? Theme);
 
 public sealed record ValidResult(bool Valid);
+
+/// <summary>Small still images of a modpack's art (cached by the engine); null where there is none or it is too big to fetch.</summary>
+public sealed record ArtResult(string ServerId, string? Banner, string? Background);
+
+/// <summary>Preferences only the native interface has. FieldMode: auto | always | off.</summary>
+public sealed record UiPrefs(string FieldMode);
 
 /// <summary>Answer of update.check. Reason is set when nothing is offered: no_channel (nothing published), bad_channel, offline.</summary>
 public sealed record UpdateInfo(bool Available, string? Current, string? Version, string? Installer, string? Sha512, long? Size, string? Page, string? Reason);

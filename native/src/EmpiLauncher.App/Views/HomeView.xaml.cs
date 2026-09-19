@@ -44,8 +44,8 @@ public partial class HomeView : UserControl
     public HomeView()
     {
         InitializeComponent();
-        Loaded += (_, _) => { _l.Changed += OnChanged; _l.GameChanged += OnGame; Refresh(); _status.Start(); _ = _l.RefreshStatusAsync(); };
-        Unloaded += (_, _) => { _l.Changed -= OnChanged; _l.GameChanged -= OnGame; _status.Stop(); };
+        Loaded += (_, _) => { _l.Changed += OnChanged; _l.GameChanged += OnGame; _l.ArtChanged += RefreshBanner; Refresh(); RefreshBanner(); _status.Start(); _ = _l.RefreshStatusAsync(); };
+        Unloaded += (_, _) => { _l.Changed -= OnChanged; _l.GameChanged -= OnGame; _l.ArtChanged -= RefreshBanner; _status.Stop(); PackBanner.Source = null; };
         // Players online: only asked while the window is in front, once every 90 s. A hidden launcher does not poll the network.
         _status.Tick += (_, _) =>
         {
@@ -58,6 +58,25 @@ public partial class HomeView : UserControl
 
     private void OnChanged() => Refresh();
     private void OnGame() => RefreshGame();
+
+    private string? _bannerPath;
+    private int _bannerGeneration;
+
+    /// <summary>The modpack's logo replaces the dotted name when there is one. Decoded at 700 px; the name stays as the accessible label.</summary>
+    private async void RefreshBanner()
+    {
+        var wanted = _l.Art?.Banner;
+        if (wanted == _bannerPath && (wanted == null || PackBanner.Source != null)) return;
+        _bannerPath = wanted;
+        var generation = ++_bannerGeneration;
+        if (wanted == null) { PackBanner.Source = null; PackBanner.Visibility = Visibility.Collapsed; PackTitle.Visibility = Visibility.Visible; return; }
+        var image = await Task.Run(() => ScreenshotViewer.Decode(wanted, 700));
+        if (generation != _bannerGeneration || image == null) return;
+        PackBanner.Source = image;
+        System.Windows.Automation.AutomationProperties.SetName(PackBanner, _l.Selected?.Name ?? "Modpack");
+        PackBanner.Visibility = Visibility.Visible;
+        PackTitle.Visibility = Visibility.Collapsed;
+    }
 
     private void Refresh()
     {

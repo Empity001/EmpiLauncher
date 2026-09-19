@@ -31,7 +31,13 @@
             </StackPanel>
         </Grid>
 
-        <!-- decoration behind everything: still by default, alive only when the FieldGovernor allows it -->
+        <!-- the selected modpack's picture (a small still preview made by the engine), then its scrim -->
+        <Image x:Name="Backdrop" Grid.RowSpan="2" Stretch="UniformToFill" Visibility="Collapsed" IsHitTestVisible="False"
+               RenderOptions.BitmapScalingMode="LowQuality"/>
+        <Rectangle x:Name="BackdropScrim" Grid.RowSpan="2" Fill="{StaticResource BackdropScrim}" Visibility="Collapsed" IsHitTestVisible="False"/>
+
+        <!-- decoration behind everything: a faint dot grid that never redraws, and the living field on top, still unless the FieldGovernor allows it -->
+        <Rectangle x:Name="DotGrid" Grid.RowSpan="2" Fill="{StaticResource DotGridBrush}" IsHitTestVisible="False"/>
         <views:LivingField x:Name="Field" Grid.Row="0" Grid.RowSpan="2"/>
 
         <ContentPresenter x:Name="ViewHost" Grid.Row="1"/>

@@ -92,6 +92,8 @@ public sealed class Launcher : IAsyncDisposable
         Game.ApplyState(JsonSerializer.SerializeToElement(new { phase = status.Phase, mode = status.Mode }));
         GameChanged?.Invoke();
         _ = RefreshStatusAsync();   // the home screen asked before the engine was up; ask again now
+        try { Prefs = await Client.CallAsync<UiPrefs>("ui.get"); PrefsChanged?.Invoke(); } catch (EngineException) { }
+        _ = LoadArtAsync();
     }
 
     public async Task ReloadDistroAsync(bool refresh = false)
@@ -115,6 +117,8 @@ public sealed class Launcher : IAsyncDisposable
         SelectedId = id;
         Pack = null;
         Status = null;
+        Art = null;
+        ArtChanged?.Invoke();
         Changed?.Invoke();
         await Client.CallAsync("distro.select", new { id });
         await ApplyThemeAsync();
@@ -122,12 +126,40 @@ public sealed class Launcher : IAsyncDisposable
         Changed?.Invoke();
         _ = Quietly(() => Client.CallAsync("discord.navigation", new { id }));
         _ = RefreshStatusAsync();
+        _ = LoadArtAsync();
     }
 
     public async Task RefreshPackAsync()
     {
         try { Pack = await Client.CallAsync<PackStatus>("pack.status"); }
         catch (EngineException) { Pack = null; }
+    }
+
+    // ---- modpack art and native preferences -----------------------------------------------------------------------
+
+    public ArtResult? Art { get; private set; }
+    public UiPrefs Prefs { get; private set; } = new("auto");
+    public event Action? ArtChanged;
+    public event Action? PrefsChanged;
+
+    /// <summary>Banner and background of the selected modpack, as small still previews made by the engine (never the 278 MB originals).</summary>
+    public async Task LoadArtAsync()
+    {
+        var id = SelectedId;
+        try
+        {
+            var art = await Client.CallAsync<ArtResult>("art.get", new { id }, TimeSpan.FromSeconds(60));
+            if (id != SelectedId) return;   // the player already moved to another modpack
+            Art = art;
+            ArtChanged?.Invoke();
+        }
+        catch (Exception) { }   // no art is a normal state: the plain interface still works
+    }
+
+    public async Task SetFieldModeAsync(string mode)
+    {
+        Prefs = await Client.CallAsync<UiPrefs>("ui.set", new { key = "fieldMode", value = mode });
+        PrefsChanged?.Invoke();
     }
 
     public UpdateInfo? Update { get; private set; }

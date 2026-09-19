@@ -37,6 +37,7 @@ public partial class MainWindow : Window
         _l.Failure += failure => ShowDialog(failure.Title, failure.Message, ("Entendido", null, true));
         _l.Notice += ShowToast;
         _l.GameChanged += OnGameChanged;
+        _l.ArtChanged += UpdateBackdrop;
         _l.Changed += OnUpdateChanged;
         UpdateButton.Click += (_, _) => OnUpdateClick();
         _l.AuthWindow += (open, text) =>
@@ -117,6 +118,7 @@ public partial class MainWindow : Window
         var home = new HomeView();
         home.OpenSettings += () => ShowSettings();
         ViewHost.Content = home;
+        UpdateBackdrop();
         ScheduleTrim();
     }
 
@@ -127,6 +129,31 @@ public partial class MainWindow : Window
         view.TabLoaded += ScheduleTrim;
         _settings = view;
         ViewHost.Content = view;
+        UpdateBackdrop();
+    }
+
+    // ---- the modpack's picture behind the home screen -------------------------------------------------------------
+
+    private string? _backdropPath;
+    private int _backdropGeneration;
+
+    /// <summary>Shows the selected modpack's background on the home screen only, decoded at 1280 px, and lets it go everywhere else.</summary>
+    private async void UpdateBackdrop()
+    {
+        var wanted = ViewHost.Content is HomeView ? _l.Art?.Background : null;
+        if (wanted == _backdropPath && (wanted == null || Backdrop.Source != null)) return;
+        _backdropPath = wanted;
+        var generation = ++_backdropGeneration;
+        if (wanted == null)
+        {
+            Backdrop.Source = null;
+            Backdrop.Visibility = BackdropScrim.Visibility = Visibility.Collapsed;
+            return;
+        }
+        var image = await Task.Run(() => ScreenshotViewer.Decode(wanted, 1280));
+        if (generation != _backdropGeneration) return;
+        Backdrop.Source = image;
+        Backdrop.Visibility = BackdropScrim.Visibility = image == null ? Visibility.Collapsed : Visibility.Visible;
     }
 
     /// <summary>Whatever the player just did touched memory: give it back after a quiet moment (mouse moves postpone it).</summary>

@@ -36,9 +36,15 @@ internal static class FieldGovernor
         if (forced == "off") return "apagado por EMPI_FIELD";
 
         var l = Launcher.Instance;
+        // The player's own choice (Ajustes > Acerca): off is off; "always" skips every economy rule below and only needs a window in front.
+        var choice = l.Prefs.FieldMode;
+        if (choice == "off") return "lo apagaste en Ajustes";
+        if (window is not { IsVisible: true } || window.WindowState == WindowState.Minimized) return "la ventana no está a la vista";
+        if (choice == "always") return window.IsActive ? "" : "la ventana no está en primer plano";
+
         if (l.Game.Busy) return "hay una operación en curso";
         if (l.Game.Running) return "Minecraft está en marcha";
-        if (window is not { IsVisible: true, IsActive: true } || window.WindowState == WindowState.Minimized) return "la ventana no está a la vista";
+        if (!window.IsActive) return "la ventana no está en primer plano";
         if (!SystemParameters.ClientAreaAnimation) return "las animaciones están desactivadas en Windows";
         if (RenderCapability.Tier >> 16 == 0) return "el dibujo es por software, sin aceleración";
 
