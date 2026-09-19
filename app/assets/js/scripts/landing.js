@@ -3216,6 +3216,11 @@ async function dlAsync(login = true, options = {}) {
         proc = pb.build()
         stopRequested = false
 
+        // build() has just put the pack's mods into the instance's mods folder (Forge/NeoForge 1.20.3+). That happens after the
+        // integrity manifest was written, so without this the next check would report every one of them as "added" and ask for a
+        // restore. The folder is exactly what the launcher itself placed at this point, so record it.
+        writeServerPackState(serv).catch(err => loggerLaunchSuite.warn('Unable to refresh the integrity manifest after syncing mods.', err))
+
         proc.stdout.on('data', tempListener)
         proc.stderr.on('data', gameErrorListener)
 

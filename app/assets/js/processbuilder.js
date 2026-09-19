@@ -896,10 +896,43 @@ class ProcessBuilder {
     }
 
     /**
+     * Files that must be DOWNLOADED but never put on the classpath.
+     *
+     * NeoForge 21.11+ (FML 10, main class net.neoforged.fml.startup.Client) finds NeoForge itself and the patched Minecraft jar in the
+     * libraries folder, from -DlibraryDirectory and the --fml.* arguments. If either is already on the classpath FML decides it is
+     * running in a development environment ("CLIENT in DEV") and stops with "NeoForge dev environment Minecraft jar does not have a
+     * Minecraft-Dists attribute in its manifest"; with only the patched jar left off it stops with "The patched Minecraft jar is
+     * missing". Nebula publishes both as ordinary libraries, so this keeps them off the -cp. A module can say so itself with
+     * `classpath: false` (Nebula sets it now); the id checks cover indexes published before that, so a launcher fix is enough.
+     *
+     * @param {Object} mdl A module from the server distribution.
+     * @param {boolean} fml10 Whether the mod loader is started through FML 10's own entry point.
+     * @returns {boolean} True if the module must stay off the classpath.
+     */
+    static isOffClasspath(mdl, fml10 = false){
+        if(mdl?.rawModule?.classpath === false){
+            return true
+        }
+        const id = String(mdl?.rawModule?.id ?? '')
+        // Older NeoForge (21.1.x) keeps its own launching scheme: only its patched client jar stays out.
+        if(/^net\.neoforged:neoforge:[^:]+:client(@|$)/.test(id)){
+            return true
+        }
+        if(fml10){
+            return /^net\.neoforged:minecraft-client-patched:/.test(id) || /^net\.neoforged:neoforge:[^:]+:universal(@|$)/.test(id)
+        }
+        return /^net\.neoforged:minecraft-client-patched:/.test(id)
+    }
+
+    _usesFml10(){
+        return /^net\.neoforged\.fml\.startup\./.test(String(this.modManifest?.mainClass ?? ''))
+    }
+
+    /**
      * Resolve the libraries declared by this server in order to add them to the classpath.
      * This method will also check each enabled mod for libraries, as mods are permitted to
      * declare libraries.
-     * 
+     *
      * @param {Array.<Object>} mods An array of enabled mods which will be launched with this process.
      * @returns {{[id: string]: string}} An object containing the paths of each library this server requires.
      */
@@ -911,7 +944,9 @@ class ProcessBuilder {
         for(let mdl of mdls){
             const type = mdl.rawModule.type
             if(type === Type.ForgeHosted || type === Type.NeoForgeHosted || type === Type.Fabric || type === Type.Library){
-                libs[mdl.getVersionlessMavenIdentifier()] = mdl.getPath()
+                if(!ProcessBuilder.isOffClasspath(mdl, this._usesFml10())){
+                    libs[mdl.getVersionlessMavenIdentifier()] = mdl.getPath()
+                }
                 if(mdl.subModules.length > 0){
                     const res = this._resolveModuleLibraries(mdl)
                     libs = {...libs, ...res}
@@ -944,7 +979,7 @@ class ProcessBuilder {
         for(let sm of mdl.subModules){
             if(sm.rawModule.type === Type.Library){
 
-                if(sm.rawModule.classpath ?? true) {
+                if((sm.rawModule.classpath ?? true) && !ProcessBuilder.isOffClasspath(sm, this._usesFml10())) {
                     libs[sm.getVersionlessMavenIdentifier()] = sm.getPath()
                 }
             }

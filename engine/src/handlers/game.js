@@ -429,6 +429,10 @@ function register(handlers, state) {
             game.stopRequested = false
             state.keepAlive.add('game')
 
+            // build() has just put the pack's mods into the instance's mods folder (Forge/NeoForge 1.20.3+), after the integrity
+            // manifest was written. Record what the launcher itself placed, or the next check reports every mod as "added".
+            pack().writeState(serv).catch((err) => log().warn('Unable to refresh the integrity manifest after syncing mods.', err))
+
             child.stdout.on('data', onOutput)
             child.stderr.on('data', onGameError)
             setPlayingPresence(distro, serv)
