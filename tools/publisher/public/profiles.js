@@ -5,7 +5,7 @@
    stored is what each profile does NOT take (so a mod or file uploaded later is in every profile until someone decides otherwise). The
    editor works on single files; on saving, a folder whose files are all left out becomes one rule ("shaderpacks/"). */
 
-const profilesUi = { data: null, draft: null, dirty: false, filter: '', open: new Set(), uid: 0, cardSummaries: new Map(), importing: null }
+const profilesUi = { error: null, data: null, draft: null, dirty: false, filter: '', open: new Set(), uid: 0, cardSummaries: new Map(), importing: null }
 
 const pKey = (path) => String(path).replace(/\\/g, '/').replace(/^\.?\/+/, '').toLowerCase()
 const ruleHits = (rule, path) => (rule.endsWith('/') ? pKey(path).startsWith(rule) : pKey(path) === rule)
@@ -94,11 +94,15 @@ function profilesView() {
 }
 
 async function loadProfiles() {
+    profilesUi.error = null
     try {
         profilesUi.data = await api(`/api/packs/${encodeURIComponent(state.selectedId)}/profiles`)
         profilesUi.draft = draftFromData(profilesUi.data)
         profilesUi.dirty = false
-    } catch (err) { toast(err.message, true) }
+    } catch (err) {
+        profilesUi.data = null
+        profilesUi.error = err.message
+    }
     paintProfiles()
 }
 
@@ -147,29 +151,25 @@ function paintSummaries() {
 
 function paintProfiles() {
     const box = $('#profilesBox')
+    if (box && profilesUi.error) {
+        box.replaceChildren(h('section', { class: 'section' },
+            h('h2', {}, 'Perfiles'),
+            h('p', { class: 'note' }, icon('alert'), profilesUi.error === 'No encontrado'
+                ? 'Este Publisher es anterior a los perfiles y no sabe manejarlos. Ciérralo y ábrelo otra vez (Publicar.bat) para que los tenga.'
+                : `No pude cargar los perfiles: ${profilesUi.error}`),
+            h('div', { class: 'form-actions', style: 'margin-top:14px' }, h('button', { class: 'btn small', type: 'button', onclick: loadProfiles }, withIcon('refresh', 'Reintentar')))))
+        return
+    }
     if (!box || !profilesUi.data) return
     profilesUi.cardSummaries.clear()
 
     if (!profilesUi.draft) {
-        const { items } = profilesUi.data
         box.replaceChildren(h('section', { class: 'section' },
             h('h2', {}, 'Perfiles'),
-            h('p', { class: 'prose' }, 'Un modpack puede jugarse de varias maneras: por ejemplo el Completo y uno Lite con menos carga. En el launcher los jugadores eligen el perfil desde un desplegable pequeño junto al nombre del modpack.'),
-            h('p', { class: 'prose' }, 'Todos los perfiles comparten mundos, opciones y configuración: solo cambian qué mods y archivos lleva cada uno (y, si quieres, la memoria con la que empiezan). Sube todos los mods de todos los perfiles en la pestaña ', h('b', {}, 'Mods'),
-                ' y aquí marcas qué perfil usa cada uno.'),
-            h('p', { class: 'prose' }, 'Lo más fácil: si ya tienes el otro modpack hecho (por ejemplo «PanolisSMP Lite»), tráelo aquí como perfil y yo calculo todo. También puedes empezar de cero y marcar a mano qué lleva cada perfil.'),
+            h('p', { class: 'prose' }, 'Un mismo modpack jugado de varias maneras: por ejemplo el Normal y uno Lite con menos carga. En el launcher los jugadores lo eligen en un desplegable pequeño junto al nombre del modpack, en lugar de ver dos versiones distintas. Todos los perfiles comparten mundos, opciones y configuración; solo cambian qué mods y archivos lleva cada uno.'),
             h('div', { id: 'profilesImport' }),
             h('div', { class: 'form-actions', style: 'margin-top:16px' },
-                h('button', { class: 'btn paper', type: 'button', onclick: openImport }, withIcon('package', 'Traer un modpack como perfil')),
-                h('button', {
-                    class: 'btn', type: 'button', disabled: items.mods.length === 0, title: items.mods.length === 0 ? 'Este modpack todavía no tiene mods' : null,
-                    onclick: () => {
-                        const first = newProfile({ id: 'completo', name: 'Completo' })
-                        profilesUi.draft = { default: first.uid, list: [first, newProfile({ name: 'Lite' })] }
-                        profilesUi.dirty = true
-                        paintProfiles()
-                    }
-                }, withIcon('plus', 'Crear perfiles desde cero')))))
+                h('button', { class: 'btn paper', type: 'button', onclick: openImport }, withIcon('plus', 'Añadir perfil')))))
         paintImport()
         return
     }
@@ -181,9 +181,8 @@ function paintProfiles() {
             h('p', { class: 'muted' }, 'Cada tarjeta es un perfil. El «por defecto» es el que reciben los jugadores la primera vez, y el que ven los launchers que todavía no conocen los perfiles.'),
             h('div', { class: 'pcards', id: 'profileCards' }),
             h('div', { class: 'form-actions', style: 'margin-top:14px' },
-                h('button', { class: 'btn small', type: 'button', disabled: draft.list.length >= 12, onclick: openImport }, withIcon('package', 'Traer otro modpack como perfil')),
-                h('button', { class: 'btn small', type: 'button', disabled: draft.list.length >= 12, onclick: addProfile }, withIcon('plus', 'Agregar perfil vacío')),
-                h('span', { class: 'hint-line' }, 'El vacío empieza igual que el perfil por defecto.')),
+                h('button', { class: 'btn small', type: 'button', disabled: draft.list.length >= 12, onclick: openImport }, withIcon('plus', 'Añadir perfil')),
+                h('span', { class: 'hint-line' }, draft.list.length >= 12 ? 'Ya tiene el máximo de perfiles.' : 'Elige una de tus versiones o empieza con uno vacío.')),
             h('div', { id: 'profilesImport' })),
         h('section', { class: 'section' },
             h('h2', {}, 'Qué lleva cada perfil'),
@@ -278,6 +277,20 @@ function paintCards() {
 
 // ---- bringing a modpack that already exists in as a profile
 
+/** An empty profile to fill in by hand: when the modpack has none yet, this one (what it is now) and the new one. */
+function addEmptyProfile() {
+    if (!profilesUi.draft) {
+        const first = newProfile({ id: 'normal', name: 'Normal' })
+        profilesUi.draft = { default: first.uid, list: [first, newProfile({ name: 'Perfil 2' })] }
+        profilesUi.dirty = true
+        profilesUi.importing = null
+        paintProfiles()
+        return
+    }
+    profilesUi.importing = null
+    addProfile()
+}
+
 /** "3 archivos propios" with the paths on hover, in the card of a profile that has its own versions of some files. */
 function ownFilesNote(profile) {
     const own = profile.id && profilesUi.data.own ? profilesUi.data.own[profile.id] : null
@@ -287,7 +300,6 @@ function ownFilesNote(profile) {
 }
 
 async function openImport() {
-    if (profilesUi.dirty) { toast('Guarda o descarta los cambios de los perfiles antes de traer un modpack.', true); return }
     try {
         const sources = await api(`/api/packs/${encodeURIComponent(state.selectedId)}/profiles/sources`)
         profilesUi.importing = { sources, from: null, plan: null, name: '', baseName: 'Normal', deactivate: true, busy: false }
@@ -303,6 +315,7 @@ function closeImport() {
 }
 
 async function chooseSource(sourceId) {
+    if (profilesUi.dirty) { toast('Guarda o descarta los cambios de los perfiles antes de añadir una versión como perfil.', true); return }
     const importing = profilesUi.importing
     importing.from = sourceId
     importing.plan = null
@@ -358,16 +371,15 @@ function paintImport() {
         ? h('details', { class: 'import-more' }, h('summary', {}, title), note ? h('p', { class: 'muted small-help' }, note) : null, h('ul', {}, ...items.slice(0, 80).map((item) => h('li', {}, item)), items.length > 80 ? h('li', { class: 'muted' }, `… y ${items.length - 80} más`) : null))
         : null)
 
-    let body
-    if (!sources.length) {
-        body = h('p', { class: 'note' }, icon('alert'), 'No hay otro modpack con la misma versión de Minecraft y el mismo loader que este.')
-    } else {
-        body = h('div', { class: 'import-sources', role: 'radiogroup', 'aria-label': 'Modpack a traer' },
-            ...sources.map((source) => h('button', {
-                type: 'button', role: 'radio', 'aria-checked': String(importing.from === source.id), class: `import-src${importing.from === source.id ? ' on' : ''}`, disabled: importing.busy,
-                onclick: () => chooseSource(source.id)
-            }, h('b', {}, source.name), h('span', { class: 'muted' }, `v${source.packVersion} · ${plural(source.mods, 'mod', 'mods')}${source.active ? '' : ' · desactivado'}`))))
-    }
+    const targetName = (state.pack && state.pack.name) || 'este modpack'
+    const body = h('div', { class: 'import-sources', role: 'radiogroup', 'aria-label': 'Versión a añadir como perfil' },
+        ...sources.map((source) => h('button', {
+            type: 'button', role: 'radio', 'aria-checked': String(importing.from === source.id), class: `import-src${importing.from === source.id ? ' on' : ''}`, disabled: importing.busy,
+            onclick: () => chooseSource(source.id)
+        }, h('b', {}, source.name), h('span', { class: 'muted' }, `v${source.packVersion} · ${plural(source.mods, 'mod', 'mods')}${source.active ? '' : ' · desactivado'}`))),
+        h('button', { type: 'button', class: 'import-src empty', disabled: importing.busy, onclick: addEmptyProfile },
+            h('b', {}, withIcon('plus', 'Perfil vacío')), h('span', { class: 'muted' }, 'Lo marcas tú a mano en la tabla de abajo')))
+    const none = sources.length ? null : h('p', { class: 'note' }, icon('alert'), `No tienes otra versión con el mismo Minecraft y el mismo loader que ${targetName}. Puedes empezar con un perfil vacío.`)
 
     let detail = null
     if (importing.from && !plan) {
@@ -398,9 +410,9 @@ function paintImport() {
     }
 
     slot.replaceChildren(h('div', { class: 'import-panel' },
-        h('div', { class: 'module-head' }, h('h3', {}, 'Traer un modpack como perfil'), h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Cerrar', onclick: closeImport }, icon('x'))),
-        h('p', { class: 'muted small-help' }, 'Elige un modpack que ya tengas. Copio a este los mods y archivos que solo tiene él, calculo qué lleva cada perfil y lo dejo guardado. No se borra nada.'),
-        body, detail,
+        h('div', { class: 'module-head' }, h('h3', {}, 'Añadir perfil'), h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Cerrar', onclick: closeImport }, icon('x'))),
+        h('p', { class: 'muted small-help' }, `Elige la versión que quieras añadir como perfil de «${targetName}». Copio a este modpack los mods y archivos que solo tiene ella, calculo qué lleva cada perfil y lo dejo guardado. No se borra nada.`),
+        none, body, detail,
         plan ? h('div', { class: 'form-actions', style: 'margin-top:14px' },
             h('button', { class: 'btn paper', type: 'button', disabled: importing.busy || !importing.name.trim(), onclick: runImport }, importing.busy ? 'Trayendo…' : 'Traer como perfil'),
             h('button', { class: 'btn', type: 'button', disabled: importing.busy, onclick: closeImport }, 'Cancelar'),
