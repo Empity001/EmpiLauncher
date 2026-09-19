@@ -177,6 +177,18 @@ public sealed class Launcher : IAsyncDisposable
         catch (Exception) { }
     }
 
+    /// <summary>Received and total bytes of the installer being downloaded (total 0 when unknown).</summary>
+    public event Action<long, long>? UpdateProgress;
+
+    /// <summary>Downloads the new installer, checks it and starts it; true means it is running and this launcher must close now.</summary>
+    public async Task<bool> InstallUpdateAsync()
+    {
+        var result = await Client.CallAsync<UpdateInstallResult>("update.install", timeout: TimeSpan.FromMinutes(30));
+        return result.Launched;
+    }
+
+    public Task CancelUpdateAsync() => Quietly(() => Client.CallAsync("update.cancel"));
+
     /// <summary>Players online for the selected modpack; null until the first answer. Refreshed by the views only while they are visible.</summary>
     public ServerStatus? Status { get; private set; }
 
@@ -359,6 +371,10 @@ public sealed class Launcher : IAsyncDisposable
                 break;
             case "config.changed":
                 _ = RefreshConfigAsync();
+                break;
+            case "update.progress":
+                UpdateProgress?.Invoke(data.TryGetProperty("received", out var got) && got.ValueKind == JsonValueKind.Number ? got.GetInt64() : 0,
+                    data.TryGetProperty("total", out var all) && all.ValueKind == JsonValueKind.Number ? all.GetInt64() : 0);
                 break;
         }
     }

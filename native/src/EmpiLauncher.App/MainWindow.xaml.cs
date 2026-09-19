@@ -95,10 +95,45 @@ public partial class MainWindow : Window
     {
         var update = _l.Update;
         if (update == null) return;
+        if (_l.Game.Running || _l.Game.Busy)
+        {
+            ShowDialog($"Empi Launcher {update.Version}", "Hay una versión nueva del launcher. Se instala cuando Minecraft esté cerrado y no haya nada descargándose.", ("Entendido", null, true));
+            return;
+        }
+        var size = update.Size is > 0 ? $" (unos {Math.Max(1, update.Size.Value / 1048576)} MB)" : "";
         ShowDialog($"Empi Launcher {update.Version}",
-            $"Hay una versión nueva del launcher. Ahora tienes la {update.Current}. Se descarga desde la página de la versión.",
+            $"Hay una versión nueva del launcher: tienes la {update.Current}. Se descarga{size}, se comprueba y se instala sola. El launcher se cierra un momento y se vuelve a abrir; tus cuentas, mods y ajustes no cambian.",
             ("Más tarde", null, false),
-            ("Abrir la descarga", () => { if (update.Page != null) Process.Start(new ProcessStartInfo(update.Page) { UseShellExecute = true }); }, true));
+            ("Actualizar ahora", () => _ = InstallUpdateAsync(update), true));
+    }
+
+    /// <summary>Downloads and starts the installer while a dialog shows the progress; the launcher closes once the installer is running.</summary>
+    private async Task InstallUpdateAsync(UpdateInfo update)
+    {
+        void Progress(long got, long total) => SetWaitingText(total > 0
+            ? $"Descargando la versión {update.Version}: {got * 100 / total} %  ({got / 1048576} de {total / 1048576} MB)"
+            : $"Descargando la versión {update.Version}: {got / 1048576} MB");
+        _l.UpdateProgress += Progress;
+        ShowWaiting("Actualizando Empi Launcher", $"Descargando la versión {update.Version}…", () => _ = _l.CancelUpdateAsync());
+        try
+        {
+            if (await _l.InstallUpdateAsync())
+            {
+                SetWaitingText("Instalando… el launcher se abrirá solo en unos segundos.");
+                await Task.Delay(400);
+                _exiting = true;
+                Close();
+            }
+        }
+        catch (EngineException ex) when (ex.Code == "cancelled") { HideWaiting(); }
+        catch (Exception ex)
+        {
+            HideWaiting();
+            ShowDialog("No se pudo actualizar", ex.Message + " Puedes descargar el instalador desde la página de la versión.",
+                ("Cerrar", null, false),
+                ("Abrir la descarga", () => { if (update.Page != null) Process.Start(new ProcessStartInfo(update.Page) { UseShellExecute = true }); }, true));
+        }
+        finally { _l.UpdateProgress -= Progress; }
     }
 
     /// <summary>Renews the saved Microsoft session in the background; if it cannot be renewed the player is asked to sign in again.</summary>
@@ -212,6 +247,12 @@ public partial class MainWindow : Window
     {
         ShowDialog(title, message, ("Cancelar", cancel, false));
         _waiting = _dialogOpen;
+    }
+
+    /// <summary>Changes the message of the waiting dialog while it is up (download progress).</summary>
+    public void SetWaitingText(string message)
+    {
+        if (_waiting && _dialogOpen) DialogMessage.Text = message;
     }
 
     public void HideWaiting()

@@ -1171,8 +1171,8 @@ function renderPipeline() {
     }
 
     const info = state.launcher
-    // A compiled installer only counts if it is the version currently chosen above.
-    const build = info && info.build && info.build.version === launcherVersion() ? info.build : null
+    // A compiled installer only counts if it is the version and the kind currently chosen above.
+    const build = info && info.build && info.build.version === launcherVersion() && info.build.kind === launcherKind() ? info.build : null
     const other = info && info.build && !build ? info.build : null
     const canSend = !!build && !build.sent
     footer.replaceChildren(
@@ -1180,7 +1180,7 @@ function renderPipeline() {
         connector(true),
         step(2, { done: !!build, current: !build },
             h('button', { class: `btn ${build ? '' : 'primary'} big`, disabled: busy || !info, onclick: compileLauncher }, withIcon('package', build ? 'Compilar de nuevo' : 'Compilar')),
-            h('span', { class: 'hint tnum' }, build ? `Instalador v${build.version} listo (${formatSize(build.size)})` : other ? `Hay uno de v${other.version}; para v${launcherVersion()} compila otra vez` : 'Genera el instalador (unos minutos)')),
+            h('span', { class: 'hint tnum' }, build ? `Instalador v${build.version} listo (${formatSize(build.size)})` : other ? `Hay uno ${other.kind === 'native' ? 'nativo' : 'clásico'} de v${other.version}; para v${launcherVersion()} (${launcherKind() === 'native' ? 'nativo' : 'clásico'}) compila otra vez` : 'Genera el instalador (unos minutos)')),
         connector(!!build),
         step(3, { done: !!build && build.sent, current: canSend },
             h('button', { class: `btn ${canSend ? 'primary' : ''} big`, disabled: busy || !canSend, onclick: sendLauncher }, withIcon('send', 'Enviar')),
@@ -1213,6 +1213,14 @@ function launcherVersion() {
     return state.launcherChoice === 'same' ? info.version : info.next[state.launcherChoice]
 }
 
+/** Which installer is built: the native (WPF) launcher or the classic (Electron) one. Defaults to what the last build was, or native. */
+function launcherKind() {
+    const info = state.launcher
+    if (!info) return 'native'
+    const wanted = state.launcherKind || info.kind
+    return info.kinds && info.kinds[wanted] ? wanted : Object.keys(info.kinds || {}).find((k) => info.kinds[k]) || 'classic'
+}
+
 function renderLauncher() {
     const box = $('#launcherContent')
     const info = state.launcher
@@ -1221,12 +1229,17 @@ function renderLauncher() {
         return
     }
 
+    const kindChoice = (id, title, detail) => h('button', {
+        class: 'choice', role: 'radio', 'aria-checked': String(launcherKind() === id), disabled: !(info.kinds && info.kinds[id]),
+        onclick: () => { state.launcherKind = id; renderLauncher(); renderPipeline() }
+    }, h('b', {}, title), h('span', {}, detail))
+
     const choice = (id, title, detail) => h('button', {
         class: 'choice', role: 'radio', 'aria-checked': String(state.launcherChoice === id),
         onclick: () => { state.launcherChoice = id; renderLauncher(); renderPipeline() }
     }, h('b', {}, id === 'same' ? info.version : info.next[id]), h('span', {}, `${title} · ${detail}`))
 
-    const chosen = info.build && info.build.version === launcherVersion() ? info.build : null
+    const chosen = info.build && info.build.version === launcherVersion() && info.build.kind === launcherKind() ? info.build : null
 
     const tile = (name, value, sub) => h('div', { class: 'tile' }, h('span', { class: 'k' }, name), h('span', { class: 'v' }, value), sub ? h('span', { class: 'sub' }, sub) : null)
     box.replaceChildren(...[
@@ -1249,6 +1262,13 @@ function renderLauncher() {
                 choice('major', 'Mayor', 'cambio grande'),
                 choice('same', 'La misma', 'reintentar')),
             info.dirty > 0 ? h('p', { class: 'note' }, icon('alert'), `Tienes ${plural(info.dirty, 'archivo modificado', 'archivos modificados')} en el código: se subirán junto con esta versión.`) : null),
+        h('section', { class: 'module span2' },
+            h('div', { class: 'module-head' }, h('h2', {}, 'Instalador')),
+            h('p', { class: 'muted' }, 'El nativo es el launcher nuevo (ligero, en WPF). El clásico es el de Electron, por si hay que volver atrás.'),
+            h('div', { class: 'version-choices', role: 'radiogroup', 'aria-label': 'Tipo de instalador', style: 'margin-top:14px' },
+                kindChoice('native', 'Nativo', 'WPF + motor · recomendado'),
+                kindChoice('classic', 'Clásico', 'Electron · el de antes')),
+            info.migrates ? h('p', { class: 'note' }, icon('alert'), 'Los jugadores que todavía tienen el launcher viejo (Electron) recibirán este instalador como actualización: se les instala el nuevo y se les quita el viejo, y conservan sus cuentas, mods e instancias.') : null),
         h('section', { class: 'module' },
             h('div', { class: 'module-head' }, h('h2', {}, 'Qué cambia')),
             h('p', { class: 'muted' }, 'Se muestra en la página de la versión en GitHub. Puedes dejarlo vacío.'),
@@ -1262,7 +1282,7 @@ function renderLauncher() {
 
 function compileLauncher() {
     const version = launcherVersion()
-    runJob(`Compilar el launcher ${version}`, '/api/jobs/compile-launcher', { version, notes: state.notes }, () => {
+    runJob(`Compilar el launcher ${version}`, '/api/jobs/compile-launcher', { version, notes: state.notes, kind: launcherKind() }, () => {
         showBanner('ok', `Instalador v${version} listo. Cierra esto y pulsa “Enviar” para publicarlo.`)
     })
 }

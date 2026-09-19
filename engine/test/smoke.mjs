@@ -11,7 +11,7 @@ import { startEngine } from './harness.mjs'
 const startUpdateEngine = (url) => startEngine({ label: 'update', env: { EMPI_UPDATE_URL: url } })
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const main = path.join(here, '..', 'src', 'main.js')
+const main = process.env.ENGINE_MAIN || path.join(here, '..', 'src', 'main.js')
 const argIndex = process.argv.indexOf('--user-data')
 const userData = argIndex >= 0 ? process.argv[argIndex + 1] : fs.mkdtempSync(path.join(os.tmpdir(), 'empi-engine-'))
 const dataDir = path.join(userData, 'data')   // isolated on purpose: the real game installation must never be touched by a test
@@ -114,19 +114,20 @@ if (modsList.ok) {
 // ---- updates: a local server stands in for GitHub ----
 {
     const http = await import('node:http')
-    const yml = (version) => `version: ${version}\nfiles:\n  - url: Empi-Launcher-native-${version}.exe\n    sha512: abc123==\n    size: 123456\npath: Empi-Launcher-native-${version}.exe\nsha512: abc123==\nreleaseDate: '2026-09-18T00:00:00.000Z'\n`
+    const yml = (version) => `version: ${version}\nfiles:\n  - url: Empi-Launcher-setup-${version}.exe\n    sha512: abc123==\n    size: 123456\npath: Empi-Launcher-setup-${version}.exe\nsha512: abc123==\nreleaseDate: '2026-09-18T00:00:00.000Z'\n`
     let served = '99.0.0'
-    const server = http.createServer((req, res) => { if (req.url.endsWith('latest-native.yml')) { res.end(yml(served)) } else { res.statusCode = 404; res.end() } })
+    const server = http.createServer((req, res) => { if (req.url.endsWith('/latest.yml') && served) { res.end(yml(served)) } else { res.statusCode = 404; res.end() } })
     await new Promise((r) => server.listen(0, '127.0.0.1', r))
     const url = `http://127.0.0.1:${server.address().port}`
     const updater = await startUpdateEngine(url)
     const newer = await updater.call('update.check')
-    check('update.check offers a newer native version', newer.ok && newer.result.available === true && newer.result.version === '99.0.0' && newer.result.installer.endsWith('.exe') && newer.result.size === 123456, JSON.stringify(newer.result))
+    check('update.check offers a newer version', newer.ok && newer.result.available === true && newer.result.version === '99.0.0' && newer.result.installer.endsWith('.exe') && newer.result.size === 123456, JSON.stringify(newer.result))
     served = '0.0.0-alpha'   // the test engine reports 0.0.0-test, which is newer
     const older = await updater.call('update.check')
     check('update.check does not offer an older version', older.ok && older.result.available === false, JSON.stringify(older.result))
-    const classic = await updater.call('update.check', { channel: 'classic' })
-    check('a missing channel file is "no update", not an error', classic.ok && classic.result.available === false && classic.result.reason === 'no_channel', JSON.stringify(classic.result))
+    served = null   // nothing published
+    const none = await updater.call('update.check')
+    check('a missing channel file is "no update", not an error', none.ok && none.result.available === false && none.result.reason === 'no_channel', JSON.stringify(none.result))
     await updater.stop(); server.close()
 }
 

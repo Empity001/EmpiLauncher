@@ -49,18 +49,45 @@ function readBuild(config, expectedVersion) {
     return { version: version.trim(), assetName: assetName.trim(), exe, size: fs.statSync(exe).size, yml }
 }
 
+/**
+ * Two ways to build the installer, both ending in the same three files (installer, .blockmap, latest.yml):
+ *   native   the WPF launcher: native/build/build.mjs (dotnet publish + engine + Electron runtime + NSIS)
+ *   classic  the Electron launcher through electron-builder (kept as the way back)
+ * The channel is the same latest.yml for both, so a player with the classic launcher who receives a native build
+ * is updated into it: the native installer removes the classic program (native/build/installer.nsi).
+ */
+const KINDS = {
+    native: (config) => fs.existsSync(path.join(config.launcherRepoPath, 'native', 'build', 'build.mjs')),
+    classic: (config) => fs.existsSync(path.join(config.launcherRepoPath, 'node_modules', 'electron-builder', 'cli.js'))
+}
+
+function availableKinds(config) {
+    return Object.fromEntries(Object.entries(KINDS).map(([kind, exists]) => [kind, exists(config)]))
+}
+
+function defaultKind(config) {
+    return KINDS.native(config) ? 'native' : 'classic'
+}
+
 async function info(config) {
     const pkg = readPackage(config)
     const state = loadState().launcherBuild || null
     const build = state ? readBuild(config, state.version) : null
     let dirty = 0
     try { dirty = (await git.changes(config.launcherRepoPath)).length } catch { /* not a repo */ }
+    const latestTag = await gh.latestTag(config.launcherGithubRepo)
+    const kind = (state && state.kind) || defaultKind(config)
+    // Every release before the native one was a classic one; after the first native release it is remembered here.
+    const lastSentKind = loadState().lastSentKind || (latestTag ? 'classic' : null)
     return {
+        kinds: availableKinds(config),
+        kind,
+        migrates: kind === 'native' && lastSentKind === 'classic',
         version: pkg.version,
         next: { patch: bump(pkg.version, 'patch'), minor: bump(pkg.version, 'minor'), major: bump(pkg.version, 'major') },
-        latestTag: await gh.latestTag(config.launcherGithubRepo),
+        latestTag,
         dirty,
-        build: build ? { version: build.version, name: path.basename(build.exe), size: build.size, at: state.at, notes: state.notes, sent: !!state.sentAt } : null
+        build: build ? { version: build.version, name: path.basename(build.exe), size: build.size, at: state.at, notes: state.notes, sent: !!state.sentAt, kind: state.kind || 'classic' } : null
     }
 }
 
@@ -78,21 +105,32 @@ async function compile(config, options, log, step) {
         log(`Se mantiene la version ${version}.`)
     }
 
-    step('Construyendo el instalador (tarda unos minutos)')
-    const builder = path.join(repo, 'node_modules', 'electron-builder', 'cli.js')
-    if (!fs.existsSync(builder)) throw new Error('Faltan las dependencias del launcher. Corre "npm install" en su carpeta una vez.')
-    await runNode(builder, ['build', '-w', '--publish', 'never'], {
-        cwd: repo,
-        env: { CSC_IDENTITY_AUTO_DISCOVERY: 'false' }
-    }, log)
+    const kind = options.kind || defaultKind(config)
+    if (!KINDS[kind]) throw new Error(`Tipo de instalador desconocido: ${kind}.`)
+    if (!KINDS[kind](config)) throw new Error(kind === 'native' ? 'Falta native/build/build.mjs en la carpeta del launcher.' : 'Faltan las dependencias del launcher. Corre "npm install" en su carpeta una vez.')
+
+    if (kind === 'native') {
+        step('Construyendo el instalador nativo (tarda unos minutos)')
+        // build.mjs prints "==> [n] what it is doing" for each stage: those become the job's steps, the rest is the log.
+        await runNode(path.join(repo, 'native', 'build', 'build.mjs'), ['--version', version], { cwd: repo }, (line) => {
+            const stage = /^==> \[\d+\]\s*(.+)$/.exec(line)
+            if (stage) step(stage[1]); else log(line)
+        })
+    } else {
+        step('Construyendo el instalador clasico (tarda unos minutos)')
+        await runNode(path.join(repo, 'node_modules', 'electron-builder', 'cli.js'), ['build', '-w', '--publish', 'never'], {
+            cwd: repo,
+            env: { CSC_IDENTITY_AUTO_DISCOVERY: 'false' }
+        }, log)
+    }
 
     step('Comprobando el instalador')
     const build = readBuild(config, version)
-    if (!build) throw new Error('electron-builder termino pero no encuentro el instalador de esa version.')
+    if (!build) throw new Error('La compilacion termino pero no encuentro el instalador de esa version.')
     log(`Instalador listo: ${path.basename(build.exe)} (${(build.size / MB).toFixed(0)} MB)`)
 
-    saveState({ launcherBuild: { version, at: new Date().toISOString(), notes: options.notes || '' } })
-    return { version }
+    saveState({ launcherBuild: { version, kind, at: new Date().toISOString(), notes: options.notes || '' } })
+    return { version, kind }
 }
 
 async function send(config, options, log, step) {
@@ -146,14 +184,14 @@ async function send(config, options, log, step) {
     // Old installers pile up ~100 MB each; only the one just released is worth keeping.
     const dist = path.dirname(build.exe)
     for (const name of fs.readdirSync(dist)) {
-        if (/^Empi Launcher-setup-.*\.exe(\.blockmap)?$/.test(name) && !name.startsWith(path.basename(build.exe))) {
+        if (/^Empi[ -]Launcher-setup-.*\.exe(\.blockmap)?$/.test(name) && !name.startsWith(path.basename(build.exe))) {
             fs.rmSync(path.join(dist, name), { force: true })
         }
     }
 
-    saveState({ launcherBuild: { ...state, sentAt: new Date().toISOString() } })
+    saveState({ launcherBuild: { ...state, sentAt: new Date().toISOString() }, lastSentKind: state.kind || 'classic' })
     log(`Publicado: https://github.com/${config.launcherGithubRepo}/releases/tag/${tag}`)
     return { version: state.version, url: `https://github.com/${config.launcherGithubRepo}/releases/tag/${tag}` }
 }
 
-module.exports = { info, compile, send, bump }
+module.exports = { info, compile, send, bump, readBuild }

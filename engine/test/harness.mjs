@@ -15,7 +15,7 @@ export async function startEngine({ label = 'test', env = {} } = {}) {
     const pipe = `empi-engine-${label}-${process.pid}`
     const token = crypto.randomBytes(16).toString('hex')
     const runtime = process.env.ENGINE_NODE || process.execPath
-    const engine = spawn(runtime, [path.join(here, '..', 'src', 'main.js'), '--pipe', pipe, '--token', token, '--user-data', path.join(root, 'user'), '--data-dir', path.join(root, 'data'), '--app-version', '0.0.0-test'],
+    const engine = spawn(runtime, [process.env.ENGINE_MAIN || path.join(here, '..', 'src', 'main.js'), '--pipe', pipe, '--token', token, '--user-data', path.join(root, 'user'), '--data-dir', path.join(root, 'data'), '--app-version', '0.0.0-test'],
         { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...env } })
     let output = ''
     engine.stdout.on('data', (d) => { output += d })

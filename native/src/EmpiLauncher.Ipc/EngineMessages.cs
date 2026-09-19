@@ -95,6 +95,9 @@ public sealed record UiPrefs(string FieldMode);
 /// <summary>Answer of update.check. Reason is set when nothing is offered: no_channel (nothing published), bad_channel, offline.</summary>
 public sealed record UpdateInfo(bool Available, string? Current, string? Version, string? Installer, string? Sha512, long? Size, string? Page, string? Reason);
 
+/// <summary>Answer of update.install: Launched is true when the installer was started and the launcher should close.</summary>
+public sealed record UpdateInstallResult(bool Launched, string? File, string? Version);
+
 public sealed record PlayerCount(int Online, int Max);
 
 public sealed record ServerStatus(bool Online, PlayerCount? Players);
