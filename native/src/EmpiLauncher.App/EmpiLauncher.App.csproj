@@ -12,6 +12,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <RootNamespace>EmpiLauncher.App</RootNamespace>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <AssemblyName>EmpiLauncher.App</AssemblyName>
     <!-- Memory tuning for a small desktop app that mostly waits (measured in native/prototypes/wpf): workstation non-concurrent GC, no tiered PGO. -->
     <ServerGarbageCollector>false</ServerGarbageCollector>

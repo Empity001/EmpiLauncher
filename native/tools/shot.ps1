@@ -5,7 +5,11 @@ param(
     [Parameter(Mandatory)] [string] $Exe,
     [Parameter(Mandatory)] [string] $OutDir,
     [Parameter(Mandatory)] [string] $Steps,
-    [int] $LiveSeconds = 0
+    [int] $LiveSeconds = 0,
+    # Optional: after the steps, wait $ProbeSettle seconds and measure the app's process tree with native/tools/Probe.
+    [string] $Probe = '',
+    [string] $ProbeLabel = 'native',
+    [int] $ProbeSettle = 7
 )
 
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Drawing
@@ -62,6 +66,10 @@ foreach ($step in $Steps.Split(';')) {
     }
 }
 
+if ($Probe -ne '') {
+    Start-Sleep -Seconds $ProbeSettle
+    & $Probe --attach $proc.Id --tree --sample 8 --label $ProbeLabel
+}
 if ($LiveSeconds -gt 0) { Start-Sleep -Seconds $LiveSeconds }
 Get-CimInstance Win32_Process | Where-Object { $_.ParentProcessId -eq $proc.Id } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue

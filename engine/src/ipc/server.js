@@ -64,7 +64,7 @@ function createServer({ pipeName, token, handlers, log, onIdle }) {
                     send({ id, ok: true, result: (await handler(params || {}, ctx)) ?? null })
                 } catch (err) {
                     log.error(`method ${method} failed`, err)
-                    send({ id, ok: false, error: { code: err.code || 'internal', message: err.displayable || err.message || String(err) } })
+                    send({ id, ok: false, error: { code: err.code || 'internal', message: err.displayable || err.message || String(err), title: err.title } })
                 }
             }
         })

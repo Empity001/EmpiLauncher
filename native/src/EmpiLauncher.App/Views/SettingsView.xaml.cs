@@ -23,6 +23,8 @@ public partial class SettingsView : UserControl
     private int _loadToken;
 
     public event Action? Done;
+    /// <summary>A tab finished loading: the window may schedule a memory trim.</summary>
+    public event Action? TabLoaded;
 
     public SettingsView(string initialTab = "account")
     {
@@ -52,6 +54,7 @@ public partial class SettingsView : UserControl
         {
             if (token == _loadToken) tab.Root.Children.Add(Ui.Text("No se pudo cargar esta pestaña: " + ex.Message, "CaptionText", Ui.Res("DangerBrush")));
         }
+        TabLoaded?.Invoke();
     }
 
     /// <summary>Saves pending changes and frees what the current tab holds. Safe to call more than once.</summary>

@@ -29,7 +29,7 @@
     <SolidColorBrush x:Key="Paper2Brush" Color="{StaticResource Paper2Color}"/>
     <SolidColorBrush x:Key="Paper3Brush" Color="{StaticResource Paper3Color}"/>
     <SolidColorBrush x:Key="PaperInkBrush" Color="{StaticResource PaperInkColor}"/>
-    <SolidColorBrush x:Key="ModuleBrush" Color="#C2111215"/>
+    <SolidColorBrush x:Key="ModuleBrush" Color="#DB111215"/>
     <SolidColorBrush x:Key="HairBrush" Color="#1AF1EFE8"/>
     <SolidColorBrush x:Key="HairStrongBrush" Color="#38F1EFE8"/>
     <SolidColorBrush x:Key="TintBrush" Color="#0AFFFFFF"/>

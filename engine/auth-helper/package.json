@@ -1,0 +1,7 @@
+{
+    "name": "empi-auth-helper",
+    "version": "1.0.0",
+    "private": true,
+    "main": "main.js",
+    "description": "Opens the Microsoft sign-in window on demand and reports the result. Not part of the launcher's own app."
+}

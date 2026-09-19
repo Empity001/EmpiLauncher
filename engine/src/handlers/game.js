@@ -608,6 +608,17 @@ function register(handlers, state) {
 
     handlers.set('game.stop', async () => stopGame())
 
+    // Test hook (engine/test/lifecycle.mjs): runs the real launch bookkeeping around a stand-in process instead of Minecraft,
+    // so start-up detection, stopping and crashes can be tested without a 1.2 GB pack and an account. Off unless the tests turn it on.
+    if (process.env.EMPI_ENGINE_TEST === '1') {
+        handlers.set('test.spawnFake', async ({ script }) => {
+            const { distro, server } = await currentServer()
+            const pb = { build: () => childProcess.spawn(process.execPath, ['-e', script], { env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } }) }
+            setPhase('launching', 'play')
+            return { ok: spawnGame(pb, distro, server) }
+        })
+    }
+
     handlers.set('discord.navigation', async ({ id } = {}) => {
         const { DistroAPI } = core()
         const server = id ? (await DistroAPI.getDistribution()).getServerById(id) : null

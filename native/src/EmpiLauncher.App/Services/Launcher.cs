@@ -91,6 +91,7 @@ public sealed class Launcher : IAsyncDisposable
         var status = await Client.CallAsync<GameStatus>("game.status");
         Game.ApplyState(JsonSerializer.SerializeToElement(new { phase = status.Phase, mode = status.Mode }));
         GameChanged?.Invoke();
+        _ = RefreshStatusAsync();   // the home screen asked before the engine was up; ask again now
     }
 
     public async Task ReloadDistroAsync(bool refresh = false)
@@ -113,18 +114,54 @@ public sealed class Launcher : IAsyncDisposable
         if (id == SelectedId || Game.Busy || Game.Running) return;
         SelectedId = id;
         Pack = null;
+        Status = null;
         Changed?.Invoke();
         await Client.CallAsync("distro.select", new { id });
         await ApplyThemeAsync();
         await RefreshPackAsync();
         Changed?.Invoke();
-        _ = Client.CallAsync("discord.navigation", new { id });
+        _ = Quietly(() => Client.CallAsync("discord.navigation", new { id }));
+        _ = RefreshStatusAsync();
     }
 
     public async Task RefreshPackAsync()
     {
         try { Pack = await Client.CallAsync<PackStatus>("pack.status"); }
         catch (EngineException) { Pack = null; }
+    }
+
+    public UpdateInfo? Update { get; private set; }
+
+    /// <summary>Asks whether a newer native launcher is published. Quiet on failure: no network just means no news.</summary>
+    public async Task CheckUpdateAsync()
+    {
+        try
+        {
+            var info = await Client.CallAsync<UpdateInfo>("update.check", timeout: TimeSpan.FromSeconds(30));
+            Update = info.Available ? info : null;
+            Changed?.Invoke();
+        }
+        catch (Exception) { }
+    }
+
+    /// <summary>Players online for the selected modpack; null until the first answer. Refreshed by the views only while they are visible.</summary>
+    public ServerStatus? Status { get; private set; }
+
+    public async Task RefreshStatusAsync()
+    {
+        var id = SelectedId;
+        try
+        {
+            var status = await Client.CallAsync<ServerStatus>("server.status", new { id }, TimeSpan.FromSeconds(20));
+            if (id == SelectedId) { Status = status; Changed?.Invoke(); }
+        }
+        catch (Exception) { }   // offline, cancelled or the engine is gone: the count simply stays unknown
+    }
+
+    /// <summary>For calls nobody waits for: a failure (engine closed, timeout) must never surface as an unobserved task error.</summary>
+    private static async Task Quietly(Func<Task> action)
+    {
+        try { await action(); } catch (Exception) { }
     }
 
     // ---- accent ---------------------------------------------------------------------------------------------------
@@ -167,13 +204,79 @@ public sealed class Launcher : IAsyncDisposable
         res["AccentSoftBrush"] = Frozen(Color.FromArgb(0x29, color.R, color.G, color.B));
     }
 
+    // ---- accounts -------------------------------------------------------------------------------------------------
+
+    /// <summary>The sign-in window is open (true) or gone (false): the UI shows a waiting message with a cancel button.</summary>
+    public event Action<bool, string>? AuthWindow;
+    public bool AuthBusy { get; private set; }
+
+    /// <summary>Opens the Microsoft window, waits for it, and signs the account in. Tokens stay inside the engine.</summary>
+    public async Task<bool> LoginAsync()
+    {
+        if (AuthBusy) return false;
+        AuthBusy = true;
+        AuthWindow?.Invoke(true, "Termina de iniciar sesión en la ventana de Microsoft. Cuando acabes, esta pantalla continúa sola.");
+        try
+        {
+            await Client.CallAsync<AccountList>("auth.microsoft.login", timeout: TimeSpan.FromMinutes(11));
+            await RefreshConfigAsync();
+            Notice?.Invoke($"Sesión iniciada como {Account?.DisplayName}.");
+            return true;
+        }
+        catch (EngineException ex) when (ex.Code == "cancelled") { return false; }
+        catch (EngineException ex)
+        {
+            Failure?.Invoke(new GameFailure("auth", ex.Title ?? "Error al iniciar sesión", ex.Message));
+            return false;
+        }
+        finally { AuthBusy = false; AuthWindow?.Invoke(false, ""); }
+    }
+
+    /// <summary>Signs an account out (Microsoft accounts also clear the browser session in the helper window).</summary>
+    public async Task<bool> RemoveAccountAsync(string uuid)
+    {
+        if (AuthBusy) return false;
+        AuthBusy = true;
+        var microsoft = Config?.Accounts.Accounts.FirstOrDefault(a => a.Uuid == uuid)?.Type == "microsoft";
+        if (microsoft) AuthWindow?.Invoke(true, "Cierra sesión en la ventana de Microsoft. Se cerrará sola al terminar.");
+        try
+        {
+            await Client.CallAsync<AccountList>("account.remove", new { uuid }, TimeSpan.FromMinutes(11));
+            await RefreshConfigAsync();
+            return true;
+        }
+        catch (EngineException ex) when (ex.Code == "cancelled") { return false; }
+        catch (EngineException ex)
+        {
+            Failure?.Invoke(new GameFailure("auth", ex.Title ?? "No se pudo cerrar la sesión", ex.Message));
+            return false;
+        }
+        finally { AuthBusy = false; if (microsoft) AuthWindow?.Invoke(false, ""); }
+    }
+
+    public Task CancelAuthAsync() => Client.CallAsync("auth.cancel");
+
+    /// <summary>Renews the saved session at start-up. Returns the name of an account that had to be taken off the list, if any.</summary>
+    public async Task<string?> ValidateSessionAsync()
+    {
+        if (Account == null) return null;
+        try
+        {
+            var result = await Client.CallAsync<ValidateResult>("auth.validate", timeout: TimeSpan.FromMinutes(2));
+            await RefreshConfigAsync();
+            return result.Valid ? null : result.Removed;
+        }
+        catch (EngineException) { return null; }
+    }
+
     // ---- Play -----------------------------------------------------------------------------------------------------
 
-    /// <summary>What the main button does right now: play, update or restore when idle, stop while the game runs.</summary>
+    /// <summary>What the main button does right now: sign in when there is no account, play/update/restore when idle, stop while the game runs.</summary>
     public async Task PrimaryActionAsync()
     {
         if (Game.Running) { await Client.CallAsync("game.stop"); return; }
         if (Game.Busy) return;
+        if (Account == null) { await LoginAsync(); return; }
         try
         {
             var result = await Client.CallAsync<GameStartResult>("game.start", new { mode = "auto" });

@@ -14,7 +14,7 @@ function arg(name, fallback) {
 const pipeName = arg('pipe')
 const token = arg('token')
 if (!pipeName || !token) {
-    process.stderr.write('usage: node main.js --pipe <name> --token <secret> [--user-data <dir>] [--data-dir <dir>] [--app-version <x.y.z>]\n')
+    process.stderr.write('usage: node main.js --pipe <name> --token <secret> [--user-data <dir>] [--data-dir <dir>] [--electron <electron.exe>] [--app-version <x.y.z>]\n')
     process.exit(2)
 }
 
@@ -33,12 +33,15 @@ const log = LoggerUtil.getLogger('Engine')
 
 const { createServer } = require('./ipc/server')
 const handlers = new Map()
-const state = { started: Date.now(), keepAlive: new Set(), appJs, shim, log, dataDir: arg('data-dir') }
+const state = { started: Date.now(), keepAlive: new Set(), appJs, shim, log, dataDir: arg('data-dir'), electron: arg('electron') }
 
 require('./handlers/core').register(handlers, state)
 require('./handlers/distro').register(handlers, state)
 require('./handlers/game').register(handlers, state)
 require('./handlers/settings').register(handlers, state)
+require('./handlers/auth').register(handlers, state)
+require('./handlers/status').register(handlers, state)
+require('./handlers/update').register(handlers, state)
 
 const ipc = createServer({
     pipeName, token, handlers, log,

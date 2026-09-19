@@ -64,7 +64,8 @@ public sealed class EngineClient : IAsyncDisposable
                         var error = root.GetProperty("error");
                         waiter.TrySetException(new EngineException(
                             error.TryGetProperty("code", out var code) ? code.GetString() ?? "error" : "error",
-                            error.TryGetProperty("message", out var message) ? message.GetString() ?? "" : ""));
+                            error.TryGetProperty("message", out var message) ? message.GetString() ?? "" : "",
+                            error.TryGetProperty("title", out var title) && title.ValueKind == JsonValueKind.String ? title.GetString() : null));
                     }
                 }
                 else if (root.TryGetProperty("event", out var name))

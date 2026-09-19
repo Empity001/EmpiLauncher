@@ -37,14 +37,21 @@ public partial class HomeView : UserControl
     private readonly Launcher _l = Launcher.Instance;
     private string _railKey = "";
     private string? _avatarFor;
+    private readonly System.Windows.Threading.DispatcherTimer _status = new() { Interval = TimeSpan.FromSeconds(90) };
 
     public event Action? OpenSettings;
 
     public HomeView()
     {
         InitializeComponent();
-        Loaded += (_, _) => { _l.Changed += OnChanged; _l.GameChanged += OnGame; Refresh(); };
-        Unloaded += (_, _) => { _l.Changed -= OnChanged; _l.GameChanged -= OnGame; };
+        Loaded += (_, _) => { _l.Changed += OnChanged; _l.GameChanged += OnGame; Refresh(); _status.Start(); _ = _l.RefreshStatusAsync(); };
+        Unloaded += (_, _) => { _l.Changed -= OnChanged; _l.GameChanged -= OnGame; _status.Stop(); };
+        // Players online: only asked while the window is in front, once every 90 s. A hidden launcher does not poll the network.
+        _status.Tick += (_, _) =>
+        {
+            var window = Window.GetWindow(this);
+            if (window is { IsActive: true, WindowState: not WindowState.Minimized } && !_l.Game.Busy) _ = _l.RefreshStatusAsync();
+        };
         SettingsButton.Click += (_, _) => OpenSettings?.Invoke();
         PlayButton.Click += async (_, _) => await _l.PrimaryActionAsync();
     }
@@ -117,6 +124,8 @@ public partial class HomeView : UserControl
         Facts.Children.Add(Fact("ESTADO", state));
         Facts.Children.Add(Fact("INSTALADO", pack?.InstalledVersion is { } v ? $"v{v}" : "Ninguna"));
         Facts.Children.Add(Fact("DISPONIBLE", pack != null ? $"v{pack.RemoteVersion}" : "..."));
+        var status = _l.Status;
+        Facts.Children.Add(Fact("JUGADORES", status == null ? "..." : status.Online && status.Players != null ? $"{status.Players.Online}/{status.Players.Max}" : "Sin conexión"));
     }
 
     private StackPanel Fact(string label, string value) => new()
@@ -165,6 +174,7 @@ public partial class HomeView : UserControl
             "restoring" => $"RESTAURANDO  {game.Percent}%",
             "stopping" => "DETENIENDO",
             "running" => "DETENER",
+            _ when _l.Account == null => "INICIAR SESIÓN",
             _ => (_l.Pack?.Action ?? "play") switch { "update" => "ACTUALIZAR", "restore" => "RESTAURAR", _ => "JUGAR" }
         };
         PlayLabel.Text = label;

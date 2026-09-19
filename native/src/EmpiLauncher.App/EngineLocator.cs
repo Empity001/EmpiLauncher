@@ -41,7 +41,8 @@ internal static class EngineLocator
         string? userData = shared ? null : sandbox;
         string? dataDir = shared ? null : Path.Combine(sandbox, "data");
         if (userData != null) Directory.CreateDirectory(userData);
-        return new EngineHostOptions(runtime, main, electronAsNode, userData, "0.0.0-native-dev", dataDir);
+        var electronPath = FindUp("node_modules", "electron", "dist", "electron.exe");
+        return new EngineHostOptions(runtime, main, electronAsNode, userData, "0.0.0-native-dev", dataDir, electronPath);
     }
 
     private static string? FindUp(params string[] parts)

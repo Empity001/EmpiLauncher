@@ -36,6 +36,14 @@ public partial class MainWindow : Window
 
         _l.Failure += failure => ShowDialog(failure.Title, failure.Message, ("Entendido", null, true));
         _l.Notice += ShowToast;
+        _l.GameChanged += OnGameChanged;
+        _l.Changed += OnUpdateChanged;
+        UpdateButton.Click += (_, _) => OnUpdateClick();
+        _l.AuthWindow += (open, text) =>
+        {
+            if (open) ShowWaiting("Esperando a Microsoft", text, () => _ = _l.CancelAuthAsync());
+            else HideWaiting();
+        };
         _l.EngineLost += message => ShowDialog("El launcher perdió su motor", message + " Ábrelo de nuevo para continuar.", ("Cerrar", Close, true));
         _l.JavaNeeded += need => ShowDialog(
             "Falta una versión de Java",
@@ -58,7 +66,47 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             ShowDialog("No se pudo iniciar el motor", ex.Message, ("Cerrar", Close, true));
+            return;
         }
+        _ = ValidateSessionAsync();
+        _ = CheckUpdatesLoopAsync();
+    }
+
+    /// <summary>First check a little after start (so it never competes with start-up), then every six hours while the launcher is open.</summary>
+    private async Task CheckUpdatesLoopAsync()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(20));
+        while (_l.Connected)
+        {
+            await _l.CheckUpdateAsync();
+            await Task.Delay(TimeSpan.FromHours(6));
+        }
+    }
+
+    private void OnUpdateChanged()
+    {
+        var update = _l.Update;
+        UpdateButton.Visibility = update == null ? Visibility.Collapsed : Visibility.Visible;
+        if (update != null) UpdateButton.Content = $"NUEVA VERSIÓN {update.Version}";
+    }
+
+    private void OnUpdateClick()
+    {
+        var update = _l.Update;
+        if (update == null) return;
+        ShowDialog($"Empi Launcher {update.Version}",
+            $"Hay una versión nueva del launcher. Ahora tienes la {update.Current}. Se descarga desde la página de la versión.",
+            ("Más tarde", null, false),
+            ("Abrir la descarga", () => { if (update.Page != null) Process.Start(new ProcessStartInfo(update.Page) { UseShellExecute = true }); }, true));
+    }
+
+    /// <summary>Renews the saved Microsoft session in the background; if it cannot be renewed the player is asked to sign in again.</summary>
+    private async Task ValidateSessionAsync()
+    {
+        var removed = await _l.ValidateSessionAsync();
+        if (removed != null)
+            ShowDialog("Tu sesión caducó", $"No se pudo renovar la sesión de {removed}. Inicia sesión de nuevo para jugar.",
+                ("Más tarde", null, false), ("Iniciar sesión", () => _ = _l.LoginAsync(), true));
     }
 
     // ---- views ----------------------------------------------------------------------------------------------------
@@ -69,15 +117,20 @@ public partial class MainWindow : Window
         var home = new HomeView();
         home.OpenSettings += () => ShowSettings();
         ViewHost.Content = home;
+        ScheduleTrim();
     }
 
     private void ShowSettings(string tab = "account")
     {
         var view = new SettingsView(tab);
         view.Done += ShowHome;
+        view.TabLoaded += ScheduleTrim;
         _settings = view;
         ViewHost.Content = view;
     }
+
+    /// <summary>Whatever the player just did touched memory: give it back after a quiet moment (mouse moves postpone it).</summary>
+    private void ScheduleTrim() { _idle.Stop(); _idle.Start(); }
 
     private void ReleaseSettings()
     {
@@ -125,8 +178,24 @@ public partial class MainWindow : Window
         if (DialogButtons.Children.Count > 0) ((Button)DialogButtons.Children[^1]).Focus();
     }
 
+    private bool _waiting;
+
+    /// <summary>A dialog that stays until the work behind it ends (HideWaiting) or the player cancels.</summary>
+    public void ShowWaiting(string title, string message, Action cancel)
+    {
+        ShowDialog(title, message, ("Cancelar", cancel, false));
+        _waiting = _dialogOpen;
+    }
+
+    public void HideWaiting()
+    {
+        if (_waiting && _dialogOpen) CloseDialog();
+        _waiting = false;
+    }
+
     private void CloseDialog()
     {
+        _waiting = false;
         DialogLayer.Visibility = Visibility.Collapsed;
         _dialogOpen = false;
         if (_dialogQueue.Count > 0) _dialogQueue.Dequeue()();
@@ -142,10 +211,51 @@ public partial class MainWindow : Window
         if (WindowState == WindowState.Minimized) TrimMemory();
     }
 
+    // ---- tray: out of the way while Minecraft runs ---------------------------------------------------------------
+
+    private TrayIcon? _tray;
+    private bool _exiting;
+    private bool _hiddenForGame;
+
+    private void OnGameChanged()
+    {
+        var game = _l.Game;
+        // Same as the classic launcher: once Minecraft is up the launcher steps aside, and comes back when it closes.
+        if (game.Running && !_hiddenForGame && IsVisible) { _hiddenForGame = true; HideToTray(); }
+        else if (game.Phase == "idle" && _hiddenForGame) { _hiddenForGame = false; RestoreFromTray(); }
+        else if (!IsVisible) _tray?.Show(TrayTip(), game.Running, !game.Busy);
+    }
+
+    private string TrayTip() => _l.Game.Running ? $"Empi Launcher: {_l.Selected?.Name} en marcha" : "Empi Launcher";
+
+    private void HideToTray()
+    {
+        if (_tray == null)
+        {
+            _tray = new TrayIcon();
+            _tray.OpenRequested += RestoreFromTray;
+            _tray.StopRequested += () => { try { _ = _l.Client.CallAsync("game.stop"); } catch { } };
+            _tray.ExitRequested += () => { _exiting = true; Close(); };
+        }
+        _tray.Show(TrayTip(), _l.Game.Running, !_l.Game.Busy);
+        Hide();
+        TrimMemory();
+    }
+
+    private void RestoreFromTray()
+    {
+        _hiddenForGame = false;
+        Show();
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        Activate();
+        _tray?.Hide();
+    }
+
     private void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        // While Minecraft runs the launcher stays out of the way (the classic one hides to the tray): closing only minimises.
-        if (_l.Game.Running || _l.Game.Busy) { e.Cancel = true; WindowState = WindowState.Minimized; return; }
+        // While Minecraft runs, closing the window only sends the launcher to the tray.
+        if (!_exiting && (_l.Game.Running || _l.Game.Busy)) { e.Cancel = true; HideToTray(); return; }
+        _tray?.Dispose();
         _ = _l.DisposeAsync();
     }
 

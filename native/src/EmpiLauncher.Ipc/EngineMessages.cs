@@ -7,7 +7,9 @@ namespace EmpiLauncher.Ipc;
 public sealed class EngineException : Exception
 {
     public string Code { get; }
-    public EngineException(string code, string message) : base(message) => Code = code;
+    /// <summary>A short heading for errors the player should read (sign-in failures); null for the rest.</summary>
+    public string? Title { get; }
+    public EngineException(string code, string message, string? title = null) : base(message) { Code = code; Title = title; }
 }
 
 public static class Json
@@ -83,6 +85,16 @@ public sealed record ThemeResult(string Source, JsonElement? Theme);
 
 public sealed record ValidResult(bool Valid);
 
+/// <summary>Answer of update.check. Reason is set when nothing is offered: no_channel (nothing published), bad_channel, offline.</summary>
+public sealed record UpdateInfo(bool Available, string? Current, string? Version, string? Installer, string? Sha512, long? Size, string? Page, string? Reason);
+
+public sealed record PlayerCount(int Online, int Max);
+
+public sealed record ServerStatus(bool Online, PlayerCount? Players);
+
 public sealed record PathResult(string Path);
 
 public sealed record DirResult(string Dir);
+
+/// <summary>Valid = false with Removed set means the saved session could not be renewed and the account was taken off the list.</summary>
+public sealed record ValidateResult(bool Valid, bool? None, string? Removed, AccountList? Accounts);

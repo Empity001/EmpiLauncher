@@ -42,6 +42,9 @@ internal sealed class AboutTab : SettingsTab
         var engine = Ui.Text("", "BodyText");
         c.Children.Add(Ui.Row("Interfaz nativa", null, ui));
         c.Children.Add(Ui.Row("Motor del launcher", "Sin Chromium: solo lógica.", engine));
+        FieldGovernor.Evaluate(Application.Current.MainWindow);
+        c.Children.Add(Ui.Row("Campo de puntos", "Es decoración: se mueve solo cuando no molesta y queda quieto si algo importa más.",
+            Ui.Text(FieldGovernor.Allowed ? "en movimiento" : "quieto: " + FieldGovernor.Reason, "BodyText")));
         Root.Children.Add(cost);
         try
         {

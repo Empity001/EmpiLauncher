@@ -10,7 +10,8 @@ public sealed record EngineHostOptions(
     bool ElectronAsNode = false,
     string? UserDataDir = null,  // the classic launcher's data folder (the engine defaults to %APPDATA%\Empi Launcher)
     string? AppVersion = null,
-    string? DataDir = null);     // where common/ and instances/ live; set it in development so Play never touches the real installation
+    string? DataDir = null,      // where common/ and instances/ live; set it in development so Play never touches the real installation
+    string? ElectronPath = null); // electron.exe for the on-demand sign-in window (the engine finds one itself if it is running on Electron)
 
 /// <summary>
 /// Starts the engine (Node, no Chromium), waits until it is listening, connects, and can trim its memory when everything is idle.
@@ -41,6 +42,7 @@ public sealed class EngineHost : IAsyncDisposable
         info.ArgumentList.Add("--token"); info.ArgumentList.Add(token);
         if (options.UserDataDir != null) { info.ArgumentList.Add("--user-data"); info.ArgumentList.Add(options.UserDataDir); }
         if (options.DataDir != null) { info.ArgumentList.Add("--data-dir"); info.ArgumentList.Add(options.DataDir); }
+        if (options.ElectronPath != null) { info.ArgumentList.Add("--electron"); info.ArgumentList.Add(options.ElectronPath); }
         if (options.AppVersion != null) { info.ArgumentList.Add("--app-version"); info.ArgumentList.Add(options.AppVersion); }
         if (options.ElectronAsNode) info.Environment["ELECTRON_RUN_AS_NODE"] = "1";
 

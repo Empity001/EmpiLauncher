@@ -14,6 +14,8 @@ function ensureCore(state) {
     // Game files (common/ and instances/) live in the data directory, which is NOT under userData: an isolated userData alone
     // would still point Play at the real installation. Development and tests pass --data-dir to isolate that too.
     if (state.dataDir) ConfigManager.setDataDirectory(state.dataDir)
+    // Messages the classic modules build for players (auth errors...) come from the language files.
+    require(path.join(state.appJs, 'langloader')).setupLanguage(ConfigManager.getLanguage())
     const { DistroAPI, REMOTE_DISTRO_URL } = require(path.join(state.appJs, 'distromanager'))
     DistroAPI['commonDir'] = ConfigManager.getCommonDirectory()
     DistroAPI['instanceDir'] = ConfigManager.getInstanceDirectory()
@@ -111,4 +113,4 @@ function register(handlers, state) {
     })
 }
 
-module.exports = { register, ensureCore }
+module.exports = { register, ensureCore, accountsView }
