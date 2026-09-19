@@ -47,7 +47,7 @@ el "modo ligero" es una condición (`performanceMode` y el `FieldGovernor`) del 
 | 10. Bandeja, actualizaciones | Hecho: bandeja, aviso de versión nueva, descarga con sha512, instalación silenciosa y reapertura (`update.install`) |
 | 11. Empaquetado y Publisher | Hecho: instalador NSIS propio, `latest.yml` único, el clásico se actualiza al nativo, Publisher con "Nativo / Clásico" (abajo) |
 | 12. Pruebas completas | Pruebas automáticas del motor, del instalador y de la interfaz hechas (abajo); lo que necesita cuenta real o una desconexión real está listado |
-| Extra: jugar sin conexión | Hecho: jugador sin cuenta con id determinista de 12 dígitos y skin opcional por id de NameMC ([PROTOCOL.md](PROTOCOL.md), "Jugar sin conexión"). La skin está comprobada con el authlib real de 1.21.11, **no dentro de una partida** |
+| Extra: jugar sin conexión | Hecho: jugador sin cuenta con id determinista de 12 dígitos y skin opcional por id de NameMC ([PROTOCOL.md](PROTOCOL.md), "Jugar sin conexión"). La skin está comprobada con el authlib real de nueve versiones (1.8.9 a 1.21.11), **no dentro de una partida** |
 | Extra: pestaña Launcher | Hecho: versión y **notas de todas las versiones hasta la última**, ajustes del launcher, fondo vivo y su color con un selector de color propio. Ondas de clic que cruzan la ventana, presentes también durante descargas y actualizaciones; mezcla de color cuando se cruzan dos. El mismo comportamiento y selector están en el Publisher (`life.js`, `picker.js`) |
 
 ## Pruebas
@@ -62,7 +62,7 @@ el "modo ligero" es una condición (`performanceMode` y el `FieldGovernor`) del 
 | `node engine/test/classpath.mjs` | qué jars de NeoForge / Minecraft quedan fuera del classpath (FML 10) |
 | `node engine/test/update.mjs` | `update.install`: descarga, sha512 falso, nombre con ruta, sin huella, cancelar, no con el juego abierto; `update.changelog`: todas las versiones nuevas, en orden, sin borradores |
 | `node engine/test/skin.mjs` | skins: lectura del id o enlace de NameMC, descarga y comprobaciones (tamaño, PNG, página anti-bots), modelo fino o normal, vista previa con contenido, servidor local (firma, dominio, 204/404) y cómo vive la skin en la lista de cuentas |
-| `node engine/test/skin-java.mjs` | opcional (JDK + internet): el authlib real de Minecraft 1.21.11 con el agente y nuestro servidor devuelve la skin firmada y con su modelo |
+| `node engine/test/skin-java.mjs [versiones]` | opcional (JDK + internet): el authlib real de nueve versiones de Minecraft (1.8.9 a 1.21.11) con el agente y nuestro servidor devuelve la skin, con su modelo, y solo para nuestro UUID |
 | `node engine/test/offline.mjs` | la regla del id sin conexión (fija, sin mayúsculas, 12 dígitos) y cómo convive con las cuentas Microsoft; sin red no se borra una sesión |
 | `node native/build/test/migration.mjs` | el instalador contra un "launcher clásico" de mentira (registro, carpeta y accesos propios): lo cierra, lo desinstala con el protocolo de electron-builder, instala en la misma carpeta, conserva accesos y datos, `--force-run`, nativo → nativo, desinstalar, carpeta ajena |
 | `node --test "tools/publisher/test/*.test.js"` | Publisher: activar/desactivar modpacks, banderas, lectura de lo que dejó la compilación del launcher |
