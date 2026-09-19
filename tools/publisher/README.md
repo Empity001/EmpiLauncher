@@ -63,21 +63,14 @@ Los avisos de la barra superior te dicen si falta algo. Las rutas se pueden camb
   todos reciban de nuevo los archivos libres. Los jugadores con un launcher anterior a esta función siguen viendo todo
   como protegido.
 - **Mods**: arrastra los `.jar` a Obligatorios / Opcional activado / Opcional apagado.
-- **Perfiles**: un mismo modpack jugado de varias maneras (por ejemplo Completo y Lite) en lugar de dos modpacks. Los perfiles
-  comparten mundos, opciones y configuración; solo cambian qué mods y archivos lleva cada uno y, si quieres, la memoria con la
-  que empieza. Subes **todos** los mods a la pestaña Mods y aquí, en una matriz mods × perfiles (y carpetas de archivos), marcas
-  qué perfil lleva cada uno. Cada perfil tiene nombre, descripción, memoria propia y «recomendarlo si el equipo tiene menos de N GB».
-  El perfil por defecto es el que reciben los jugadores la primera vez y el que ven los launchers que aún no conocen los perfiles.
-  Se guarda en `servermeta.json` (`profiles`: lo que cada perfil **no** lleva, con los mods por nombre sin versión); al compilar se
-  escribe en `distribution.json` y se comprueba que ningún perfil apunte a algo que no existe ni se quede sin mods. En el
-  launcher aparece un chip «PERFIL» junto al nombre del modpack que despliega la lista.
-  **Lo más fácil es «Traer un modpack como perfil»**: eliges uno que ya tengas (mismo Minecraft y loader, publicado o
-  desactivado), por ejemplo «PanolisSMP Lite» dentro de PanolisSMP, y lo repites con cuantos quieras. Compara las dos
-  carpetas, copia a este modpack los mods y archivos que solo tenía el otro, deja fuera del perfil nuevo lo que solo tiene
-  este, marca como «apagados al empezar» los opcionales que el otro entregaba apagados, y si un archivo tiene el mismo
-  nombre pero otro contenido (un `options.txt`, la config de un mod) lo guarda como versión propia del perfil en
-  `files/_perfiles/<perfil>/`. Te enseña un resumen antes, no borra nada y puede desactivar el modpack traído (se puede
-  volver a activar). La memoria y la descripción del otro modpack pasan al perfil.
+- **Perfiles**: un modpack puede tener como perfiles **otras versiones tuyas** (por ejemplo «PanolisSMP Lite» dentro de PanolisSMP). En el launcher
+  esa versión deja de salir en la lista por su cuenta y aparece dentro del modpack, en un desplegable pequeño junto a su nombre. Pulsas
+  **Añadir perfil**, eliges cualquiera de tus versiones (de cualquier versión de Minecraft y de cualquier loader) y ya. Cada perfil tiene un nombre en el
+  launcher, una descripción y, si quieres, «recomendarlo si el equipo tiene menos de N GB». **Nada más se toca**: la versión sigue publicada y se sigue
+  editando en su propia ficha (mods, archivos, memoria, Java…), y la memoria que ve el jugador en el perfil es la que fijaste allí. Al ser otra versión, cada
+  perfil tiene su propia carpeta de juego (sus mundos y ajustes). Se guarda en `servermeta.json` (`profiles`); al compilar, el modpack lista a sus perfiles y
+  cada uno dice `profileOf` en `distribution.json`. Una versión solo puede ser perfil de un modpack, y un perfil no puede tener perfiles. En la lista de
+  modpacks, los que son perfil de otro lo dicen.
 - **Archivos**: todo lo que no es un mod y se copia al Minecraft de cada jugador. Tres columnas con su propio sitio
   (**Shaders** `.zip` en `shaderpacks`, **Resource packs** `.zip` en `resourcepacks` y **Configuraciones** en `config`),
   cada una con arrastrar y soltar, el **+** y quitar; debajo, **Otros archivos** (`options.txt`, `servers.dat`, datapacks…).

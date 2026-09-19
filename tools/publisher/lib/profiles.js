@@ -1,408 +1,196 @@
-// Profiles: one modpack that can be played in several ways (the full one, a lighter one...). They share the instance folder, so worlds,
-// options and everything the player made stay put; a profile only changes WHICH mods and files the modpack delivers and, if wanted, the
-// memory it starts with.
+// Profiles: a modpack can list OTHER modpacks (its "versions") as its profiles. In the launcher the player sees one modpack with a small
+// selector, and choosing a profile plays that other modpack; it stops being listed on its own there.
 //
-// How it is stored. The modpack's folders hold the union of everything any profile needs (Nebula publishes all of it), and
-// servermeta.json keeps, under `profiles`, what each profile does NOT take:
+// A profile is only a link. The modpack it points to keeps being an ordinary modpack in the Publisher: still published, still edited in
+// its own sheet (mods, files, memory, Java, everything), never hidden, moved or archived by being somebody's profile. It may have another
+// Minecraft version or another loader, because it is played as itself, with its own game folder.
 //
-//   "profiles": { "default": "completo", "list": [
-//       { "id": "completo", "name": "Completo", "description": "", "recommendedBelowGb": null, "ram": null,
-//         "exclude": { "mods": [], "files": [] } },
-//       { "id": "lite", "name": "Lite", "exclude": { "mods": ["sodium", "iris"], "files": ["shaderpacks/"] }, ... } ] }
+// Stored in the host's servermeta.json:
 //
-// `optionalOff` lists mods the profile takes but hands to the player switched OFF (an optional mod that starts disabled; if the mod is
-// required in the folders, it becomes optional for that profile). That is how a lighter profile ships the same mods with fewer of
-// them running.
+//   "profiles": { "self": { "name": "Normal", "description": "", "recommendedBelowGb": null },
+//                 "list": [ { "pack": "PanolisSMP-1.21.11-Lite-1.21.11", "name": "Lite", "description": "", "recommendedBelowGb": 8 } ] }
 //
-// A file that must differ between profiles (the same path, another content: an options.txt, a mod's config) is kept next to the
-// original as files/_perfiles/<profile id>/<same path>. That profile plays it instead of the original; nothing else changes.
-//
-// Mods are named by their "stem" (the file name up to its version), so putting a newer jar in the folder keeps every choice; a file is
-// named by its path inside "files", and a path ending in "/" means everything under it.
-//
-// What players get. At compile time (applyToDistribution) the distribution is written so that:
-//   - the modpack's own `modules` are exactly what the DEFAULT profile plays. A launcher that knows nothing about profiles (an older
-//     one) therefore behaves as it always did;
-//   - `profiles.pool` holds the modules only some other profile needs, and each profile lists what to take out of `modules` (`remove`)
-//     and what to bring in from the pool (`add`), by POSITION in `modules` / in the pool. (Not by id: the ids of "File" modules are
-//     only the file's name, so a modpack has many of the same, "options.txt" or "buttom5.png" in different folders.) Positions stay
-//     valid because nothing reorders those lists after compiling: only the download links of large files change. The launcher does
-//     nothing smarter than that, so there is a single place (this file) that knows what a stem or a folder rule means.
+// `self` is how the host modpack itself is called in the selector. Written to distribution.json (applyLinks) as
+//   host:   "profiles": { "list": [ { id: <host id>, name, description, recommendedBelowGb }, { id: <linked id>, ... } ] }
+//   linked: "profileOf": <host id>
+// A launcher that does not know profiles ignores both and lists every modpack as it always did.
 
 const fs = require('fs')
 const path = require('path')
 const nebula = require('./nebula')
-const { snapRam, normalizeRam } = require('./ram')
 
-const MOD_TYPES = new Set(['FabricMod', 'ForgeMod', 'NeoForgeMod', 'LiteMod'])
-// an optional mod that starts switched off (what Nebula writes for the "optionaloff" folder)
-const OPTIONAL_OFF = { value: false, def: false }
 const MAX_PROFILES = 12
-const MAX_RULES = 2000
-// where a profile's own version of a file lives: files/_perfiles/<profile id>/<path inside the instance>
-const VARIANT_DIR = '_perfiles'
-// what the Apariencia tab looks after: every profile shows the same background, banner and theme
-const APPEARANCE_FILE = /^(background|banner)(-preview)?\.[a-z0-9]+$|^theme\.json$/i
+const LOADER_NAMES = { fabric: 'Fabric', forge: 'Forge', neoforge: 'NeoForge' }
 
-// ---------------------------------------------------------------- names
+// ---------------------------------------------------------------- what is stored
 
-/** "sodium-fabric-0.8.12+mc1.21.11.jar" -> "sodium-fabric": the name up to the first token that looks like a version. */
-function stemOf(fileName) {
-    const base = String(fileName || '').replace(/\.[a-z0-9]{1,8}$/i, '')
-    const tokens = base.split(/[-_ ]+/).filter(Boolean)
-    const kept = []
-    for (let i = 0; i < tokens.length; i++) {
-        if (i > 0 && /^(v|mc)?\d/i.test(tokens[i])) break
-        kept.push(tokens[i].toLowerCase())
-    }
-    return kept.join('-') || base.toLowerCase()
-}
+const text = (value, limit) => String(value == null ? '' : value).trim().slice(0, limit)
 
-const posix = (value) => String(value || '').replace(/\\/g, '/').replace(/^\.?\/+/, '')
-const fileKey = (value) => posix(value).toLowerCase()
-
-function slugify(name) {
-    return String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24)
-}
-
-// ---------------------------------------------------------------- the stored form
-
-function cleanList(values, limit, transform) {
-    const seen = new Set()
-    const out = []
-    for (const value of Array.isArray(values) ? values : []) {
-        if (typeof value !== 'string') continue
-        const item = transform(value.trim())
-        if (!item || seen.has(item)) continue
-        seen.add(item)
-        out.push(item)
-        if (out.length >= limit) break
-    }
-    return out
+function below(value, label) {
+    if (value == null || value === '') return null
+    const number = Number(value)
+    if (!(Number.isFinite(number) && number >= 1 && number <= 128)) throw new Error(`«Recomendarlo si el equipo tiene menos de…» de ${label} debe estar entre 1 y 128 GB.`)
+    return number
 }
 
 /**
- * What a person (or the UI) sends -> what is stored, or null when it does not describe at least two profiles. Throws with something
- * they can act on. Profiles keep their id for life (renaming does not change it); a new one gets an id made from its name.
+ * What a person (or the editor) sends -> what is stored, or null when there are no links. Throws with something they can act on.
+ * Entries that are not links (the shape profiles had before they were links) are dropped.
  */
 function normalize(input) {
-    if (!input || typeof input !== 'object' || !Array.isArray(input.list)) return null
-    if (input.list.length > MAX_PROFILES) throw new Error(`Como máximo ${MAX_PROFILES} perfiles por modpack.`)
-    const taken = new Set()
-    const names = new Set()
-    const list = input.list.map((raw, index) => {
-        const name = String(raw && raw.name || '').trim()
-        if (!name) throw new Error(`Al perfil ${index + 1} le falta el nombre.`)
-        if (name.length > 32) throw new Error(`El nombre "${name.slice(0, 20)}…" es demasiado largo (máximo 32 letras).`)
-        if (names.has(name.toLowerCase())) throw new Error(`Hay dos perfiles llamados "${name}".`)
+    if (!input || typeof input !== 'object') return null
+    const entries = (Array.isArray(input.list) ? input.list : []).filter((entry) => entry && typeof entry.pack === 'string' && entry.pack)
+    if (!entries.length) return null
+    if (entries.length > MAX_PROFILES) throw new Error(`Como máximo ${MAX_PROFILES} perfiles por modpack.`)
+    const self = input.self && typeof input.self === 'object' ? input.self : {}
+    const selfName = text(self.name, 32) || 'Normal'
+    const names = new Set([selfName.toLowerCase()])
+    const packs = new Set()
+    const list = entries.map((entry) => {
+        const name = text(entry.name, 32)
+        if (!name) throw new Error(`Al perfil de «${entry.pack}» le falta el nombre.`)
+        if (names.has(name.toLowerCase())) throw new Error(`Hay dos perfiles llamados «${name}».`)
         names.add(name.toLowerCase())
-
-        let id = /^[a-z0-9][a-z0-9-]{0,23}$/.test(raw.id || '') ? raw.id : slugify(name) || `perfil-${index + 1}`
-        for (let n = 2; taken.has(id); n++) id = `${id.replace(/-\d+$/, '')}-${n}`
-        taken.add(id)
-
-        const below = raw.recommendedBelowGb == null || raw.recommendedBelowGb === '' ? null : Number(raw.recommendedBelowGb)
-        if (below != null && !(Number.isFinite(below) && below >= 1 && below <= 128)) throw new Error(`"Recomendado si el equipo tiene menos de…" de ${name} debe estar entre 1 y 128 GB.`)
-        const exclude = raw.exclude && typeof raw.exclude === 'object' ? raw.exclude : {}
-        return {
-            id,
-            name,
-            description: String(raw.description || '').trim().slice(0, 160),
-            recommendedBelowGb: below,
-            ram: raw.ram ? snapRam(raw.ram) : null,
-            exclude: {
-                mods: cleanList(exclude.mods, MAX_RULES, (value) => value.toLowerCase()),
-                files: cleanList(exclude.files, MAX_RULES, fileKey)
-            },
-            optionalOff: cleanList(raw.optionalOff, MAX_RULES, (value) => value.toLowerCase())
-        }
+        if (packs.has(entry.pack)) throw new Error('Un mismo modpack no puede ser dos perfiles.')
+        packs.add(entry.pack)
+        return { pack: entry.pack, name, description: text(entry.description, 160), recommendedBelowGb: below(entry.recommendedBelowGb, name) }
     })
-    if (list.length < 2) return null
-    const wanted = String(input.default || '')
-    return { default: list.some((profile) => profile.id === wanted) ? wanted : list[0].id, list }
+    return { self: { name: selfName, description: text(self.description, 160), recommendedBelowGb: below(self.recommendedBelowGb, selfName) }, list }
 }
 
 function stored(meta) {
     try { return normalize(meta && meta.profiles) } catch { return null }
 }
 
-// ---------------------------------------------------------------- what a profile takes
+// ---------------------------------------------------------------- the modpacks
 
-function excluder(profile) {
-    const mods = new Set(profile.exclude.mods)
-    const exact = new Set()
-    const folders = []
-    for (const rule of profile.exclude.files) {
-        if (rule.endsWith('/')) folders.push(rule)
-        else exact.add(rule)
+/** The folder of a modpack that is published or deactivated. */
+function dirOf(config, id) {
+    if (!id || id !== path.basename(id)) throw new Error(`No existe el modpack "${id}".`)
+    for (const base of [nebula.serversDir(config), nebula.hideDir(config)]) {
+        const dir = path.join(base, id)
+        if (fs.existsSync(path.join(dir, 'servermeta.json'))) return dir
     }
+    throw new Error(`No existe el modpack "${id}".`)
+}
+
+function metaOf(config, id) {
+    try { return JSON.parse(fs.readFileSync(path.join(dirOf(config, id), 'servermeta.json'), 'utf8').replace(/^﻿/, '')) } catch { return null }
+}
+
+/** { linked modpack id -> its host's id } over every modpack, published or not. */
+function linksOf(config) {
+    const links = new Map()
+    for (const pack of nebula.listPacks(config)) {
+        const profiles = stored(metaOf(config, pack.id))
+        if (profiles) for (const entry of profiles.list) if (!links.has(entry.pack)) links.set(entry.pack, pack.id)
+    }
+    return links
+}
+
+function describePack(pack, ram) {
     return {
-        mod: (stem) => mods.has(stem),
-        file: (relative) => {
-            const key = fileKey(relative)
-            return exact.has(key) || folders.some((folder) => key.startsWith(folder))
-        }
+        id: pack.id, name: pack.name, minecraft: pack.minecraft, loader: pack.loader.type, loaderName: LOADER_NAMES[pack.loader.type] || null,
+        packVersion: pack.packVersion, active: pack.active, mods: pack.counts.required + pack.counts.optionalon + pack.counts.optionaloff, ram
     }
 }
 
-/** A distribution module -> what the profiles talk about: { kind: 'mod', key: stem } | { kind: 'file', key: path } | null (loader, libraries...). */
-function classify(module) {
-    if (!module) return null
-    if (MOD_TYPES.has(module.type)) {
-        const artifact = module.artifact || {}
-        let name = artifact.path || ''
-        if (!name && artifact.url) {
-            try { name = decodeURIComponent(new URL(artifact.url).pathname.split('/').pop()) } catch { name = String(artifact.url).split('/').pop() }
-        }
-        return { kind: 'mod', key: stemOf(path.posix.basename(posix(name || module.id))) }
-    }
-    if (module.type === 'File') {
-        const relative = (module.artifact && module.artifact.path) || module.id
-        return APPEARANCE_FILE.test(posix(relative)) ? null : { kind: 'file', key: fileKey(relative) }
-    }
-    return null
-}
-
-const excludes = (rules, module) => {
-    const info = classify(module)
-    return !!info && (info.kind === 'mod' ? rules.mod(info.key) : rules.file(info.key))
-}
-
-// ---------------------------------------------------------------- what the pack has (for the editor)
-
-function walk(dir, root, out) {
-    if (!fs.existsSync(dir)) return out
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        const full = path.join(dir, entry.name)
-        if (entry.isDirectory()) walk(full, root, out)
-        else if (entry.isFile() && !entry.name.endsWith('.part') && !entry.name.startsWith('.')) out.push({ path: path.relative(root, full).split(path.sep).join('/'), size: fs.statSync(full).size })
-    }
-    return out
-}
-
-/** "_perfiles/lite/config/x.json" -> { profile: 'lite', target: 'config/x.json' }; null for any other path. */
-function variantOf(relative) {
-    const match = /^_perfiles\/([^/]+)\/(.+)$/i.exec(posix(relative))
-    return match ? { profile: match[1].toLowerCase(), target: match[2] } : null
-}
-
-/** Every mod (grouped by stem) and every file the modpack folders hold: the rows of the editor. */
-function inventory(config, id) {
-    return inventoryOf(nebula.packDir(config, id))
-}
-
-/** The same for a modpack folder wherever it is (also a deactivated one). Each item carries its absolute path. */
-function inventoryOf(dir) {
-    const mods = new Map()
-    const found = nebula.modsOf(dir)
-    for (const category of nebula.CATEGORIES) {
-        for (const file of found[category]) {
-            const stem = stemOf(file.name)
-            const row = mods.get(stem) || { stem, names: [], category, size: 0, files: [] }
-            row.names.push(file.name)
-            row.size += file.size
-            row.files.push({ name: file.name, category, size: file.size, abs: path.join(dir, found.folder, category, file.name) })
-            mods.set(stem, row)
-        }
-    }
-    const filesRoot = path.join(dir, 'files')
-    const every = walk(filesRoot, filesRoot, []).map((file) => ({ ...file, abs: path.join(filesRoot, ...file.path.split('/')) }))
-    const byPath = (a, b) => a.path.localeCompare(b.path, undefined, { sensitivity: 'base', numeric: true })
-    const files = every.filter((file) => !variantOf(file.path) && (file.path.includes('/') || !APPEARANCE_FILE.test(file.path))).sort(byPath)
-    const variants = every.filter((file) => variantOf(file.path)).sort(byPath)
-    return { mods: [...mods.values()].sort((a, b) => a.stem.localeCompare(b.stem)), files, variants }
-}
-
-function tally(profile, items) {
-    const rules = excluder(profile)
-    const mods = items.mods.filter((mod) => !rules.mod(mod.stem))
-    const files = items.files.filter((file) => !rules.file(file.path))
-    return {
-        mods: mods.length,
-        files: files.length,
-        bytes: mods.reduce((sum, mod) => sum + mod.size, 0) + files.reduce((sum, file) => sum + file.size, 0)
-    }
-}
-
-/** What the editor shows: the stored profiles (null when the pack has none), the rows, how much each profile takes, and rules that match nothing. */
+/** What the editor shows: the stored profiles (null when there are none) and every other modpack with whether it can be one. */
 function describe(config, id) {
-    const profiles = stored(nebula.readServerMeta(config, id))
-    const items = inventory(config, id)
-    const own = {}
-    for (const file of items.variants) {
-        const info = variantOf(file.path)
-        ;(own[info.profile] = own[info.profile] || []).push({ path: info.target, size: file.size })
+    const meta = nebula.readServerMeta(config, id)
+    const profiles = stored(meta)
+    const links = linksOf(config)
+    const all = nebula.listPacks(config)
+    const hosts = new Set(all.filter((pack) => stored(metaOf(config, pack.id))).map((pack) => pack.id))
+    const byId = new Map(all.map((pack) => [pack.id, pack]))
+    const ramOf = (packId) => { try { return nebula.getPack(config, packId).ram } catch { return null } }
+
+    const versions = all.filter((pack) => pack.id !== id).map((pack) => {
+        const host = links.get(pack.id) || null
+        const reason = host && host !== id ? `Ya es un perfil de ${byId.get(host) ? byId.get(host).name : host}`
+            : hosts.has(pack.id) ? 'Tiene perfiles propios'
+                : null
+        return { ...describePack(pack, ramOf(pack.id)), available: reason === null, reason, linked: host === id }
+    })
+    const own = links.get(id) || null
+    return {
+        profiles: profiles && {
+            self: profiles.self,
+            list: profiles.list.map((entry) => ({ ...entry, info: byId.has(entry.pack) ? describePack(byId.get(entry.pack), ramOf(entry.pack)) : null }))
+        },
+        versions,
+        profileOf: own ? { id: own, name: byId.get(own) ? byId.get(own).name : own } : null,
+        legacy: !!(meta.profiles && !profiles)   // profiles left from before they were links: they do nothing and go away on the next save
     }
-    // the rows the editor draws do not need where the files are on this disk
-    const rows = { mods: items.mods.map(({ files: _files, ...mod }) => mod), files: items.files.map(({ abs: _abs, ...file }) => file) }
-    const result = { profiles, items: rows, own, totals: null, stale: {} }
-    if (!profiles) return result
-    result.totals = Object.fromEntries(profiles.list.map((profile) => [profile.id, tally(profile, items)]))
-    const stems = new Set(items.mods.map((mod) => mod.stem))
-    const paths = items.files.map((file) => fileKey(file.path))
-    for (const profile of profiles.list) {
-        const missing = {
-            mods: profile.exclude.mods.filter((stem) => !stems.has(stem)),
-            files: profile.exclude.files.filter((rule) => !paths.some((candidate) => (rule.endsWith('/') ? candidate.startsWith(rule) : candidate === rule)))
-        }
-        if (missing.mods.length || missing.files.length) result.stale[profile.id] = missing
-    }
-    return result
 }
 
-/** Stores the profiles (or removes them all when `input` is null / has fewer than two) and returns what describe() returns. */
+/** Stores the profiles (or removes them all when `input` is null / has no links) and returns what describe() returns. */
 function save(config, id, input) {
     const next = input == null ? null : normalize(input)
+    if (next) {
+        const links = linksOf(config)
+        if (links.has(id)) throw new Error(`Este modpack ya es un perfil de ${links.get(id)}: un perfil no puede tener perfiles.`)
+        const hosts = new Set(nebula.listPacks(config).filter((pack) => pack.id !== id && stored(metaOf(config, pack.id))).map((pack) => pack.id))
+        for (const entry of next.list) {
+            if (entry.pack === id) throw new Error('Un modpack no puede ser perfil de sí mismo.')
+            dirOf(config, entry.pack)
+            if (links.has(entry.pack) && links.get(entry.pack) !== id) throw new Error(`«${entry.name}» ya es un perfil de ${links.get(entry.pack)}.`)
+            if (hosts.has(entry.pack)) throw new Error(`«${entry.name}» tiene perfiles propios: un perfil no puede tener perfiles.`)
+        }
+    }
     const meta = nebula.readServerMeta(config, id)
     if (next) meta.profiles = next
     else delete meta.profiles
     nebula.writeServerMeta(config, id, meta)
-    dropOrphanVariants(config, id, next)
     return describe(config, id)
 }
 
-/** A profile that no longer exists has no use for its own files: they would only be published for nothing. */
-function dropOrphanVariants(config, id, profiles) {
-    const root = path.join(nebula.packDir(config, id), 'files', VARIANT_DIR)
-    if (!fs.existsSync(root)) return
-    const keep = new Set(profiles ? profiles.list.map((profile) => profile.id) : [])
-    for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-        if (!keep.has(entry.name.toLowerCase())) fs.rmSync(path.join(root, entry.name), { recursive: true, force: true })
-    }
-    if (fs.readdirSync(root).length === 0) fs.rmdirSync(root)
+/** A sensible label for a linked modpack: "PanolisSMP Lite" next to "PanolisSMP" -> "Lite". */
+function suggestName(hostName, packName) {
+    const host = text(hostName, 100)
+    const pack = text(packName, 100)
+    const stripped = pack.toLowerCase().startsWith(host.toLowerCase()) ? pack.slice(host.length).replace(/^[\s\-_:·]+/, '').trim() : pack
+    return (stripped || pack || 'Perfil').slice(0, 32)
 }
 
 // ---------------------------------------------------------------- compile: the distribution
 
 /**
- * Rewrites the servers of a freshly generated distribution that have profiles (see the top of this file). `metaOf(serverId)` gives the
- * server's servermeta.json (or null). Returns { lines } for the log; throws when what it would publish is not consistent.
+ * Writes the links into a freshly generated distribution (see the top of this file). `metaOf(serverId)` gives a server's servermeta.json
+ * (or null). A profile whose modpack is not in the distribution (deactivated) is left out with a line saying so; a modpack that is
+ * both a host and somebody's profile keeps only the host part. Returns { lines } for the log.
  */
-function applyToDistribution(distribution, metaOf) {
+function applyLinks(distribution, metaOf) {
     const lines = []
-    for (const server of distribution.servers || []) {
-        const meta = metaOf(server.id)
-        const profiles = stored(meta)
-        if (!profiles) continue
-
-        const packRam = server.javaOptions && server.javaOptions.ram ? server.javaOptions.ram : null
-        // the profiles' own versions of files are modules of their own in the index (Nebula publishes whatever is in "files"): they are
-        // not part of any profile until one of them picks them up below
-        const everything = server.modules || []
-        const variantModules = everything.filter((module) => module.type === 'File' && variantOf((module.artifact && module.artifact.path) || module.id))
-        const original = everything.filter((module) => !variantModules.includes(module))
-        const byProfile = new Map(profiles.list.map((profile) => [profile.id, excluder(profile)]))
-        const main = byProfile.get(profiles.default)
-
-        const ownFiles = new Map(profiles.list.map((profile) => [profile.id, new Map()]))
-        for (const module of variantModules) {
-            const info = variantOf((module.artifact && module.artifact.path) || module.id)
-            if (ownFiles.has(info.profile)) ownFiles.get(info.profile).set(fileKey(info.target), { target: info.target, module })
+    const servers = distribution.servers || []
+    const byId = new Map(servers.map((server) => [server.id, server]))
+    const hosts = new Map()
+    for (const server of servers) {
+        const profiles = stored(metaOf(server.id))
+        if (profiles) hosts.set(server.id, profiles)
+    }
+    const taken = new Set()
+    for (const [hostId, profiles] of hosts) {
+        const host = byId.get(hostId)
+        const kept = []
+        for (const entry of profiles.list) {
+            const target = byId.get(entry.pack)
+            if (!target) { lines.push(`${hostId}: el perfil «${entry.name}» (${entry.pack}) no está publicado (¿desactivado?): se deja fuera.`); continue }
+            if (entry.pack === hostId || hosts.has(entry.pack) || taken.has(entry.pack)) { lines.push(`${hostId}: «${entry.name}» no puede ser un perfil (ya es un perfil, o tiene perfiles propios): se deja fuera.`); continue }
+            taken.add(entry.pack)
+            kept.push(entry)
         }
-
-        const offSets = new Map(profiles.list.map((profile) => [profile.id, new Set(profile.optionalOff)]))
-        const modStem = (module) => { const info = classify(module); return info && info.kind === 'mod' ? info.key : null }
-        const pathOf = (module) => fileKey((module.artifact && module.artifact.path) || module.id)
-        // how a module reaches a profile: as published, as an optional mod that starts off, or with the profile's own version of the file
-        const deliveryFor = (profileId, module) => {
-            const stem = modStem(module)
-            const own = module.type === 'File' ? ownFiles.get(profileId).get(pathOf(module)) : null
-            return { required: stem !== null && offSets.get(profileId).has(stem) ? OPTIONAL_OFF : module.required, artifact: own ? own.module.artifact : null }
+        if (!kept.length) continue
+        host.profiles = {
+            list: [
+                { id: hostId, name: profiles.self.name, ...(profiles.self.description ? { description: profiles.self.description } : {}), ...(profiles.self.recommendedBelowGb ? { recommendedBelowGb: profiles.self.recommendedBelowGb } : {}) },
+                ...kept.map((entry) => ({ id: entry.pack, name: entry.name, ...(entry.description ? { description: entry.description } : {}), ...(entry.recommendedBelowGb ? { recommendedBelowGb: entry.recommendedBelowGb } : {}) }))
+            ]
         }
-        const deliveryKey = (delivery) => JSON.stringify([delivery.required === undefined ? null : delivery.required, delivery.artifact ? delivery.artifact.url : null])
-        const asPublished = (module) => ({ required: module.required, artifact: null })
-        const deliver = (module, delivery) => {
-            const { required: _old, ...rest } = module
-            const shaped = delivery.required === undefined ? rest : { ...rest, required: delivery.required }
-            return delivery.artifact ? { ...shaped, artifact: { ...shaped.artifact, url: delivery.artifact.url, size: delivery.artifact.size, MD5: delivery.artifact.MD5 } } : shaped
-        }
-
-        // the modpack itself is what the default profile plays, with the default profile's own way of delivering each module
-        const kept = original.filter((module) => !excludes(main, module))
-        const base = kept.map((module) => { const delivery = deliveryFor(profiles.default, module); return deliveryKey(delivery) === deliveryKey(asPublished(module)) ? module : deliver(module, delivery) })
-        const excluded = original.filter((module) => excludes(main, module))
-        const pool = [...excluded]
-
-        // a copy of a module delivered in another way lives in the pool, once, however many profiles want it
-        const copies = new Map()
-        const copyFor = (module, delivery) => {
-            const key = `${original.indexOf(module)}|${deliveryKey(delivery)}`
-            if (!copies.has(key)) { pool.push(deliver(module, delivery)); copies.set(key, pool.length - 1) }
-            return copies.get(key)
-        }
-
-        const list = profiles.list.map((profile) => {
-            const rules = byProfile.get(profile.id)
-            const isDefault = profile.id === profiles.default
-            const remove = []
-            const add = []
-            if (!isDefault) {
-                kept.forEach((module, position) => {
-                    if (excludes(rules, module)) { remove.push(position); return }
-                    const delivery = deliveryFor(profile.id, module)
-                    if (deliveryKey(delivery) !== deliveryKey(deliveryFor(profiles.default, module))) { remove.push(position); add.push(copyFor(module, delivery)) }
-                })
-                excluded.forEach((module, index) => {
-                    if (excludes(rules, module)) return
-                    const delivery = deliveryFor(profile.id, module)
-                    add.push(deliveryKey(delivery) === deliveryKey(asPublished(module)) ? index : copyFor(module, delivery))
-                })
-            }
-            // a file only this profile has (there is no original to replace) goes in as one more file, for this profile only
-            for (const { target, module } of ownFiles.get(profile.id).values()) {
-                if (original.some((candidate) => candidate.type === 'File' && pathOf(candidate) === fileKey(target))) continue
-                const name = path.posix.basename(posix(target))
-                pool.push({ ...module, id: name, name, artifact: { ...module.artifact, path: posix(target) } })
-                add.push(pool.length - 1)
-            }
-            return {
-                id: profile.id,
-                name: profile.name,
-                ...(profile.description ? { description: profile.description } : {}),
-                ...(profile.recommendedBelowGb ? { recommendedBelowGb: profile.recommendedBelowGb } : {}),
-                ram: profile.ram ? normalizeRam(profile.ram) : packRam,
-                remove,
-                add
-            }
-        })
-
-        const defaultRam = list.find((profile) => profile.id === profiles.default).ram
-        server.modules = base
-        server.profiles = { default: profiles.default, list, pool }
-        if (defaultRam) server.javaOptions = { ...(server.javaOptions || {}), ram: defaultRam }
-
-        verify(server)
-        lines.push(`${server.id}: ${list.length} perfiles (${list.map((profile) => `${profile.name}: ${effectiveModules(server, profile).length} módulos`).join(', ')}).`)
+        for (const entry of kept) byId.get(entry.pack).profileOf = hostId
+        lines.push(`${hostId}: ${kept.length + 1} perfiles (${host.profiles.list.map((profile) => profile.name).join(', ')}).`)
     }
     return { lines }
 }
 
-/** The modules a profile plays: the modpack's, minus what the profile removes, plus what it brings in from the pool. */
-function effectiveModules(server, profile) {
-    const remove = new Set(profile.remove)
-    return [...server.modules.filter((_module, index) => !remove.has(index)), ...profile.add.map((index) => server.profiles.pool[index]).filter(Boolean)]
-}
-
-/** A server that would reach players with a profile that points at nothing, or at the same place twice, or plays no mods, is not sent. */
-function verify(server) {
-    const { list, pool } = server.profiles
-    const check = (positions, length, what, profile) => {
-        const seen = new Set()
-        for (const index of positions) {
-            if (!Number.isInteger(index) || index < 0 || index >= length) throw new Error(`${server.id}: el perfil ${profile.name} ${what} un módulo que no existe (posición ${index}).`)
-            if (seen.has(index)) throw new Error(`${server.id}: el perfil ${profile.name} ${what} dos veces el mismo módulo.`)
-            seen.add(index)
-        }
-    }
-    for (const profile of list) {
-        check(profile.remove, server.modules.length, 'quita', profile)
-        check(profile.add, pool.length, 'agrega', profile)
-        const modules = effectiveModules(server, profile)
-        if (!modules.some((module) => MOD_TYPES.has(module.type))) throw new Error(`${server.id}: el perfil ${profile.name} se queda sin ningún mod.`)
-        for (const module of modules) {
-            if (module.artifact && !module.artifact.url) throw new Error(`${server.id}: el módulo ${module.id} no tiene dirección de descarga.`)
-        }
-    }
-}
-
-module.exports = { stemOf, slugify, normalize, stored, excluder, classify, inventory, inventoryOf, variantOf, describe, save, applyToDistribution, effectiveModules, verify, MOD_TYPES, MAX_PROFILES, VARIANT_DIR, APPEARANCE_FILE, posix, fileKey }
+module.exports = { normalize, stored, describe, save, suggestName, applyLinks, linksOf, dirOf, MAX_PROFILES }

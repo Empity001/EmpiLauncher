@@ -29,19 +29,19 @@ public sealed record Visuals(Visual? Banner, Visual? Background, Visual? BannerP
 
 public sealed record Modpack(
     string Id, string Name, string Description, string? Icon, string MinecraftVersion, string Version,
-    bool MainServer, bool Whitelist, string? Address, string? Accent, Visuals Visuals, ProfilesInfo? Profiles = null);
+    bool MainServer, bool Whitelist, string? Address, string? Accent, Visuals Visuals, ProfilesInfo? Profiles = null, string? ProfileOf = null);
 
-/// <summary>The memory a profile starts with, in megabytes.</summary>
+/// <summary>The memory a modpack asks for, in megabytes.</summary>
 public sealed record ProfileRam(int MinimumMb, int MaximumMb);
 
-/// <summary>One way of playing a modpack (see docs/native/PROTOCOL.md, "Profiles"). Mods is how many mods it plays.</summary>
-public sealed record ProfileInfo(string Id, string Name, string? Description, double? RecommendedBelowGb, ProfileRam? Ram, int Mods);
+/// <summary>
+/// One profile of a modpack: another modpack of the index, shown inside this one (see docs/native/PROTOCOL.md, "Perfiles"). Id is that modpack's
+/// own id (choosing the profile is choosing it); Self marks the modpack that lists the profiles, which is one of them.
+/// </summary>
+public sealed record ProfileInfo(string Id, string Name, string? Description, double? RecommendedBelowGb, string MinecraftVersion, string Version, ProfileRam? Ram, bool Self);
 
-/// <summary>The profiles of a modpack: the one being played, the modpack's own default, and the one meant for this PC's memory (null when none is).</summary>
-public sealed record ProfilesInfo(string Default, string Selected, double MachineGb, string? Recommended, List<ProfileInfo> List);
-
-/// <summary>Answer of profile.select. Changed is false when that profile was already the one in use.</summary>
-public sealed record ProfileSelectResult(bool Changed, string ServerId, string ProfileId, PackStatus? Pack, DistroResult? Distribution);
+/// <summary>The profiles a modpack lists (itself first) and which one is meant for this PC's memory (null when none is).</summary>
+public sealed record ProfilesInfo(double MachineGb, string? Recommended, List<ProfileInfo> List);
 
 public sealed record DistroResult(long TookMs, string SelectedServer, string MainServer, List<Modpack> Servers);
 

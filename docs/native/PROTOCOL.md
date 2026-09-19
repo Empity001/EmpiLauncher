@@ -49,7 +49,6 @@ Códigos de error comunes: `unknown_method`, `bad_json`, `busy`, `no_server`, `n
 | `distro.load` | `{refresh?}` | `{tookMs, selectedServer, mainServer, servers[]}`. Sincroniza la configuración de mods y de Java con el índice, como el launcher clásico |
 | `distro.select` | `{id}` | `{selectedServer}` |
 | `distro.theme` | `{id}` | `{source: remote\|local\|none, theme}` (acento del modpack) |
-| `profile.select` | `{serverId, profileId}` | `{changed, serverId, profileId, pack, distribution}`. Cambia el perfil con el que se juega un modpack (ver «Perfiles»). Falla con `busy` mientras hay una operación o el juego en marcha, `no_profiles`, `no_profile` |
 | `pack.status` | `{id?}` | `{serverId, installed, installedVersion, remoteVersion, needsUpdate, modified, differences[], action: play\|update\|restore}` |
 
 ### Jugar
@@ -116,14 +115,17 @@ Cómo la ve el juego: al lanzar, el motor arranca un servidor de skins **solo en
 
 ### Perfiles
 
-Un modpack puede publicar `profiles` en su entrada del índice: sus `modules` son lo que juega el perfil por defecto, `profiles.pool` guarda los módulos
-que solo juegan otros perfiles, y cada perfil dice qué quitar (`remove`) y qué traer del pool (`add`) **por posición** (los ids de los módulos
-`File` son solo el nombre del archivo y se repiten). El motor aplica el perfil elegido (guardado en `native-profiles.json`) y el resto del launcher ve un
-modpack normal con el **mismo id**: las carpetas de la instancia (mundos, opciones) y la configuración de mods y de Java se comparten entre perfiles.
-La reparación de helios-core lee su propia copia (`profile-view/distribution.json`) con el perfil elegido. Lo que el jugador ajustó en un perfil
-(memoria, mods opcionales) se conserva al dejarlo y vuelve al regresar. En `distro.load`, cada modpack lleva `profiles`:
-`{default, selected, machineGb, recommended, list: [{id, name, description, recommendedBelowGb, ram: {minimumMb, maximumMb}|null, mods}]}` (`null` si no tiene).
-Los launchers que no conocen los perfiles ven solo los `modules` del perfil por defecto, como siempre.
+Un modpack puede publicar `profiles` en su entrada del índice: la lista de **otros modpacks del mismo índice** que son sus perfiles (él mismo va
+primero: `{list: [{id, name, description?, recommendedBelowGb?}]}`), y cada uno de esos dice `profileOf: <id del modpack>`. No se mezcla nada:
+cada perfil es un modpack normal del índice, con su carpeta de juego, sus mods, su memoria y su Java, y puede ser de otra versión de Minecraft y de otro
+loader. Elegir un perfil es elegir ese modpack (`distro.select`), así que el motor no sabe de perfiles más allá de describirlos.
+
+En `distro.load`, cada modpack lleva `profiles` (`null` si no tiene) y `profileOf` (`null` si se muestra por su cuenta):
+`profiles: {machineGb, recommended, list: [{id, name, description, recommendedBelowGb, minecraftVersion, version, ram: {minimumMb, maximumMb}|null, self}]}`.
+El motor solo devuelve lo que se sostiene: un perfil que ya no está en el índice (desactivado) se omite, con menos de dos no hay perfiles, y un `profileOf`
+cuyo anfitrión no existe o no lo lista se ignora (ese modpack se muestra normal). La interfaz no lista aparte los modpacks con `profileOf` y los enseña
+dentro de su anfitrión, con la memoria de cada uno (`ram`) tal como la fijó su autor en su propia ficha. Los launchers que no conocen los perfiles ignoran
+los dos campos y muestran todos los modpacks como siempre.
 
 ## Eventos
 

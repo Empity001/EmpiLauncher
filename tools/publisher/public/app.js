@@ -443,6 +443,11 @@ function packFlags(pack) {
     if (pack.active === false) flags.push(h('span', { class: 'flag off' }, 'Desactivado'))
     if (pack.mainServer) flags.push(h('span', { class: 'flag main' }, 'Principal'))
     if (pack.whitelist) flags.push(h('span', { class: 'flag wl' }, 'Whitelist'))
+    // in the launcher it is shown inside another modpack, as one of its profiles (it is still published and edited here as any other)
+    if (pack.profileOf) {
+        const host = state.packs.find((candidate) => candidate.id === pack.profileOf)
+        flags.push(h('span', { class: 'flag', title: 'En el launcher aparece dentro de ese modpack, como un perfil' }, `Perfil de ${host ? host.name : pack.profileOf}`))
+    }
     return flags.length ? h('div', { class: 'pack-flags' }, ...flags) : null
 }
 

@@ -55,6 +55,11 @@ function Save-Shot([string] $name) {
 function Click-Named([string] $name) {
     $cond = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::NameProperty), $name
     $el = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cond)
+    if ($null -eq $el) {
+        # a popup is a window of its own: look for it among everything this program has on screen
+        $mine = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::ProcessIdProperty), $proc.Id
+        $el = [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.AndCondition $cond, $mine))
+    }
     if ($null -eq $el) { Write-Host "click: '$name' not found"; return }
     $pattern = $null
     if ($el.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) { $pattern.Invoke(); return }

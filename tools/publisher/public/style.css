@@ -955,59 +955,21 @@ input[type=range]:focus-visible { outline: 2px solid var(--accent); outline-offs
 .entry.managed { border-style: dashed; }
 @media (max-width: 720px) { .ram-fields { grid-template-columns: minmax(0, 1fr); } }
 
-/* ---- profiles: one card per profile, and a matrix of what each one takes (see profiles.js) */
+/* ---- profiles: a card per profile (the modpack itself first), and a list of the versions that can be added */
 .pcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; margin-top: 14px; }
 .pcard { display: flex; flex-direction: column; gap: 12px; padding: 14px 14px 12px; border: 1px solid var(--hair); border-radius: 18px; background: rgb(17 18 21 / .6); }
 .pcard.default { border-color: var(--hair-strong); }
 .pcard label { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--text-2); min-width: 0; }
-.pcard-head { display: flex; gap: 8px; align-items: center; }
-.pcard-head input { flex: 1; min-width: 0; font-weight: 600; }
-.pcard .prow2 { display: flex; gap: 10px; }
-.pcard .prow2 label { flex: 1; }
 .pcard input.pnum { width: 100%; max-width: 120px; }
-.pcard-sum { font: 500 12px/1.4 var(--font-code); color: var(--text-3); }
-.pcard-foot { display: flex; justify-content: flex-end; margin-top: auto; }
+.pcard-tag { display: flex; align-items: center; font: 600 12px/1.2 var(--font-code); letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
+.pcard-info { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--text-2); }
+.pcard-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: auto; }
 .pcard .small-help { margin: 0; }
-button.link { background: none; border: 0; padding: 0; color: var(--text); font: inherit; text-decoration: underline; cursor: pointer; }
 
-.pmatrix { border: 1px dotted var(--dot); max-height: 560px; overflow: auto; }
-.mrow {
-    display: grid; grid-template-columns: minmax(240px, 1fr) 84px repeat(var(--cols, 2), 92px); align-items: center; gap: 4px;
-    padding: 4px 12px 4px calc(12px + var(--depth, 0) * 18px); min-height: 36px; min-width: fit-content;
-}
-.mrow + .mrow { border-top: 1px dotted rgb(241 239 232 / .1); }
-.mrow:hover { background: var(--surface-2); }
-.mrow.head { position: sticky; top: 0; z-index: 2; background: var(--surface); padding-left: 12px; font: 600 12px/1.2 var(--font-code); color: var(--text-2); border-bottom: 1px solid var(--line-strong); }
-.mrow.head:hover { background: var(--surface); }
-.mrow.section-row { background: rgb(255 255 255 / .03); min-height: 30px; }
-.mrow.section-row:hover { background: rgb(255 255 255 / .03); }
-.mcol { justify-self: center; max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mrow .pname .pbadge { margin-left: 6px; color: var(--warn); border-color: var(--warn); }
-.mcell {
-    justify-self: center; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; cursor: pointer;
-    background: none; border: 1px solid var(--line-strong); border-radius: 7px; color: var(--bg);
-    transition: background .14s var(--ease-out), border-color .14s var(--ease-out), transform .14s var(--ease-out);
-}
-.mcell:hover { border-color: var(--text-2); }
-.mcell:active { transform: scale(.92); }
-.mcell[aria-checked=true] { background: var(--text); border-color: var(--text); }
-.mcell[aria-checked=mixed] { border-color: var(--text-2); }
-.mcell .i { width: 14px; height: 14px; stroke-width: 2.2; }
-.mmix { width: 10px; height: 2px; background: var(--text-2); }
-.mcell[data-state=off] { border-style: dashed; border-color: var(--text-2); }
-.moff { width: 10px; height: 10px; border: 2px solid var(--text-2); border-radius: 50%; }
-@media (prefers-reduced-motion: reduce) { .mcell { transition: none; } .mcell:active { transform: none; } }
-
-/* bringing a modpack in as a profile */
-.import-panel { margin-top: 16px; padding: 16px 16px 14px; border: 1px solid var(--hair-strong); border-radius: 18px; background: rgb(17 18 21 / .7); }
-.import-sources { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; margin-top: 10px; }
-.import-src { display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 10px 14px; background: none; border: 1px solid var(--hair); border-radius: 14px; color: var(--text); font: inherit; cursor: pointer; transition: background .14s var(--ease-out), border-color .14s var(--ease-out); }
-.import-src:hover:not(:disabled) { border-color: var(--hair-strong); background: rgb(255 255 255 / .04); }
-.import-src.on { background: var(--text); border-color: var(--text); color: var(--bg); }
-.import-src.on .muted { color: var(--bg); opacity: .7; }
-.import-plan { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
-.import-summary { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; color: var(--text); }
-.import-more summary { cursor: pointer; color: var(--text-2); font-size: 13px; }
-.import-more ul { margin: 6px 0 0; padding-left: 18px; max-height: 180px; overflow: auto; color: var(--text-2); font: 12px/1.6 var(--font-code); }
-@media (prefers-reduced-motion: reduce) { .import-src { transition: none; } }
-.import-src.disabled { border-style: dashed; opacity: .55; cursor: default; }
+.pick-panel { margin-top: 16px; padding: 16px 16px 14px; border: 1px solid var(--hair-strong); border-radius: 18px; background: rgb(17 18 21 / .7); }
+.pick-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; margin-top: 10px; }
+.pick { display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 10px 14px; background: none; border: 1px solid var(--hair); border-radius: 14px; color: var(--text); font: inherit; cursor: pointer; transition: background .14s var(--ease-out), border-color .14s var(--ease-out), transform .14s var(--ease-out); }
+.pick:hover:not(.disabled) { border-color: var(--hair-strong); background: rgb(255 255 255 / .05); }
+.pick:active:not(.disabled) { transform: scale(.985); }
+.pick.disabled { border-style: dashed; opacity: .55; cursor: default; }
+@media (prefers-reduced-motion: reduce) { .pick { transition: none; } .pick:active:not(.disabled) { transform: none; } }

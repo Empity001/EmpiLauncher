@@ -47,7 +47,8 @@ function describeVisual(ConfigManager, server, module) {
     return { path: artifact.path || null, url: artifact.url || null, local, size: artifact.size || null, md5: artifact.MD5 || artifact.sha1 || null }
 }
 
-function describeServer(ConfigManager, server) {
+/** `everyRaw`: the raw servers of the whole index, for what depends on the others (profiles). */
+function describeServer(ConfigManager, server, everyRaw = []) {
     const raw = server.rawServer
     const visuals = {}
     for (const [kind, names] of Object.entries(VISUALS)) visuals[kind] = describeVisual(ConfigManager, server, findModule(server, names))
@@ -58,7 +59,9 @@ function describeServer(ConfigManager, server) {
         accent: raw.accent || raw.theme?.accent || raw.theme?.color || null,
         javaOptions: raw.javaOptions || null,
         discord: raw.discord || null,
-        profiles: profilesLib.describe(raw),
+        // it lists other modpacks as its profiles / it is one of another modpack's profiles (the interface shows it inside that one)
+        profiles: profilesLib.describe(raw, everyRaw),
+        profileOf: profilesLib.hostOf(raw, everyRaw),
         visuals
     }
 }
@@ -67,7 +70,7 @@ function describeDistribution(ConfigManager, distro) {
     return {
         selectedServer: ConfigManager.getSelectedServer(),
         mainServer: distro.getMainServer().rawServer.id,
-        servers: distro.servers.map((s) => describeServer(ConfigManager, s))
+        servers: distro.servers.map((s, _index, all) => describeServer(ConfigManager, s, all.map((other) => other.rawServer)))
     }
 }
 

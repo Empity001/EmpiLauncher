@@ -517,7 +517,7 @@ public partial class MainWindow : Window
         else if (!IsVisible) _tray?.Show(TrayTip(), game.Running, !game.Busy);
     }
 
-    private string TrayTip() => _l.Game.Running ? $"Empi Launcher: {_l.Selected?.Name} en marcha" : "Empi Launcher";
+    private string TrayTip() => _l.Game.Running ? $"Empi Launcher: {_l.Host?.Name} en marcha" : "Empi Launcher";
 
     private void HideToTray()
     {

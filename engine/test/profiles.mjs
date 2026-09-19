@@ -1,213 +1,97 @@
 // node engine/test/profiles.mjs
-// Profiles of a modpack, from the compiled distribution to the launcher.
-//   part 1  the pure functions (lib/profiles.js) against a distribution written by the Publisher's own compile step
-//   part 2  the real engine, served a distribution over HTTP: the profile the player has, changing it, what is kept per profile,
-//           the copy the repair reads, and what must be refused
-// Nothing real is touched: the engine gets scratch user/data folders and never sees the published index.
+// Profiles are links between modpacks (lib/profiles.js): the index says a modpack lists others as its profiles and each of those says whose
+// it is. The engine only tells the interface how to present them; every one of them stays an ordinary modpack with its own settings.
+//   part 1  the pure functions
+//   part 2  the real engine, served an index over HTTP (nothing real is touched: scratch user/data folders)
 import http from 'node:http'
-import fs from 'node:fs'
-import path from 'node:path'
-import os from 'node:os'
 import { createRequire } from 'node:module'
 import { startEngine, check } from './harness.mjs'
 
 const require = createRequire(import.meta.url)
-const publisher = require('../../tools/publisher/lib/profiles.js')
 const lib = require('../src/lib/profiles.js')
 
-// ---- the fixture: a compiled distribution with a modpack that has two profiles and one that has none --------------------------
+// ---- the fixture: a modpack with two profiles (one of them another Minecraft and loader), one that is not part of any, and dangling links ----
 
-const artifact = (name, folder) => ({ size: 10, MD5: 'd41d8cd98f00b204e9800998ecf8427e', url: `http://127.0.0.1/servers/Pack-1.21.11/${folder}/${name}` })
-const mod = (id, name, folder = 'required', required) => ({ id, name, type: 'FabricMod', artifact: artifact(name, `fabricmods/${folder}`), ...(required ? { required } : {}) })
-const file = (relative) => ({ id: relative, name: relative, type: 'File', artifact: { ...artifact(relative, 'files'), path: relative } })
-const loader = () => ({
-    id: 'net.fabricmc:fabric-loader:0.16.9', name: 'Fabric (fabric-loader)', type: 'Fabric', artifact: artifact('fabric-loader-0.16.9.jar', 'lib'),
-    subModules: [{ id: '1.21.11-fabric-0.16.9', name: 'Fabric (version.json)', type: 'VersionManifest', artifact: artifact('1.21.11-fabric-0.16.9.json', 'versions') }]
-})
+const module = (name) => ({ id: `x.${name}:${name}:1@jar`, name, type: 'FabricMod', artifact: { size: 1, MD5: 'd41d8cd98f00b204e9800998ecf8427e', url: `http://127.0.0.1/${name}.jar` } })
 const server = (id, name, extra = {}) => ({
-    id, name, description: '', version: '1.0.0', address: 'localhost:25565', minecraftVersion: '1.21.11', mainServer: id === 'Pack-1.21.11', autoconnect: false, whitelist: false,
-    javaOptions: { supported: '>=21 <22', suggestedMajor: 21, distribution: 'TEMURIN' }, ...extra
+    id, name, description: '', version: '1.0.0', address: 'localhost:25565', minecraftVersion: '1.21.11', mainServer: id === 'Host-1.21.11', autoconnect: false, whitelist: false,
+    javaOptions: { supported: '>=21 <22', suggestedMajor: 21, distribution: 'TEMURIN' }, modules: [module(id)], ...extra
 })
-
-function fixture() {
-    const packModules = [
-        loader(),
-        mod('net.fabricmc:fabric-api:0.141.3@jar', 'fabric-api-0.141.3.jar'),
-        mod('net.caffeinemc.mods:sodium:0.8.12@jar', 'sodium-fabric-0.8.12+mc1.21.11.jar'),
-        mod('generated.fabricmod:iris:1.10.7@jar', 'iris-fabric-1.10.7.jar', 'optionalon', { value: false }),
-        mod('net.vulkanmod:vulkanmod:0.6.8@jar', 'vulkanmod-0.6.8.jar'),
-        file('config/iris.properties'), file('config/vulkanmod_settings.json'), file('shaderpacks/Complementary.zip'), file('options.txt')
+const index = () => ({
+    version: '1.0.0',
+    servers: [
+        server('Host-1.21.11', 'Host', {
+            javaOptions: { supported: '>=21 <22', suggestedMajor: 21, distribution: 'TEMURIN', ram: { recommended: 4096, minimum: 3072, maximum: 4096 } },
+            profiles: { list: [
+                { id: 'Host-1.21.11', name: 'Normal', description: 'El de siempre' },
+                { id: 'Lite-1.21.11', name: 'Lite', description: 'Menos carga', recommendedBelowGb: 128 },
+                { id: 'Old-1.20.1', name: 'Antiguo' }
+            ] }
+        }),
+        server('Lite-1.21.11', 'Host Lite', { profileOf: 'Host-1.21.11', javaOptions: { supported: '>=21 <22', suggestedMajor: 21, distribution: 'TEMURIN', ram: { recommended: 3072, minimum: 2048, maximum: 3072 } } }),
+        server('Old-1.20.1', 'Host Old', { profileOf: 'Host-1.21.11', minecraftVersion: '1.20.1', version: '2.5.0', javaOptions: { supported: '>=17 <18', suggestedMajor: 17, distribution: 'TEMURIN' } }),
+        server('Alone-1.21.11', 'Alone'),
+        // a modpack whose only profile is not in the index any more, and one that claims a host that does not list it
+        server('Broken-1.21.11', 'Broken', { profiles: { list: [{ id: 'Broken-1.21.11', name: 'Normal' }, { id: 'Gone-1.21.11', name: 'Gone' }] } }),
+        server('Liar-1.21.11', 'Liar', { profileOf: 'Alone-1.21.11' })
     ]
-    const distribution = {
-        version: '1.0.0', rss: '',
-        servers: [
-            { ...server('Pack-1.21.11', 'Pack'), modules: packModules },
-            { ...server('Plain-1.21.11', 'Plain'), modules: [loader(), mod('a.b:c:1.0@jar', 'c-1.0.jar')] }
-        ]
-    }
-    const meta = {
-        profiles: {
-            default: 'completo',
-            list: [
-                { id: 'completo', name: 'Completo', exclude: { mods: ['vulkanmod'], files: ['config/vulkanmod_settings.json'] }, ram: { minimumMb: 1536, maximumMb: 2048 } },
-                { id: 'lite', name: 'Lite', description: 'Menos carga', recommendedBelowGb: 128, ram: { minimumMb: 1024, maximumMb: 1536 }, exclude: { mods: ['sodium-fabric', 'iris-fabric'], files: ['shaderpacks/', 'config/iris.properties'] } }
-            ]
-        }
-    }
-    publisher.applyToDistribution(distribution, (id) => (id === 'Pack-1.21.11' ? meta : null))
-    return distribution
-}
+})
+const raws = index().servers
+const rawOf = (id) => raws.find((entry) => entry.id === id)
 
-const idsOf = (modules) => modules.map((module) => module.id).sort()
-const published = fixture()
-const pack = () => published.servers[0]
-const expected = (profileId) => idsOf(publisher.effectiveModules(pack(), pack().profiles.list.find((profile) => profile.id === profileId)))
-
-// ---- part 1: the functions ----------------------------------------------------------------------------------------------------
+// ---- part 1 ---------------------------------------------------------------------------------------------------------------------------
 
 {
-    const both = ['completo', 'lite']
-    for (const id of both) {
-        const effective = lib.effectiveServer(pack(), id)
-        check(`${id}: the engine builds exactly the modules the Publisher says that profile plays`, JSON.stringify(idsOf(effective.modules)) === JSON.stringify(expected(id)))
-        check(`${id}: same id and settings as the modpack`, effective.id === pack().id && effective.version === pack().version && effective.address === pack().address)
-        check(`${id}: says which profile it is`, effective.profiles.selected === id && effective.profiles.default === 'completo' && effective.profiles.list.length === 2)
-    }
-    check('the profiles do not carry the pool into the effective modpack', lib.effectiveServer(pack(), 'lite').profiles.pool === undefined)
-    check('each profile is told how many mods it plays', lib.effectiveServer(pack(), 'completo').profiles.list.map((profile) => profile.mods).join() === '3,2', lib.effectiveServer(pack(), 'completo').profiles.list.map((profile) => profile.mods).join())
-    check('a profile the modpack does not have falls back to the default one', lib.effectiveServer(pack(), 'borrado').profiles.selected === 'completo')
-    check('lite: its own memory', JSON.stringify(lib.effectiveServer(pack(), 'lite').javaOptions.ram) === JSON.stringify({ recommended: 1536, minimum: 1024, maximum: 1536 }) && lib.effectiveServer(pack(), 'lite').javaOptions.supported === '>=21 <22')
-    check('the memory shown to the UI is in megabytes', JSON.stringify(lib.effectiveServer(pack(), 'lite').profiles.list[1].ram) === JSON.stringify({ minimumMb: 1024, maximumMb: 1536 }))
+    const profiles = lib.describe(rawOf('Host-1.21.11'), raws)
+    check('a modpack that lists profiles gets them all, itself first, whatever their Minecraft or loader', profiles && profiles.list.map((profile) => profile.id).join() === 'Host-1.21.11,Lite-1.21.11,Old-1.20.1')
+    check('each one carries the name and description the author wrote for it', profiles.list[1].name === 'Lite' && profiles.list[1].description === 'Menos carga' && profiles.list[0].name === 'Normal')
+    check('and what the modpack it points to is (its Minecraft and version)', profiles.list[2].minecraftVersion === '1.20.1' && profiles.list[2].version === '2.5.0')
+    check('its memory is the one that modpack asks for, in megabytes', JSON.stringify(profiles.list[1].ram) === JSON.stringify({ minimumMb: 2048, maximumMb: 3072 }) && profiles.list[2].ram === null)
+    check('only the modpack itself is marked as such', profiles.list.filter((profile) => profile.self).map((profile) => profile.id).join() === 'Host-1.21.11')
+    check('a modpack that lists no profiles has none', lib.describe(rawOf('Alone-1.21.11'), raws) === null && lib.describe(rawOf('Lite-1.21.11'), raws) === null)
+    check('profiles that are not in the index are left out, and one left alone is not a set of profiles', lib.describe(rawOf('Broken-1.21.11'), raws) === null)
 
-    const noRam = fixture()
-    noRam.servers[0].profiles.list[1].ram = null
-    check('a profile with no memory of its own does not keep the memory of the one before', !('ram' in (lib.effectiveServer(noRam.servers[0], 'lite').javaOptions || {})))
-
-    const untouched = { version: '1', servers: [{ id: 'X', modules: [] }] }
-    check('a distribution without profiles is returned as it came', lib.effectiveDistribution(untouched, { X: 'lite' }) === untouched)
-    const whole = lib.effectiveDistribution(published, { 'Pack-1.21.11': 'lite' })
-    check('the whole distribution: profile applied to the modpack that has them, the rest untouched', whole.servers[0].profiles.selected === 'lite' && whole.servers[1] === published.servers[1])
-    check('the published distribution itself is not modified', pack().profiles.pool.length === 2 && pack().modules.length === 7 && pack().profiles.selected === undefined)
+    check('a modpack is shown inside its host when the host lists it', lib.hostOf(rawOf('Lite-1.21.11'), raws) === 'Host-1.21.11' && lib.hostOf(rawOf('Old-1.20.1'), raws) === 'Host-1.21.11')
+    check('and on its own when it is nobody\'s profile, or claims a host that does not list it', lib.hostOf(rawOf('Alone-1.21.11'), raws) === null && lib.hostOf(rawOf('Liar-1.21.11'), raws) === null)
+    check('or when its host is gone from the index', lib.hostOf({ id: 'X', profileOf: 'Nowhere' }, raws) === null)
 
     const list = [{ id: 'a', recommendedBelowGb: 8 }, { id: 'b', recommendedBelowGb: 12 }, { id: 'c' }]
     check('recommended: the tightest "below N" that the PC fits', lib.recommendedFor(list, 6) === 'a' && lib.recommendedFor(list, 10) === 'b' && lib.recommendedFor(list, 16) === null)
-
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'empi-profiles-'))
-    check('no profile in use: the repair keeps reading the launcher folder', lib.repairDirectory(dir, untouched) === dir && !fs.existsSync(path.join(dir, lib.VIEW_DIRECTORY)))
-    const view = lib.repairDirectory(dir, whole)
-    check('profile in use: the repair reads a copy with the chosen profile', view !== dir && ['distribution.json', 'distribution_dev.json'].every((name) => JSON.stringify(idsOf(JSON.parse(fs.readFileSync(path.join(view, name), 'utf8')).servers[0].modules)) === JSON.stringify(expected('lite'))))
-    check('an unreadable or missing choices file means no choices', JSON.stringify(lib.readState(dir)) === '{"selected":{},"stash":{}}')
-    fs.writeFileSync(path.join(dir, lib.FILE), '{not json')
-    check('and so does a broken one', JSON.stringify(lib.readState(dir)) === '{"selected":{},"stash":{}}')
-    lib.writeState(dir, { selected: { a: 'b' }, stash: {} })
-    check('choices are saved and read back', lib.readState(dir).selected.a === 'b' && !fs.existsSync(path.join(dir, `${lib.FILE}.tmp`)))
-    fs.rmSync(dir, { recursive: true, force: true })
 }
 
-// ---- part 2: the engine -------------------------------------------------------------------------------------------------------
+// ---- part 2 ---------------------------------------------------------------------------------------------------------------------------
 
-let served = fixture()
-const web = http.createServer((request, response) => {
-    response.setHeader('Content-Type', 'application/json')
-    response.end(JSON.stringify(served))
-})
+const web = http.createServer((request, response) => { response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify(index())) })
 await new Promise((resolve) => web.listen(0, '127.0.0.1', resolve))
 const url = `http://127.0.0.1:${web.address().port}/distribution.json`
 
 const engine = await startEngine({ label: 'profiles', env: { EMPI_ENGINE_TEST: '1', EMPI_DISTRO_URL: url } })
-const PACK = 'Pack-1.21.11'
 const ask = async (method, params) => { const reply = await engine.call(method, params); return reply.ok ? reply.result : { error: reply.error } }
-const card = (distribution, id = PACK) => distribution.servers.find((entry) => entry.id === id)
 try {
     const loaded = await ask('distro.load')
-    check('the engine loads the served distribution', loaded.servers && loaded.servers.length === 2, JSON.stringify(loaded.error || ''))
-    const summary = card(loaded).profiles
-    check('the modpack lists its profiles, the default one chosen', summary && summary.selected === 'completo' && summary.default === 'completo' && summary.list.map((profile) => profile.id).join() === 'completo,lite')
-    check('each profile arrives with name, description and memory', summary.list[1].name === 'Lite' && summary.list[1].description === 'Menos carga' && summary.list[1].ram.maximumMb === 1536)
-    check('it says what is recommended for this PC', summary.recommended === 'lite' && summary.machineGb > 0, `${summary.machineGb} GB`)
-    check('a modpack without profiles says null', card(loaded, 'Plain-1.21.11').profiles === null)
+    const card = (id) => loaded.servers.find((entry) => entry.id === id)
+    check('the engine loads the index', loaded.servers && loaded.servers.length === 6, JSON.stringify(loaded.error || ''))
+    const host = card('Host-1.21.11')
+    check('the host says which profiles it has, what is recommended for this PC, and how much memory this PC has', host.profiles && host.profiles.list.length === 3 && host.profiles.recommended === 'Lite-1.21.11' && host.profiles.machineGb > 0, `${host.profiles && host.profiles.machineGb} GB`)
+    check('the host is not a profile of anything', host.profileOf === null)
+    check('a profile says whose it is (so the interface shows it inside the host)', card('Lite-1.21.11').profileOf === 'Host-1.21.11' && card('Old-1.20.1').profileOf === 'Host-1.21.11')
+    check('a profile has no profiles of its own', card('Lite-1.21.11').profiles === null)
+    check('a modpack that is nothing to do with them is as before', card('Alone-1.21.11').profiles === null && card('Alone-1.21.11').profileOf === null)
+    check('links that do not hold up are ignored', card('Broken-1.21.11').profiles === null && card('Liar-1.21.11').profileOf === null)
 
-    let modules = await ask('test.effectiveModules', { serverId: PACK })
-    check('the engine plays the default profile at first', JSON.stringify(idsOf(modules.ids.map((id) => ({ id })))) === JSON.stringify(expected('completo')))
-    const ram = async () => ({ min: (await ask('config.server.get', { serverId: PACK })).minRAM, max: (await ask('config.server.get', { serverId: PACK })).maxRAM })
-    check('its memory is the one that profile sets', JSON.stringify(await ram()) === JSON.stringify({ min: '1536M', max: '2048M' }), JSON.stringify(await ram()))
-
-    // ---- changing profile
-    const toLite = await ask('profile.select', { serverId: PACK, profileId: 'lite' })
-    check('changing to lite works', toLite.changed === true && toLite.profileId === 'lite', JSON.stringify(toLite.error || ''))
-    check('the answer carries the modpack list as it is now', card(toLite.distribution).profiles.selected === 'lite')
-    check('and the pack status', toLite.pack && toLite.pack.serverId === PACK)
-    modules = await ask('test.effectiveModules', { serverId: PACK })
-    check('the engine now plays the lite modules', JSON.stringify(idsOf(modules.ids.map((id) => ({ id })))) === JSON.stringify(expected('lite')))
-    check('and starts with the memory lite sets', JSON.stringify(await ram()) === JSON.stringify({ min: '1024M', max: '1536M' }), JSON.stringify(await ram()))
-    const events = engine.events.filter((event) => event.event === 'distro.refreshed' || event.event === 'pack.status')
-    check('the interface is told (pack status and the new modpack list)', events.some((event) => event.event === 'pack.status') && events.some((event) => event.event === 'distro.refreshed'))
-    const again = await ask('profile.select', { serverId: PACK, profileId: 'lite' })
-    check('choosing the one already chosen changes nothing', again.changed === false)
-
-    // ---- what the player set up is kept per profile
-    await ask('config.server.set', { serverId: PACK, key: 'minRAM', value: '512M' })
-    await ask('config.server.set', { serverId: PACK, key: 'maxRAM', value: '1024M' })
-    await ask('profile.select', { serverId: PACK, profileId: 'completo' })
-    check('going back gives the memory the author set for that profile', JSON.stringify(await ram()) === JSON.stringify({ min: '1536M', max: '2048M' }), JSON.stringify(await ram()))
-    await ask('config.server.set', { serverId: PACK, key: 'maxRAM', value: '2560M' })
-    await ask('profile.select', { serverId: PACK, profileId: 'lite' })
-    check('lite still has what the player set in it', JSON.stringify(await ram()) === JSON.stringify({ min: '512M', max: '1024M' }), JSON.stringify(await ram()))
-    await ask('profile.select', { serverId: PACK, profileId: 'completo' })
-    check('and completo has what the player set in it', (await ram()).max === '2560M', JSON.stringify(await ram()))
-
-    // ---- it survives a refresh, and a profile that disappears
-    await ask('profile.select', { serverId: PACK, profileId: 'lite' })
-    const config = await ask('config.get')
-    check('the choice is written to the launcher folder', fs.existsSync(path.join(config.launcherDirectory, 'native-profiles.json')) && JSON.parse(fs.readFileSync(path.join(config.launcherDirectory, 'native-profiles.json'), 'utf8')).selected[PACK] === 'lite')
+    // choosing a profile is choosing that modpack: it has its own status, and its own memory and Java settings
+    const picked = await ask('distro.select', { id: 'Lite-1.21.11' })
+    check('choosing a profile is choosing that modpack', picked.selectedServer === 'Lite-1.21.11', JSON.stringify(picked.error || picked))
+    const status = await ask('pack.status')
+    check('and the pack status is that modpack\'s own', status.serverId === 'Lite-1.21.11')
+    const memory = async (serverId) => { const settings = await ask('config.server.get', { serverId }); return `${settings.minRAM}/${settings.maxRAM}` }
+    check('each keeps the memory its own author set (the profile\'s is set in its own modpack)', (await memory('Lite-1.21.11')) === '2048M/3072M' && (await memory('Host-1.21.11')) === '3072M/4096M', `${await memory('Lite-1.21.11')} ${await memory('Host-1.21.11')}`)
+    const old = await ask('distro.select', { id: 'Old-1.20.1' })
+    check('a profile of another Minecraft and loader is chosen the same way', old.selectedServer === 'Old-1.20.1')
     const refreshed = await ask('distro.load', { refresh: true })
-    check('a refresh of the published index keeps the choice', card(refreshed).profiles.selected === 'lite')
-    modules = await ask('test.effectiveModules', { serverId: PACK })
-    check('and the modules that go with it', JSON.stringify(idsOf(modules.ids.map((id) => ({ id })))) === JSON.stringify(expected('lite')))
-
-    // ---- the copy the repair reads
-    await ask('game.start', { mode: 'update' })
-    const viewFile = path.join(config.launcherDirectory, 'profile-view', 'distribution.json')
-    const arrived = await (async () => { const end = Date.now() + 20000; while (Date.now() < end) { if (fs.existsSync(viewFile)) return true; await new Promise((r) => setTimeout(r, 200)) } return false })()
-    check('an update writes the copy of the distribution the repair reads', arrived)
-    if (arrived) {
-        const { DistributionAPI } = require('helios-core/common')
-        const api = new DistributionAPI(path.dirname(viewFile), path.join(config.launcherDirectory, 'c'), path.join(config.launcherDirectory, 'i'), null, false)
-        const seenByRepair = (await api.getDistributionLocalLoadOnly()).getServerById(PACK)
-        check('helios-core, reading it the way the repair does, sees the lite modules', JSON.stringify(idsOf(seenByRepair.rawServer.modules)) === JSON.stringify(expected('lite')))
-        check('the launcher\'s own copy of the published index still lists every profile', fs.existsSync(path.join(config.launcherDirectory, 'distribution.json')) && JSON.parse(fs.readFileSync(path.join(config.launcherDirectory, 'distribution.json'), 'utf8')).servers[0].profiles.pool.length === 2)
-    }
+    check('the choice is kept', refreshed.selectedServer === 'Old-1.20.1')
 } catch (err) {
     check('the test itself ran', false, err.stack || String(err))
-}
-
-// what must be refused (a fresh engine: the update above is still running in the first one)
-try {
-    const clean = await startEngine({ label: 'profiles-refuse', env: { EMPI_ENGINE_TEST: '1', EMPI_DISTRO_URL: url } })
-    try {
-        await clean.call('distro.load')
-        const refuse = async (params) => (await clean.call('profile.select', params)).error
-        // while the game (here a stand-in that just waits) runs, nothing about the installation may change under it
-        await clean.call('test.spawnFake', { script: 'setTimeout(() => {}, 30000)' })
-        check('the profile cannot be changed while the game runs', (await refuse({ serverId: PACK, profileId: 'lite' }))?.code === 'busy')
-        await clean.call('game.stop')
-        for (let waited = 0; waited < 10000; waited += 250) { if ((await clean.call('game.status')).result.phase === 'idle') break; await new Promise((r) => setTimeout(r, 250)) }
-        check('a modpack without profiles has nothing to choose', (await refuse({ serverId: 'Plain-1.21.11', profileId: 'lite' }))?.code === 'no_profiles')
-        check('a profile it does not have is refused', (await refuse({ serverId: PACK, profileId: 'nada' }))?.code === 'no_profile')
-        check('a modpack that does not exist is refused', (await refuse({ serverId: 'Nope-1.0', profileId: 'lite' }))?.code === 'no_profiles')
-
-        // the published modpack loses the profile the player had chosen: they end up on the default one
-        await clean.call('profile.select', { serverId: PACK, profileId: 'lite' })
-        served = fixture()
-        served.servers[0].profiles.list = served.servers[0].profiles.list.filter((profile) => profile.id !== 'lite')
-        served.servers[0].profiles.list.push({ id: 'otro', name: 'Otro', remove: [], add: [], ram: null })
-        const after = await clean.call('distro.load', { refresh: true })
-        check('a profile that was removed from the modpack leaves the player on the default one', card(after.result).profiles.selected === 'completo', JSON.stringify(card(after.result).profiles?.selected))
-    } finally {
-        await clean.stop()
-    }
-} catch (err) {
-    check('the refusals ran', false, err.stack || String(err))
 } finally {
     web.close()
     if (process.exitCode) console.log('\n--- engine output (tail) ---\n' + engine.output().slice(-3000))

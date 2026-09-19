@@ -100,6 +100,7 @@ public sealed class Launcher : IAsyncDisposable
     {
         Distro = await Client.CallAsync<DistroResult>("distro.load", new { refresh });
         SelectedId = Distro.SelectedServer;
+        if (Selected is { ProfileOf: { } owner }) _lastProfile[owner] = SelectedId;
         await ApplyThemeAsync();
         await RefreshPackAsync();
         Changed?.Invoke();
@@ -111,49 +112,57 @@ public sealed class Launcher : IAsyncDisposable
         Changed?.Invoke();
     }
 
+    /// <summary>
+    /// The modpack the screen is about: the one picked in the list. When what plays is one of its profiles (another modpack of the index that
+    /// is shown inside it) that is the host, and the profile is what Selected is.
+    /// </summary>
+    public Modpack? Host => Selected is { ProfileOf: { } hostId } ? Distro?.Servers.FirstOrDefault(s => s.Id == hostId) ?? Selected : Selected;
+    public string? HostId => Host?.Id;
+
+    // the profile last played of each modpack that has profiles, so choosing that modpack in the list brings the same one back
+    private readonly Dictionary<string, string> _lastProfile = [];
+
+    /// <summary>The modpack that plays when this one is picked in the list: the profile last played if it has profiles, itself otherwise.</summary>
+    public string PlayingIn(string hostId)
+    {
+        if (HostId == hostId && SelectedId != null) return SelectedId;
+        return _lastProfile.TryGetValue(hostId, out var last) && Distro?.Servers.Any(s => s.Id == last && s.ProfileOf == hostId) == true ? last : hostId;
+    }
+
     public async Task SelectAsync(string id)
     {
-        if (id == SelectedId || Game.Busy || Game.Running) return;
+        var target = PlayingIn(id);
+        if (target == SelectedId || Game.Busy || Game.Running) return;
+        await SwitchAsync(target);
+    }
+
+    /// <summary>Plays another profile of the modpack that is shown. A profile is another modpack of the index, so this is choosing it.</summary>
+    public async Task ChooseProfileAsync(string profileId)
+    {
+        if (profileId == SelectedId) return;
+        if (Game.Busy || Game.Running) { Notice?.Invoke("Termina o detén lo que está en marcha antes de cambiar de perfil."); return; }
+        await SwitchAsync(profileId);
+        var name = Host?.Profiles?.List.FirstOrDefault(p => p.Id == profileId)?.Name;
+        if (name != null) Notice?.Invoke($"Perfil {name}.");
+    }
+
+    private async Task SwitchAsync(string id)
+    {
+        var before = HostId;
         SelectedId = id;
+        if (Selected is { ProfileOf: { } owner }) _lastProfile[owner] = id; else _lastProfile.Remove(id);
+        var another = HostId != before;   // another modpack of the list, not another profile of the same one: its look changes, a profile's does not
         Pack = null;
         Status = null;
-        Art = null;
-        ArtChanged?.Invoke();
+        if (another) { Art = null; ArtChanged?.Invoke(); }
         Changed?.Invoke();
         await Client.CallAsync("distro.select", new { id });
-        await ApplyThemeAsync();
+        if (another) await ApplyThemeAsync();
         await RefreshPackAsync();
         Changed?.Invoke();
         _ = Quietly(() => Client.CallAsync("discord.navigation", new { id }));
         _ = RefreshStatusAsync();
-        _ = LoadArtAsync();
-    }
-
-    /// <summary>
-    /// Plays a modpack with another of its profiles. The engine makes the change at once and says whether the installation has to follow;
-    /// when it does (the modpack is installed) the normal update starts right away, so choosing a profile is one click.
-    /// </summary>
-    public async Task<bool> SelectProfileAsync(string serverId, string profileId)
-    {
-        if (Game.Busy || Game.Running) { Notice?.Invoke("Termina o detén lo que está en marcha antes de cambiar de perfil."); return false; }
-        ProfileSelectResult result;
-        try { result = await Client.CallAsync<ProfileSelectResult>("profile.select", new { serverId, profileId }, TimeSpan.FromSeconds(30)); }
-        catch (EngineException ex) { Notice?.Invoke(ex.Message); return false; }
-        if (!result.Changed) return false;
-
-        if (result.Distribution != null) Distro = result.Distribution;
-        if (serverId == SelectedId) Pack = result.Pack;
-        Changed?.Invoke();
-
-        var name = Distro?.Servers.FirstOrDefault(s => s.Id == serverId)?.Profiles?.List.FirstOrDefault(p => p.Id == profileId)?.Name ?? profileId;
-        if (serverId == SelectedId && result.Pack is { Installed: true, NeedsUpdate: true })
-        {
-            Notice?.Invoke($"Perfil {name}: se actualizan los mods de tu instalación.");
-            try { await Client.CallAsync<GameStartResult>("game.start", new { mode = "update" }); }
-            catch (EngineException ex) { Notice?.Invoke(ex.Message); }
-        }
-        else Notice?.Invoke($"Perfil {name} elegido.");
-        return true;
+        if (another) _ = LoadArtAsync();
     }
 
     public async Task RefreshPackAsync()
@@ -172,11 +181,11 @@ public sealed class Launcher : IAsyncDisposable
     /// <summary>Banner and background of the selected modpack, as small still previews made by the engine (never the 278 MB originals).</summary>
     public async Task LoadArtAsync()
     {
-        var id = SelectedId;
+        var id = HostId;   // a profile is shown with the look of the modpack it is inside
         try
         {
             var art = await Client.CallAsync<ArtResult>("art.get", new { id }, TimeSpan.FromSeconds(60));
-            if (id != SelectedId) return;   // the player already moved to another modpack
+            if (id != HostId) return;   // the player already moved to another modpack
             Art = art;
             ArtChanged?.Invoke();
         }
@@ -266,12 +275,12 @@ public sealed class Launcher : IAsyncDisposable
 
     private async Task ApplyThemeAsync()
     {
-        string? accent = Selected?.Accent;
-        if (SelectedId != null)
+        string? accent = Host?.Accent;
+        if (HostId != null)
         {
             try
             {
-                var theme = await Client.CallAsync<ThemeResult>("distro.theme", new { id = SelectedId });
+                var theme = await Client.CallAsync<ThemeResult>("distro.theme", new { id = HostId });
                 if (theme.Theme is { ValueKind: JsonValueKind.Object } t && t.TryGetProperty("accent", out var a) && a.ValueKind == JsonValueKind.String)
                     accent = a.GetString();
             }

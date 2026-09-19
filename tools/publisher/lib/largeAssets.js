@@ -110,11 +110,7 @@ function rewriteDistributionUrls(distribution, urlMap, pagesBaseUrl) {
         }
     }
 
-    for (const server of distribution.servers || []) {
-        visit(server.modules)
-        // modules only some profile of the modpack plays (see profiles.js) are delivered from the same places
-        if (server.profiles) visit(server.profiles.pool)
-    }
+    for (const server of distribution.servers || []) visit(server.modules)
     return changed
 }
 

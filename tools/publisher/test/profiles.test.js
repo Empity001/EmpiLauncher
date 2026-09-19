@@ -1,6 +1,5 @@
 // node --test tools/publisher/test/*.test.js
-// Profiles of a modpack: what each one takes, how that is stored, and how the compiled distribution carries it (see lib/profiles.js).
-// Against a throwaway Nebula root, never the real one.
+// Profiles as links between modpacks (lib/profiles.js), against a throwaway Nebula root, never the real one.
 const test = require('node:test')
 const assert = require('node:assert')
 const fs = require('fs')
@@ -8,437 +7,188 @@ const os = require('os')
 const path = require('path')
 const nebula = require('../lib/nebula')
 const profiles = require('../lib/profiles')
-const largeAssets = require('../lib/largeAssets')
 
 function makeRoot() {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'publisher-profiles-'))
     const config = { nebulaProjectPath: path.join(root, 'no-nebula-here'), nebulaRootPath: root }
-    const id = 'Pack-1.21.11'
-    const dir = path.join(root, 'servers', id)
-    for (const folder of ['fabricmods/required', 'fabricmods/optionalon', 'files/config', 'files/shaderpacks']) fs.mkdirSync(path.join(dir, folder), { recursive: true })
-    fs.writeFileSync(path.join(dir, 'servermeta.json'), JSON.stringify({ meta: { version: '1.0.0', name: id, address: 'localhost:25565' }, fabric: { version: '0.16.9' } }, null, 2))
-    const put = (relative, size = 10) => { fs.mkdirSync(path.dirname(path.join(dir, relative)), { recursive: true }); fs.writeFileSync(path.join(dir, relative), Buffer.alloc(size, 1)) }
-    return { root, config, id, dir, put, meta: () => JSON.parse(fs.readFileSync(path.join(dir, 'servermeta.json'), 'utf8')) }
-}
-
-const BOTH = [
-    { id: 'completo', name: 'Completo' },
-    { id: 'lite', name: 'Lite', exclude: { mods: ['sodium-fabric', 'iris-fabric'], files: ['shaderpacks/', 'config/iris.properties'] } }
-]
-
-// ------------------------------------------------------------ names
-
-test('a mod is named by what comes before its version', () => {
-    const cases = {
-        'sodium-fabric-0.8.12+mc1.21.11.jar': 'sodium-fabric',
-        'AdvancementPlaques-1.21.11-fabric-1.7.0.jar': 'advancementplaques',
-        'not-enough-vulkan-1.6.2+mc1.21.11.jar': 'not-enough-vulkan',
-        'fabric-api-0.141.3+1.21.11.jar': 'fabric-api',
-        'Xaeros_Minimap_25.2.0_Fabric_1.21.11.jar': 'xaeros-minimap',
-        '3dskinlayers-fabric-1.9.0-mc1.21.11.jar': '3dskinlayers-fabric',
-        'modmenu-v17.0.0.jar': 'modmenu',
-        'Sodium Extra 0.8.3.jar': 'sodium-extra'
+    const pack = (id, name, fields = {}, loader = 'fabric', where = 'servers', extra = {}) => {
+        const dir = path.join(root, where, id)
+        fs.mkdirSync(path.join(dir, 'fabricmods', 'required'), { recursive: true })
+        fs.writeFileSync(path.join(dir, 'fabricmods', 'required', 'a-1.0.jar'), 'a')
+        fs.writeFileSync(path.join(dir, 'servermeta.json'), JSON.stringify({ meta: { version: '1.0.0', name, description: '', address: 'localhost:25565', ...fields }, [loader]: { version: '1.0.0' }, ...extra }, null, 2))
+        return dir
     }
-    for (const [file, stem] of Object.entries(cases)) assert.strictEqual(profiles.stemOf(file), stem, file)
-})
-
-test('a newer jar of the same mod keeps the same name, and similar mods stay apart', () => {
-    assert.strictEqual(profiles.stemOf('sodium-0.8.12.jar'), profiles.stemOf('sodium-0.9.0+mc1.22.jar'))
-    assert.notStrictEqual(profiles.stemOf('sodium-0.8.12.jar'), profiles.stemOf('sodium-extra-0.8.3.jar'))
-})
+    return { root, config, pack, meta: (id, where = 'servers') => JSON.parse(fs.readFileSync(path.join(root, where, id, 'servermeta.json'), 'utf8')) }
+}
 
 // ------------------------------------------------------------ what is stored
 
-test('fewer than two profiles are not profiles', () => {
+test('no links are no profiles', () => {
     assert.strictEqual(profiles.normalize(null), null)
-    assert.strictEqual(profiles.normalize({ list: [{ name: 'Solo' }] }), null)
+    assert.strictEqual(profiles.normalize({}), null)
     assert.strictEqual(profiles.normalize({ list: [] }), null)
 })
 
-test('profiles get an id from their name and keep it; the default falls back to the first', () => {
-    const one = profiles.normalize({ default: 'nope', list: [{ name: 'Sin Sombras' }, { name: 'Ligero' }] })
-    assert.deepStrictEqual(one.list.map((profile) => profile.id), ['sin-sombras', 'ligero'])
-    assert.strictEqual(one.default, 'sin-sombras')
-    const renamed = profiles.normalize({ default: 'ligero', list: [{ id: 'sin-sombras', name: 'Otro nombre' }, { id: 'ligero', name: 'Ligero' }] })
-    assert.deepStrictEqual(renamed.list.map((profile) => profile.id), ['sin-sombras', 'ligero'])
-    assert.strictEqual(renamed.default, 'ligero')
+test('the profiles from before they were links (no `pack`) are dropped instead of breaking anything', () => {
+    const legacy = { default: 'completo', list: [{ id: 'completo', name: 'Completo', exclude: { mods: [], files: [] } }, { id: 'lite', name: 'Lite', exclude: { mods: [], files: [] } }] }
+    assert.strictEqual(profiles.normalize(legacy), null)
+    assert.strictEqual(profiles.stored({ profiles: legacy }), null)
 })
 
-test('ids never repeat, even when names differ only by accents or case', () => {
-    const many = profiles.normalize({ list: [{ name: 'Rápido' }, { name: 'Rapido!' }, { name: 'RAPIDO?' }] })
-    assert.strictEqual(new Set(many.list.map((profile) => profile.id)).size, 3)
+test('a link needs a label, and labels differ (also from the modpack\'s own)', () => {
+    assert.throws(() => profiles.normalize({ list: [{ pack: 'A-1.21.11', name: '' }] }), /le falta el nombre/)
+    assert.throws(() => profiles.normalize({ list: [{ pack: 'A-1.21.11', name: 'Lite' }, { pack: 'B-1.21.11', name: 'lite' }] }), /dos perfiles llamados/)
+    assert.throws(() => profiles.normalize({ self: { name: 'Lite' }, list: [{ pack: 'A-1.21.11', name: 'Lite' }] }), /dos perfiles llamados/)
+    assert.throws(() => profiles.normalize({ list: [{ pack: 'A-1.21.11', name: 'Uno' }, { pack: 'A-1.21.11', name: 'Otro' }] }), /no puede ser dos perfiles/)
+    assert.throws(() => profiles.normalize({ list: Array.from({ length: 13 }, (_, i) => ({ pack: `P${i}-1.21.11`, name: `P${i}` })) }), /máximo 12/)
 })
 
-test('names must be there, different, and not too long', () => {
-    assert.throws(() => profiles.normalize({ list: [{ name: '' }, { name: 'B' }] }), /le falta el nombre/)
-    assert.throws(() => profiles.normalize({ list: [{ name: 'Lite' }, { name: 'lite' }] }), /dos perfiles llamados/)
-    assert.throws(() => profiles.normalize({ list: [{ name: 'x'.repeat(40) }, { name: 'B' }] }), /demasiado largo/)
-    assert.throws(() => profiles.normalize({ list: Array.from({ length: 13 }, (_, i) => ({ name: `P${i}` })) }), /máximo 12/)
+test('the modpack itself is called Normal unless said otherwise, and the sizes are checked', () => {
+    const result = profiles.normalize({ list: [{ pack: 'A-1.21.11', name: 'Lite', recommendedBelowGb: '8', description: '  Menos carga  ' }] })
+    assert.deepStrictEqual(result.self, { name: 'Normal', description: '', recommendedBelowGb: null })
+    assert.deepStrictEqual(result.list[0], { pack: 'A-1.21.11', name: 'Lite', description: 'Menos carga', recommendedBelowGb: 8 })
+    assert.throws(() => profiles.normalize({ list: [{ pack: 'A-1.21.11', name: 'Lite', recommendedBelowGb: 0 }] }), /entre 1 y 128/)
+    assert.throws(() => profiles.normalize({ self: { recommendedBelowGb: 500 }, list: [{ pack: 'A-1.21.11', name: 'Lite' }] }), /entre 1 y 128/)
 })
 
-test('memory and the recommended size are checked like the rest of the Publisher does', () => {
-    const ok = profiles.normalize({ list: [{ name: 'A' }, { name: 'B', ram: { minimumMb: 2000, maximumMb: 5000 }, recommendedBelowGb: '8' }] })
-    assert.deepStrictEqual(ok.list[1].ram, { minimumMb: 2048, maximumMb: 5120 })
-    assert.strictEqual(ok.list[1].recommendedBelowGb, 8)
-    assert.throws(() => profiles.normalize({ list: [{ name: 'A' }, { name: 'B', ram: { minimumMb: 4096, maximumMb: 2048 } }] }), /máxima no puede ser menor/)
-    assert.throws(() => profiles.normalize({ list: [{ name: 'A' }, { name: 'B', recommendedBelowGb: 0 }] }), /entre 1 y 128/)
-})
-
-test('rules are cleaned: lower case, forward slashes, no repeats, nothing that is not text', () => {
-    const result = profiles.normalize({ list: [{ name: 'A' }, { name: 'B', exclude: { mods: ['Sodium', 'sodium', 3, ''], files: ['.\\Config\\A.json', 'config/a.json', 'ShaderPacks/'] } }] })
-    assert.deepStrictEqual(result.list[1].exclude, { mods: ['sodium'], files: ['config/a.json', 'shaderpacks/'] })
+test('the label a linked modpack gets by default', () => {
+    assert.strictEqual(profiles.suggestName('PanolisSMP', 'PanolisSMP Lite'), 'Lite')
+    assert.strictEqual(profiles.suggestName('PanolisSMP', 'PanolisSMP - Sin shaders'), 'Sin shaders')
+    assert.strictEqual(profiles.suggestName('PanolisSMP', 'Otra cosa'), 'Otra cosa')
+    assert.strictEqual(profiles.suggestName('PanolisSMP', 'PanolisSMP'), 'PanolisSMP')
 })
 
 // ------------------------------------------------------------ the editor
 
-test('the editor lists mods once per name and every file except what Apariencia manages', () => {
-    const { config, id, put } = makeRoot()
-    put('fabricmods/required/sodium-fabric-0.8.12+mc1.21.11.jar', 100)
-    put('fabricmods/optionalon/sodium-fabric-0.8.11.jar', 50)
-    put('fabricmods/required/iris-fabric-1.10.7.jar', 30)
-    put('files/config/iris.properties', 5)
-    put('files/shaderpacks/Complementary.zip', 400)
-    put('files/background.webp', 9999)
-    put('files/theme.json', 5)
-    put('files/options.txt', 7)
-    const view = profiles.describe(config, id)
+test('any other modpack can be chosen: another Minecraft, another loader, deactivated', () => {
+    const { config, pack } = makeRoot()
+    pack('Host-1.21.11', 'Host')
+    pack('Same-1.21.11', 'Same')
+    pack('Older-1.20.1', 'Older')
+    pack('Forged-1.21.11', 'Forged', {}, 'neoforge')
+    pack('Off-1.21.11', 'Off', {}, 'fabric', 'hide')
+    const view = profiles.describe(config, 'Host-1.21.11')
+    assert.deepStrictEqual(view.versions.map((version) => version.id).sort(), ['Forged-1.21.11', 'Off-1.21.11', 'Older-1.20.1', 'Same-1.21.11'])
+    assert.ok(view.versions.every((version) => version.available && version.reason === null))
+    const older = view.versions.find((version) => version.id === 'Older-1.20.1')
+    assert.deepStrictEqual([older.minecraft, older.loader, older.loaderName, older.mods], ['1.20.1', 'fabric', 'Fabric', 1])
+    assert.strictEqual(view.versions.find((version) => version.id === 'Off-1.21.11').active, false)
     assert.strictEqual(view.profiles, null)
-    assert.deepStrictEqual(view.items.mods.map((mod) => [mod.stem, mod.names.length, mod.size]), [['iris-fabric', 1, 30], ['sodium-fabric', 2, 150]])
-    assert.deepStrictEqual(view.items.files.map((file) => file.path), ['config/iris.properties', 'options.txt', 'shaderpacks/Complementary.zip'])
 })
 
-test('saving keeps the profiles in servermeta.json, tells how much each takes, and flags rules that match nothing', () => {
-    const { config, id, put, meta } = makeRoot()
-    put('fabricmods/required/sodium-fabric-0.8.12.jar', 100)
-    put('fabricmods/required/iris-fabric-1.10.7.jar', 30)
-    put('fabricmods/required/fabric-api-0.141.3.jar', 500)
-    put('files/config/iris.properties', 5)
-    put('files/shaderpacks/Complementary.zip', 400)
-    const view = profiles.save(config, id, { default: 'completo', list: [...BOTH, { name: 'Viejo', exclude: { mods: ['ya-no-existe'], files: ['config/borrado.json'] } }] })
-    assert.deepStrictEqual(meta().profiles.list.map((profile) => profile.id), ['completo', 'lite', 'viejo'])
-    assert.deepStrictEqual(view.totals.completo, { mods: 3, files: 2, bytes: 100 + 30 + 500 + 5 + 400 })
-    assert.deepStrictEqual(view.totals.lite, { mods: 1, files: 0, bytes: 500 })
-    assert.deepStrictEqual(view.stale, { viejo: { mods: ['ya-no-existe'], files: ['config/borrado.json'] } })
-    assert.strictEqual(nebula.listPacks(config)[0].profiles, 3)
+test('saving links keeps them in servermeta.json, and the linked modpack is not touched: not hidden, not changed, still published', () => {
+    const { config, pack, root, meta } = makeRoot()
+    pack('Host-1.21.11', 'Host')
+    const lite = pack('HostLite-1.21.11', 'Host Lite', { javaOptions: { supported: '>=21 <22', suggestedMajor: 21, distribution: 'TEMURIN', ram: { recommended: 3072, minimum: 2048, maximum: 3072 } } })
+    const before = fs.readFileSync(path.join(lite, 'servermeta.json'), 'utf8')
+    const view = profiles.save(config, 'Host-1.21.11', { self: { name: 'Normal' }, list: [{ pack: 'HostLite-1.21.11', name: 'Lite', recommendedBelowGb: 8 }] })
+    assert.deepStrictEqual(meta('Host-1.21.11').profiles.list, [{ pack: 'HostLite-1.21.11', name: 'Lite', description: '', recommendedBelowGb: 8 }])
+    assert.strictEqual(fs.readFileSync(path.join(lite, 'servermeta.json'), 'utf8'), before, 'the linked modpack\'s own settings are untouched')
+    assert.ok(fs.existsSync(path.join(root, 'servers', 'HostLite-1.21.11', 'fabricmods', 'required', 'a-1.0.jar')), 'and it stays where it is')
+    assert.ok(!fs.existsSync(path.join(root, 'hide', 'HostLite-1.21.11')))
+    // what the editor shows of it: read from the linked modpack itself (memory included), so it is set there
+    assert.deepStrictEqual(view.profiles.list[0].info.ram, { minimumMb: 2048, maximumMb: 3072 })
+    assert.strictEqual(view.profiles.list[0].info.name, 'Host Lite')
+    assert.strictEqual(view.versions.find((version) => version.id === 'HostLite-1.21.11').linked, true)
 })
 
-test('sending nothing (or one profile) takes the profiles away and leaves the rest of the file alone', () => {
-    const { config, id, meta } = makeRoot()
-    profiles.save(config, id, { list: BOTH })
-    assert.ok(meta().profiles)
-    profiles.save(config, id, null)
-    assert.strictEqual(meta().profiles, undefined)
-    assert.strictEqual(meta().fabric.version, '0.16.9')
-    assert.strictEqual(nebula.listPacks(config)[0].profiles, 0)
+test('the list of modpacks says whose profile each one is', () => {
+    const { config, pack } = makeRoot()
+    pack('Host-1.21.11', 'Host')
+    pack('HostLite-1.21.11', 'Host Lite')
+    pack('Other-1.21.11', 'Other')
+    profiles.save(config, 'Host-1.21.11', { list: [{ pack: 'HostLite-1.21.11', name: 'Lite' }] })
+    const list = nebula.listPacks(config)
+    assert.strictEqual(list.find((entry) => entry.id === 'HostLite-1.21.11').profileOf, 'Host-1.21.11')
+    assert.strictEqual(list.find((entry) => entry.id === 'Other-1.21.11').profileOf, null)
+    assert.strictEqual(list.find((entry) => entry.id === 'Host-1.21.11').profiles, 1)
+    assert.strictEqual(profiles.describe(config, 'HostLite-1.21.11').profileOf.id, 'Host-1.21.11')
+})
+
+test('one modpack is a profile of only one modpack, a profile has no profiles, and a modpack is not its own profile', () => {
+    const { config, pack } = makeRoot()
+    pack('Host-1.21.11', 'Host')
+    pack('Other-1.21.11', 'Other')
+    pack('Lite-1.21.11', 'Lite')
+    profiles.save(config, 'Host-1.21.11', { list: [{ pack: 'Lite-1.21.11', name: 'Lite' }] })
+    assert.throws(() => profiles.save(config, 'Other-1.21.11', { list: [{ pack: 'Lite-1.21.11', name: 'Lite' }] }), /ya es un perfil de Host-1\.21\.11/)
+    assert.throws(() => profiles.save(config, 'Lite-1.21.11', { list: [{ pack: 'Other-1.21.11', name: 'Otro' }] }), /un perfil no puede tener perfiles/)
+    assert.throws(() => profiles.save(config, 'Other-1.21.11', { list: [{ pack: 'Host-1.21.11', name: 'Host' }] }), /tiene perfiles propios/)
+    assert.throws(() => profiles.save(config, 'Other-1.21.11', { list: [{ pack: 'Other-1.21.11', name: 'Yo' }] }), /de sí mismo/)
+    assert.throws(() => profiles.save(config, 'Other-1.21.11', { list: [{ pack: 'Nope-1.21.11', name: 'X' }] }), /No existe/)
+    const view = profiles.describe(config, 'Other-1.21.11')
+    assert.strictEqual(view.versions.find((version) => version.id === 'Lite-1.21.11').available, false)
+    assert.match(view.versions.find((version) => version.id === 'Lite-1.21.11').reason, /Ya es un perfil de Host/)
+    assert.strictEqual(view.versions.find((version) => version.id === 'Host-1.21.11').available, false)
+})
+
+test('removing the profiles leaves both modpacks exactly as they were, without the link', () => {
+    const { config, pack, root, meta } = makeRoot()
+    pack('Host-1.21.11', 'Host')
+    pack('Lite-1.21.11', 'Lite')
+    profiles.save(config, 'Host-1.21.11', { list: [{ pack: 'Lite-1.21.11', name: 'Lite' }] })
+    profiles.save(config, 'Host-1.21.11', null)
+    assert.strictEqual(meta('Host-1.21.11').profiles, undefined)
+    assert.strictEqual(meta('Host-1.21.11').fabric.version, '1.0.0')
+    assert.ok(fs.existsSync(path.join(root, 'servers', 'Lite-1.21.11')))
+    assert.strictEqual(nebula.listPacks(config).find((entry) => entry.id === 'Lite-1.21.11').profileOf, null)
+})
+
+test('profiles left from the old kind are ignored, flagged, and replaced on the next save', () => {
+    const { config, pack, meta } = makeRoot()
+    pack('Host-1.21.11', 'Host', {}, 'fabric', 'servers', { profiles: { default: 'normal', list: [{ id: 'normal', name: 'Normal', exclude: { mods: [], files: [] } }, { id: 'lite', name: 'Lite', exclude: { mods: [], files: [] } }] } })
+    pack('Lite-1.21.11', 'Lite')
+    const view = profiles.describe(config, 'Host-1.21.11')
+    assert.strictEqual(view.profiles, null)
+    assert.strictEqual(view.legacy, true)
+    profiles.save(config, 'Host-1.21.11', { list: [{ pack: 'Lite-1.21.11', name: 'Lite' }] })
+    assert.strictEqual(meta('Host-1.21.11').profiles.list[0].pack, 'Lite-1.21.11')
+    assert.strictEqual(profiles.describe(config, 'Host-1.21.11').legacy, false)
 })
 
 // ------------------------------------------------------------ the compiled distribution
 
-const mod = (id, file, folder = 'required') => ({ id, name: file, type: 'FabricMod', artifact: { size: 10, url: `https://example.test/servers/Pack-1.21.11/fabricmods/${folder}/${encodeURIComponent(file)}`, MD5: 'x' } })
-const file = (relative) => ({ id: relative, name: relative, type: 'File', artifact: { size: 5, url: `https://example.test/servers/Pack-1.21.11/files/${relative}`, MD5: 'y', path: relative } })
+const server = (id, extra = {}) => ({ id, name: id, version: '1.0.0', minecraftVersion: '1.21.11', modules: [{ id: 'x:y:1@jar', type: 'FabricMod', artifact: { url: 'https://x.test/a.jar', size: 1, MD5: 'a' } }], ...extra })
+const metas = (table) => (id) => table[id] || null
 
-function fixture() {
-    return {
-        version: '1.0.0',
-        servers: [{
-            id: 'Pack-1.21.11', name: 'Pack', version: '1.0.0', javaOptions: { supported: '>=21 <22', suggestedMajor: 21, distribution: 'TEMURIN', ram: { recommended: 6144, minimum: 4096, maximum: 6144 } },
-            modules: [
-                { id: 'net.fabricmc:fabric-loader:0.16.9', type: 'Fabric', artifact: { size: 1, url: 'https://example.test/loader.jar' } },
-                { id: 'net.minecraft:1.21.11', type: 'VersionManifest', artifact: { size: 1, url: 'https://example.test/v.json' } },
-                mod('net.fabricmc:fabric-api:0.141.3@jar', 'fabric-api-0.141.3.jar'),
-                mod('net.caffeinemc.mods:sodium:0.8.12@jar', 'sodium-fabric-0.8.12+mc1.21.11.jar'),
-                mod('generated.fabricmod:iris:1.10.7@jar', 'iris-fabric-1.10.7.jar', 'optionalon'),
-                mod('net.vulkanmod:vulkanmod:0.6.8@jar', 'vulkanmod-0.6.8.jar'),
-                file('config/iris.properties'), file('config/vulkanmod_settings.json'), file('shaderpacks/Complementary.zip'), file('options.txt'), file('background.webp')
-            ]
-        }, { id: 'Other-1.21.11', modules: [mod('a:b:1@jar', 'b-1.jar')] }]
-    }
-}
-const twoProfiles = () => ({
-    default: 'completo',
-    list: [
-        { name: 'Completo', id: 'completo', exclude: { mods: ['vulkanmod'], files: ['config/vulkanmod_settings.json'] } },
-        { name: 'Lite', id: 'lite', ram: { minimumMb: 2048, maximumMb: 3072 }, exclude: { mods: ['sodium-fabric', 'iris-fabric'], files: ['shaderpacks/', 'config/iris.properties'] } }
-    ]
-})
-const compile = (distribution, meta = { profiles: twoProfiles() }) => profiles.applyToDistribution(distribution, (id) => (id === 'Pack-1.21.11' ? meta : null))
-const idsOf = (modules) => modules.map((module) => module.id)
-
-test('the modpack itself is what the default profile plays, so a launcher without profiles is unchanged', () => {
-    const distribution = fixture()
-    compile(distribution)
-    const server = distribution.servers[0]
-    assert.ok(!idsOf(server.modules).includes('net.vulkanmod:vulkanmod:0.6.8@jar'))
-    assert.ok(!idsOf(server.modules).includes('config/vulkanmod_settings.json'))
-    assert.ok(idsOf(server.modules).includes('net.caffeinemc.mods:sodium:0.8.12@jar'))
-    assert.ok(idsOf(server.modules).includes('shaderpacks/Complementary.zip'))
-    assert.deepStrictEqual(idsOf(server.profiles.pool), ['net.vulkanmod:vulkanmod:0.6.8@jar', 'config/vulkanmod_settings.json'])
+test('the host lists itself first and its profiles after it; each profile says whose it is; nothing else changes', () => {
+    const distribution = { servers: [server('Host-1.21.11', { javaOptions: { ram: { maximum: 4096 } } }), server('Lite-1.20.1', { minecraftVersion: '1.20.1' }), server('Other-1.21.11')] }
+    const before = JSON.stringify(distribution.servers.map((entry) => entry.modules))
+    const { lines } = profiles.applyLinks(distribution, metas({
+        'Host-1.21.11': { profiles: { self: { name: 'Normal', description: 'Todo' }, list: [{ pack: 'Lite-1.20.1', name: 'Lite', description: 'Ligero', recommendedBelowGb: 8 }] } }
+    }))
+    const [host, lite, other] = distribution.servers
+    assert.deepStrictEqual(host.profiles.list, [
+        { id: 'Host-1.21.11', name: 'Normal', description: 'Todo' },
+        { id: 'Lite-1.20.1', name: 'Lite', description: 'Ligero', recommendedBelowGb: 8 }
+    ])
+    assert.strictEqual(lite.profileOf, 'Host-1.21.11')
+    assert.strictEqual(other.profileOf, undefined)
+    assert.strictEqual(other.profiles, undefined)
+    assert.strictEqual(JSON.stringify(distribution.servers.map((entry) => entry.modules)), before, 'no module moves: every modpack is delivered whole')
+    assert.deepStrictEqual(host.javaOptions, { ram: { maximum: 4096 } }, 'the memory each modpack asks for is its own')
+    assert.match(lines[0], /Host-1\.21\.11: 2 perfiles \(Normal, Lite\)/)
 })
 
-test('each profile says what to take out and what to bring in, by position', () => {
-    const distribution = fixture()
-    compile(distribution)
-    const server = distribution.servers[0]
-    const [completo, lite] = server.profiles.list
-    const at = (modules, positions) => positions.map((position) => modules[position].id)
-    assert.deepStrictEqual([completo.remove, completo.add], [[], []])
-    assert.deepStrictEqual(at(server.modules, lite.remove), ['net.caffeinemc.mods:sodium:0.8.12@jar', 'generated.fabricmod:iris:1.10.7@jar', 'config/iris.properties', 'shaderpacks/Complementary.zip'])
-    assert.deepStrictEqual(at(server.profiles.pool, lite.add), ['net.vulkanmod:vulkanmod:0.6.8@jar', 'config/vulkanmod_settings.json'])
+test('a profile that is not published is left out with a line saying so, and a host left with none has no profiles', () => {
+    const distribution = { servers: [server('Host-1.21.11'), server('Solo-1.21.11')] }
+    const { lines } = profiles.applyLinks(distribution, metas({
+        'Host-1.21.11': { profiles: { list: [{ pack: 'Off-1.21.11', name: 'Off' }] } },
+        'Solo-1.21.11': { profiles: { list: [{ pack: 'Other-1.21.11', name: 'Otro' }] } }
+    }))
+    assert.strictEqual(distribution.servers[0].profiles, undefined)
+    assert.strictEqual(lines.filter((line) => /no está publicado/.test(line)).length, 2)
 })
 
-test('files that share a name but live in different folders are told apart (their ids are only the file name)', () => {
-    const distribution = fixture()
-    const twin = (folder) => ({ id: 'options.txt', name: 'options.txt', type: 'File', artifact: { size: 3, url: `https://example.test/servers/Pack-1.21.11/files/${folder}/options.txt`, MD5: 'z', path: `${folder}/options.txt` } })
-    distribution.servers[0].modules.push(twin('config/fancymenu'), twin('config/drippyloadingscreen'))
-    compile(distribution, { profiles: { default: 'completo', list: [{ name: 'Completo', id: 'completo' }, { name: 'Lite', id: 'lite', exclude: { files: ['config/fancymenu/'] } }] } })
-    const server = distribution.servers[0]
-    const lite = server.profiles.list[1]
-    const played = profiles.effectiveModules(server, lite).filter((module) => module.id === 'options.txt').map((module) => module.artifact.path).sort()
-    assert.deepStrictEqual(played, ['config/drippyloadingscreen/options.txt', 'options.txt'])
-    assert.strictEqual(profiles.effectiveModules(server, server.profiles.list[0]).filter((module) => module.id === 'options.txt').length, 3)
-})
-
-test('applying a profile gives exactly the modules that profile plays', () => {
-    const distribution = fixture()
-    compile(distribution)
-    const server = distribution.servers[0]
-    const [completo, lite] = server.profiles.list
-    const lists = { completo: idsOf(profiles.effectiveModules(server, completo)), lite: idsOf(profiles.effectiveModules(server, lite)) }
-    // what never belongs to a profile is in both: loader, version manifest, shared mods, options, the launcher's background
-    for (const shared of ['net.fabricmc:fabric-loader:0.16.9', 'net.minecraft:1.21.11', 'net.fabricmc:fabric-api:0.141.3@jar', 'options.txt', 'background.webp']) {
-        assert.ok(lists.completo.includes(shared) && lists.lite.includes(shared), shared)
-    }
-    assert.ok(lists.completo.includes('net.caffeinemc.mods:sodium:0.8.12@jar') && !lists.lite.includes('net.caffeinemc.mods:sodium:0.8.12@jar'))
-    assert.ok(lists.lite.includes('net.vulkanmod:vulkanmod:0.6.8@jar') && !lists.completo.includes('net.vulkanmod:vulkanmod:0.6.8@jar'))
-    assert.deepStrictEqual([lists.completo.length, lists.lite.length], [9, 7])
-})
-
-test('a file rule with a trailing slash takes a whole folder, and a stem takes every version of the mod', () => {
-    const distribution = fixture()
-    distribution.servers[0].modules.push(file('shaderpacks/Other.zip'), mod('generated.fabricmod:iris:1.9@jar', 'iris-fabric-1.9.0.jar', 'optionaloff'))
-    compile(distribution)
-    const server = distribution.servers[0]
-    const removed = server.profiles.list[1].remove.map((position) => server.modules[position].id)
-    assert.ok(removed.includes('shaderpacks/Other.zip'))
-    assert.ok(removed.includes('generated.fabricmod:iris:1.9@jar'))
-})
-
-test('memory: each profile has its own, the pack default is used when it has none, and the default profile sets the pack', () => {
-    const distribution = fixture()
-    compile(distribution)
-    const server = distribution.servers[0]
-    const [completo, lite] = server.profiles.list
-    assert.deepStrictEqual(lite.ram, { recommended: 3072, minimum: 2048, maximum: 3072 })
-    assert.deepStrictEqual(completo.ram, { recommended: 6144, minimum: 4096, maximum: 6144 })
-    assert.deepStrictEqual(server.javaOptions.ram, completo.ram)
-
-    const another = fixture()
-    const meta = { profiles: { default: 'lite', list: twoProfiles().list } }
-    compile(another, meta)
-    assert.deepStrictEqual(another.servers[0].javaOptions.ram, { recommended: 3072, minimum: 2048, maximum: 3072 })
-    assert.deepStrictEqual(another.servers[0].profiles.list.find((profile) => profile.id === 'completo').ram, { recommended: 6144, minimum: 4096, maximum: 6144 })
-})
-
-test('choosing another default profile changes what a launcher without profiles gets', () => {
-    const distribution = fixture()
-    compile(distribution, { profiles: { default: 'lite', list: twoProfiles().list } })
-    const server = distribution.servers[0]
-    assert.ok(idsOf(server.modules).includes('net.vulkanmod:vulkanmod:0.6.8@jar'), 'the lite profile plays vulkanmod')
-    assert.ok(!idsOf(server.modules).includes('net.caffeinemc.mods:sodium:0.8.12@jar'))
-    assert.strictEqual(server.profiles.default, 'lite')
-})
-
-test('a modpack without profiles, and the others in the distribution, are left exactly as they were', () => {
-    const distribution = fixture()
-    const before = JSON.stringify(distribution)
-    const result = compile(distribution, {})
-    assert.strictEqual(JSON.stringify(distribution), before)
-    assert.deepStrictEqual(result.lines, [])
-    compile(fixture(), { profiles: { list: [{ name: 'Solo' }] } })
-})
-
-test('the log says what each profile ended up with', () => {
-    const { lines } = compile(fixture())
-    assert.strictEqual(lines.length, 1)
-    assert.match(lines[0], /Pack-1\.21\.11: 2 perfiles \(Completo: \d+ módulos, Lite: \d+ módulos\)/)
-})
-
-test('a profile that would play no mods at all is refused instead of published', () => {
-    const meta = { profiles: { default: 'completo', list: [{ name: 'Completo', id: 'completo' }, { name: 'Vacio', id: 'vacio', exclude: { mods: ['fabric-api', 'sodium-fabric', 'iris-fabric', 'vulkanmod'] } }] } }
-    assert.throws(() => compile(fixture(), meta), /se queda sin ningún mod/)
-})
-
-test('a distribution whose profiles point at nothing, or twice at the same place, is not published', () => {
-    const make = () => { const distribution = fixture(); compile(distribution); return distribution.servers[0] }
-    const outside = make()
-    outside.profiles.list[1].remove.push(999)
-    assert.throws(() => profiles.verify(outside), /módulo que no existe/)
-    const twice = make()
-    twice.profiles.list[1].add.push(twice.profiles.list[1].add[0])
-    assert.throws(() => profiles.verify(twice), /dos veces el mismo módulo/)
-    assert.doesNotThrow(() => profiles.verify(make()))
-})
-
-test('large files that only another profile plays still get their Release link', () => {
-    const distribution = fixture()
-    compile(distribution)
-    const pooled = distribution.servers[0].profiles.pool.find((module) => module.id === 'net.vulkanmod:vulkanmod:0.6.8@jar')
-    const key = 'servers/Pack-1.21.11/fabricmods/required/vulkanmod-0.6.8.jar'
-    const changed = largeAssets.rewriteDistributionUrls(distribution, { [key]: 'https://releases.test/vulkanmod.jar' }, 'https://example.test/')
-    assert.strictEqual(changed, 1)
-    assert.strictEqual(pooled.artifact.url, 'https://releases.test/vulkanmod.jar')
-})
-
-// ------------------------------------------------------------ optional mods that start switched off, per profile
-
-const OFF = { value: false, def: false }
-const requiredOf = (server, profile, id) => profiles.effectiveModules(server, profile).find((module) => module.id === id).required
-const compiled = (list, defaultId = 'completo') => {
-    const distribution = fixture()
-    compile(distribution, { profiles: { default: defaultId, list } })
-    return distribution.servers[0]
-}
-
-test('optionalOff is kept clean like the other rules', () => {
-    const result = profiles.normalize({ list: [{ name: 'A' }, { name: 'B', optionalOff: ['Iris-Fabric', 'iris-fabric', 4, ''] }] })
-    assert.deepStrictEqual(result.list[1].optionalOff, ['iris-fabric'])
-    assert.deepStrictEqual(result.list[0].optionalOff, [])
-})
-
-test('a profile can hand a required mod over as optional and switched off, and the others keep it as it was', () => {
-    const server = compiled([{ name: 'Completo', id: 'completo' }, { name: 'Lite', id: 'lite', optionalOff: ['fabric-api'] }])
-    const [completo, lite] = server.profiles.list
-    assert.strictEqual(requiredOf(server, completo, 'net.fabricmc:fabric-api:0.141.3@jar'), undefined)
-    assert.deepStrictEqual(requiredOf(server, lite, 'net.fabricmc:fabric-api:0.141.3@jar'), OFF)
-    // what a launcher without profiles gets is the default profile's way
-    assert.strictEqual(server.modules.find((module) => module.id === 'net.fabricmc:fabric-api:0.141.3@jar').required, undefined)
-})
-
-test('the default profile decides how the modpack itself delivers a mod; the others get the original as a copy', () => {
-    const server = compiled([{ name: 'Lite', id: 'lite', optionalOff: ['fabric-api'] }, { name: 'Completo', id: 'completo' }], 'lite')
-    assert.deepStrictEqual(server.modules.find((module) => module.id === 'net.fabricmc:fabric-api:0.141.3@jar').required, OFF)
-    const [lite, completo] = server.profiles.list
-    assert.deepStrictEqual(requiredOf(server, lite, 'net.fabricmc:fabric-api:0.141.3@jar'), OFF)
-    assert.strictEqual(requiredOf(server, completo, 'net.fabricmc:fabric-api:0.141.3@jar'), undefined)
-})
-
-test('a mod that only another profile plays can be handed over switched off too', () => {
-    const server = compiled([{ name: 'Completo', id: 'completo', exclude: { mods: ['vulkanmod'] } }, { name: 'Lite', id: 'lite', optionalOff: ['vulkanmod'] }])
-    const lite = server.profiles.list[1]
-    assert.deepStrictEqual(requiredOf(server, lite, 'net.vulkanmod:vulkanmod:0.6.8@jar'), OFF)
-    // the pool keeps the original untouched, and the copy sits after it
-    assert.strictEqual(server.profiles.pool.filter((module) => module.id === 'net.vulkanmod:vulkanmod:0.6.8@jar').length, 2)
-    assert.strictEqual(server.profiles.pool[0].required, undefined)
-})
-
-test('two profiles that want the same copy share it', () => {
-    const server = compiled([{ name: 'Completo', id: 'completo' }, { name: 'Lite', id: 'lite', optionalOff: ['iris-fabric'] }, { name: 'Medio', id: 'medio', optionalOff: ['iris-fabric'] }])
-    const [, lite, medio] = server.profiles.list
-    const copies = lite.add.filter((position) => medio.add.includes(position))
-    assert.strictEqual(copies.length, 1)
-    assert.strictEqual(server.profiles.pool.length, 1)
-})
-
-test('a mod that is already delivered that way needs no copy', () => {
-    const distribution = fixture()
-    distribution.servers[0].modules.find((module) => module.id === 'net.fabricmc:fabric-api:0.141.3@jar').required = { value: false, def: false }
-    compile(distribution, { profiles: { default: 'completo', list: [{ name: 'Completo', id: 'completo' }, { name: 'Lite', id: 'lite', optionalOff: ['fabric-api'] }] } })
-    const lite = distribution.servers[0].profiles.list[1]
-    assert.deepStrictEqual([lite.remove, lite.add], [[], []])
-})
-
-test('leaving a mod out wins over handing it over switched off', () => {
-    const server = compiled([{ name: 'Completo', id: 'completo' }, { name: 'Lite', id: 'lite', exclude: { mods: ['iris-fabric'] }, optionalOff: ['iris-fabric'] }])
-    const lite = server.profiles.list[1]
-    assert.ok(!profiles.effectiveModules(server, lite).some((module) => module.id === 'generated.fabricmod:iris:1.10.7@jar'))
-})
-
-// ------------------------------------------------------------ a file that differs between profiles (files/_perfiles/<profile>/<path>)
-
-const own = (profile, relative, tag) => ({ id: path.posix.basename(relative), name: path.posix.basename(relative), type: 'File', artifact: { size: 77, url: `https://example.test/servers/Pack-1.21.11/files/_perfiles/${profile}/${relative}`, MD5: tag, path: `_perfiles/${profile}/${relative}` } })
-const played = (server, profile, relative) => profiles.effectiveModules(server, profile).filter((module) => module.type === 'File' && module.artifact.path === relative)
-
-test("a profile's own version of a file replaces the original for that profile only", () => {
-    const distribution = fixture()
-    distribution.servers[0].modules.push(own('lite', 'options.txt', 'lite-md5'))
-    compile(distribution, { profiles: { default: 'completo', list: [{ name: 'Completo', id: 'completo' }, { name: 'Lite', id: 'lite' }] } })
-    const server = distribution.servers[0]
-    const [completo, lite] = server.profiles.list
-    assert.ok(![...server.modules, ...server.profiles.pool].some((module) => module.artifact && String(module.artifact.path).startsWith('_perfiles/')), 'the raw variant is not delivered as a file of its own')
-    const forLite = played(server, lite, 'options.txt')
-    assert.strictEqual(forLite.length, 1)
-    assert.strictEqual(forLite[0].artifact.MD5, 'lite-md5')
-    assert.ok(forLite[0].artifact.url.includes('/_perfiles/lite/options.txt'))
-    assert.strictEqual(forLite[0].artifact.size, 77)
-    assert.strictEqual(played(server, completo, 'options.txt')[0].artifact.MD5, 'y')
-})
-
-test('the copy keeps everything else of the original (a "free" file stays free), and its place in the instance', () => {
-    const distribution = fixture()
-    distribution.servers[0].modules.find((module) => module.id === 'options.txt').policy = 'free'
-    distribution.servers[0].modules.push(own('lite', 'options.txt', 'lite-md5'))
-    compile(distribution, { profiles: { default: 'completo', list: [{ name: 'Completo', id: 'completo' }, { name: 'Lite', id: 'lite' }] } })
-    const server = distribution.servers[0]
-    const copy = played(server, server.profiles.list[1], 'options.txt')[0]
-    assert.strictEqual(copy.policy, 'free')
-    assert.strictEqual(copy.id, 'options.txt')
-})
-
-test('when the default profile has its own version, the modpack itself carries it and the others get the original', () => {
-    const distribution = fixture()
-    distribution.servers[0].modules.push(own('lite', 'options.txt', 'lite-md5'))
-    compile(distribution, { profiles: { default: 'lite', list: [{ name: 'Lite', id: 'lite' }, { name: 'Completo', id: 'completo' }] } })
-    const server = distribution.servers[0]
-    assert.strictEqual(server.modules.find((module) => module.artifact.path === 'options.txt').artifact.MD5, 'lite-md5')
-    const [lite, completo] = server.profiles.list
-    assert.strictEqual(played(server, lite, 'options.txt')[0].artifact.MD5, 'lite-md5')
-    assert.strictEqual(played(server, completo, 'options.txt')[0].artifact.MD5, 'y')
-})
-
-test('a file only one profile has is delivered to that profile alone, where the profile says', () => {
-    const distribution = fixture()
-    distribution.servers[0].modules.push(own('lite', 'config/only-lite.json', 'only'))
-    compile(distribution, { profiles: { default: 'completo', list: [{ name: 'Completo', id: 'completo' }, { name: 'Lite', id: 'lite' }] } })
-    const server = distribution.servers[0]
-    const [completo, lite] = server.profiles.list
-    assert.strictEqual(played(server, completo, 'config/only-lite.json').length, 0)
-    const forLite = played(server, lite, 'config/only-lite.json')
-    assert.strictEqual(forLite.length, 1)
-    assert.strictEqual(forLite[0].id, 'only-lite.json')
-    assert.strictEqual(forLite[0].artifact.MD5, 'only')
-})
-
-test('a version for a profile that is gone, or for a file the profile leaves out, is not delivered', () => {
-    const distribution = fixture()
-    distribution.servers[0].modules.push(own('viejo', 'options.txt', 'stale'), own('lite', 'config/iris.properties', 'iris-lite'))
-    compile(distribution, { profiles: { default: 'completo', list: [{ name: 'Completo', id: 'completo' }, { name: 'Lite', id: 'lite', exclude: { files: ['config/iris.properties'] } }] } })
-    const server = distribution.servers[0]
-    const [completo, lite] = server.profiles.list
-    assert.strictEqual(played(server, lite, 'config/iris.properties').length, 0)
-    assert.strictEqual(played(server, completo, 'options.txt')[0].artifact.MD5, 'y')
-    assert.ok(![...server.modules, ...server.profiles.pool].some((module) => module.artifact && module.artifact.MD5 === 'stale'))
-})
-
-test('the editor does not list the profiles\' own files among the files, and says which profile has which', () => {
-    const { config, id, put } = makeRoot()
-    put('fabricmods/required/fabric-api-0.1.jar', 10)
-    put('files/options.txt', 5)
-    put('files/_perfiles/lite/options.txt', 6)
-    put('files/_perfiles/lite/config/x.json', 7)
-    const view = profiles.describe(config, id)
-    assert.deepStrictEqual(view.items.files.map((entry) => entry.path), ['options.txt'])
-    assert.deepStrictEqual(view.own, { lite: [{ path: 'config/x.json', size: 7 }, { path: 'options.txt', size: 6 }] })
-    assert.ok(view.items.files.every((entry) => !('abs' in entry)))
-})
-
-test('saving without a profile takes its own files away too, and the ones of the profiles that stay are left alone', () => {
-    const { config, id, put, dir } = makeRoot()
-    put('fabricmods/required/fabric-api-0.1.jar', 10)
-    put('files/_perfiles/lite/options.txt', 6)
-    put('files/_perfiles/viejo/options.txt', 6)
-    profiles.save(config, id, { list: [{ name: 'Completo', id: 'completo' }, { name: 'Lite', id: 'lite' }] })
-    assert.ok(fs.existsSync(path.join(dir, 'files', '_perfiles', 'lite', 'options.txt')))
-    assert.ok(!fs.existsSync(path.join(dir, 'files', '_perfiles', 'viejo')))
-    profiles.save(config, id, null)
-    assert.ok(!fs.existsSync(path.join(dir, 'files', '_perfiles')))
+test('a modpack that is a host and somebody\'s profile keeps only the host part; one modpack is one host\'s profile', () => {
+    const distribution = { servers: [server('A-1.21.11'), server('B-1.21.11'), server('C-1.21.11')] }
+    const { lines } = profiles.applyLinks(distribution, metas({
+        'A-1.21.11': { profiles: { list: [{ pack: 'B-1.21.11', name: 'B' }, { pack: 'C-1.21.11', name: 'C' }] } },
+        'B-1.21.11': { profiles: { list: [{ pack: 'C-1.21.11', name: 'C' }] } }
+    }))
+    const [a, b, c] = distribution.servers
+    assert.deepStrictEqual(a.profiles.list.map((entry) => entry.id), ['A-1.21.11', 'C-1.21.11'])
+    assert.strictEqual(b.profileOf, undefined)
+    assert.strictEqual(c.profileOf, 'A-1.21.11')
+    assert.ok(lines.some((line) => /no puede ser un perfil/.test(line)))
 })

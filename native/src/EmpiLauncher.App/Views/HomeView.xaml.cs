@@ -111,7 +111,7 @@ public partial class HomeView : UserControl
     private void OnPackChanged()
     {
         var previous = _shownPack;
-        _shownPack = _l.SelectedId;
+        _shownPack = _l.HostId;   // another profile of the same modpack is not another modpack: only its chip changes
         if (previous == _shownPack || previous == null && (_entrancePending || Environment.TickCount64 - _entranceAt < 800)) return;   // nothing new, or the entrance is still (about to be) playing
         var parts = HeroParts();
         if (previous == null) { Motion.Reveal(parts, 35, 0, 200, 6); return; }
@@ -135,7 +135,7 @@ public partial class HomeView : UserControl
         var image = await Task.Run(() => ScreenshotViewer.Decode(wanted, 700));
         if (generation != _bannerGeneration || image == null) return;
         PackBanner.Source = image;
-        System.Windows.Automation.AutomationProperties.SetName(PackBanner, _l.Selected?.Name ?? "Modpack");
+        System.Windows.Automation.AutomationProperties.SetName(PackBanner, _l.Host?.Name ?? "Modpack");
         var appearing = PackBanner.Visibility != Visibility.Visible;
         PackBanner.Visibility = Visibility.Visible;
         PackTitle.Visibility = Visibility.Collapsed;
@@ -145,18 +145,27 @@ public partial class HomeView : UserControl
     private void Refresh()
     {
         RebuildRail();
+        // What the screen is about is the modpack picked in the list (the host); what plays, and what its facts and buttons are about, is the
+        // modpack selected, which is one of the host's profiles when it has some.
+        var host = _l.Host;
         var pack = _l.Selected;
-        PackTitle.Text = pack?.Name ?? "Conectando con el motor";
-        PackDescription.Text = pack == null ? "" : string.IsNullOrWhiteSpace(pack.Description) ? $"Minecraft {pack.MinecraftVersion}" : pack.Description;
+        PackTitle.Text = host?.Name ?? "Conectando con el motor";
+        var described = host?.Profiles?.List.FirstOrDefault(p => p.Id == pack?.Id && !p.Self)?.Description;
+        PackDescription.Text = host == null || pack == null ? ""
+            : !string.IsNullOrWhiteSpace(described) ? described
+            : string.IsNullOrWhiteSpace(host.Description) ? $"Minecraft {pack.MinecraftVersion}" : host.Description;
 
-        Pills.Children.Clear();
+        // The chip stays where it is while nothing about the profiles changes: taking it out of the row and putting it back (the engine's news
+        // arrive all the time) would close a flyout that is open, which hangs from it.
+        var chip = pack != null && host?.Profiles is { } profiles ? ProfileChipFor(host, profiles) : null;
+        for (var i = Pills.Children.Count - 1; i >= 0; i--) if (!ReferenceEquals(Pills.Children[i], chip)) Pills.Children.RemoveAt(i);
         if (pack != null)
         {
-            Pills.Children.Add(Fmt.Pill(pack.MinecraftVersion));
-            Pills.Children.Add(Fmt.Pill($"v{pack.Version}"));
-            if (pack.MainServer) Pills.Children.Add(Fmt.Pill("PRINCIPAL", Fmt.Res("AccentInkBrush"), Fmt.Res("AccentBrush")));
-            if (pack.Whitelist) Pills.Children.Add(Fmt.Pill("WHITELIST", Fmt.Res("WarnBrush")));
-            if (pack.Profiles is { } profiles) Pills.Children.Add(ProfileChipFor(pack, profiles));
+            var pills = new List<UIElement> { Fmt.Pill(pack.MinecraftVersion), Fmt.Pill($"v{pack.Version}") };
+            if (host?.MainServer == true || pack.MainServer) pills.Add(Fmt.Pill("PRINCIPAL", Fmt.Res("AccentInkBrush"), Fmt.Res("AccentBrush")));
+            if (pack.Whitelist) pills.Add(Fmt.Pill("WHITELIST", Fmt.Res("WarnBrush")));
+            for (var i = 0; i < pills.Count; i++) Pills.Children.Insert(i, pills[i]);
+            if (chip != null && !Pills.Children.Contains(chip)) Pills.Children.Add(chip);
         }
 
         RefreshFacts();
@@ -183,12 +192,14 @@ public partial class HomeView : UserControl
 
     private void RebuildRail()
     {
-        var servers = _l.Distro?.Servers ?? [];
-        var key = string.Join("|", servers.Select(s => $"{s.Id}:{s.Name}:{s.Version}:{s.MainServer}:{ProfileOf(s)?.Name}"));
+        var everyServer = _l.Distro?.Servers ?? [];
+        // a modpack that is another one's profile is shown inside that one, not on its own
+        var servers = everyServer.Where(s => s.ProfileOf == null).ToList();
+        var key = string.Join("|", servers.Select(s => $"{s.Id}:{s.Name}:{PlayingLabel(s, everyServer)}"));
         if (key == _railKey)
         {
             // the same cards with another one chosen: nothing is rebuilt, the paper fill moves over
-            foreach (var card in _cards) Paint(card, card.Id == _l.SelectedId, animate: true);
+            foreach (var card in _cards) Paint(card, card.Id == _l.HostId, animate: true);
             return;
         }
         _railKey = key;
@@ -202,7 +213,7 @@ public partial class HomeView : UserControl
             var name = new TextBlock { Text = server.Name, FontWeight = FontWeights.SemiBold, FontSize = 14, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = nameInk };
             var meta = new TextBlock
             {
-                Text = $"{server.MinecraftVersion}  v{server.Version}" + (ProfileOf(server) is { } inUse ? $"  ·  {inUse.Name}" : ""),
+                Text = PlayingLabel(server, everyServer),
                 Style = (Style)FindResource("CaptionText"), TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 3, 0, 0),
                 Foreground = metaInk
             };
@@ -217,13 +228,23 @@ public partial class HomeView : UserControl
             Rail.Children.Add(card);
             var entry = new RailCard(server.Id, card, back, nameInk, metaInk);
             _cards.Add(entry);
-            Paint(entry, server.Id == _l.SelectedId, animate: false);
+            Paint(entry, server.Id == _l.HostId, animate: false);
         }
+    }
+
+    /// <summary>"1.21.11  v1.2.1  ·  Lite": the version of what plays when this modpack is picked, and the profile it is when it has some.</summary>
+    private string PlayingLabel(Modpack server, List<Modpack> everyServer)
+    {
+        var playingId = _l.PlayingIn(server.Id);
+        var playing = everyServer.FirstOrDefault(s => s.Id == playingId) ?? server;
+        var profile = server.Profiles?.List.FirstOrDefault(p => p.Id == playingId);
+        return $"{playing.MinecraftVersion}  v{playing.Version}" + (profile != null ? $"  ·  {profile.Name}" : "");
     }
 
     // ---- profiles -------------------------------------------------------------------------------------------------
 
-    private static ProfileInfo? ProfileOf(Modpack pack) => pack.Profiles is { } p ? p.List.FirstOrDefault(x => x.Id == p.Selected) ?? p.List.FirstOrDefault() : null;
+    /// <summary>The profile that plays when this modpack is picked in the list.</summary>
+    private ProfileInfo? CurrentProfile(Modpack host) => host.Profiles?.List.FirstOrDefault(p => p.Id == _l.PlayingIn(host.Id)) ?? host.Profiles?.List.FirstOrDefault(p => p.Self);
 
     private Button? _chip;
     private string _chipKey = "";
@@ -235,10 +256,10 @@ public partial class HomeView : UserControl
     /// </summary>
     private Button ProfileChipFor(Modpack pack, ProfilesInfo profiles)
     {
-        var key = $"{pack.Id}|{profiles.Selected}|{string.Join(",", profiles.List.Select(p => p.Name))}";
+        var current = CurrentProfile(pack)!;
+        var key = $"{pack.Id}|{current.Id}|{string.Join(",", profiles.List.Select(p => p.Name))}";
         if (_chip != null && key == _chipKey) return _chip;
 
-        var current = ProfileOf(pack)!;
         var label = new TextBlock { Text = current.Name.ToUpperInvariant(), Style = (Style)FindResource("LabelText"), FontSize = 11 };
         label.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
         var pill = new Border { Style = (Style)FindResource("Pill"), Padding = new Thickness(11, 3, 10, 3) };
@@ -256,7 +277,7 @@ public partial class HomeView : UserControl
         };
         var chip = new Button { Style = (Style)FindResource("BareButton"), Content = pill, Margin = new Thickness(0, 0, 8, 6) };
         System.Windows.Automation.AutomationProperties.SetName(chip, $"Perfil: {current.Name}");
-        chip.Click += (_, _) => ToggleProfiles(chip, pack.Id, profiles);
+        chip.Click += (_, _) => ToggleProfiles(chip, pack, profiles);
 
         // another profile than the one shown a moment ago: the name tears once, like a modpack's does when another is chosen
         var shown = _shownProfile;
@@ -270,7 +291,7 @@ public partial class HomeView : UserControl
     private Popup? _flyout;
     private long _flyoutClosedAt;
 
-    private void ToggleProfiles(Button anchor, string packId, ProfilesInfo profiles)
+    private void ToggleProfiles(Button anchor, Modpack pack, ProfilesInfo profiles)
     {
         // the click that closes an open flyout is the click on its own chip: it must not open it again
         if (_flyout is { IsOpen: true }) { CloseFlyout(); return; }
@@ -280,14 +301,15 @@ public partial class HomeView : UserControl
         var list = new StackPanel();
         var heading = new StackPanel { Margin = new Thickness(8, 4, 8, 12) };
         heading.Children.Add(new TextBlock { Text = "PERFIL", Style = (Style)FindResource("LabelText") });
-        heading.Children.Add(new TextBlock { Text = "Mismos mundos y ajustes. Solo cambian los mods.", Style = (Style)FindResource("CaptionText"), Margin = new Thickness(0, 5, 0, 0), TextWrapping = TextWrapping.Wrap });
+        heading.Children.Add(new TextBlock { Text = "Cada perfil es una versión aparte, con sus propios mods, mundos y ajustes.", Style = (Style)FindResource("CaptionText"), Margin = new Thickness(0, 5, 0, 0), TextWrapping = TextWrapping.Wrap });
         list.Children.Add(heading); items.Add(heading);
+        var playing = _l.PlayingIn(pack.Id);
         foreach (var profile in profiles.List)
         {
-            var item = ProfileItem(profile, profile.Id == profiles.Selected, profile.Id == profiles.Recommended, () =>
+            var item = ProfileItem(profile, profile.Id == playing, profile.Id == profiles.Recommended, () =>
             {
                 CloseFlyout();
-                if (profile.Id != profiles.Selected) _ = _l.SelectProfileAsync(packId, profile.Id);
+                if (profile.Id != playing) _ = _l.ChooseProfileAsync(profile.Id);
             });
             list.Children.Add(item); items.Add(item);
         }
@@ -325,7 +347,7 @@ public partial class HomeView : UserControl
         content.Children.Add(new TextBlock { Text = profile.Name, FontWeight = FontWeights.SemiBold, FontSize = 14, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = nameInk });
         if (!string.IsNullOrWhiteSpace(profile.Description))
             content.Children.Add(new TextBlock { Text = profile.Description, Style = (Style)FindResource("CaptionText"), TextWrapping = TextWrapping.Wrap, Foreground = metaInk, Margin = new Thickness(0, 3, 0, 0) });
-        var facts = new List<string> { profile.Mods == 1 ? "1 MOD" : $"{profile.Mods} MODS" };
+        var facts = new List<string> { $"MINECRAFT {profile.MinecraftVersion}", $"V{profile.Version}" };
         if (profile.Ram is { } ram) facts.Add(ram.MinimumMb == ram.MaximumMb ? $"MEMORIA {Gb(ram.MaximumMb)} GB" : $"MEMORIA {Gb(ram.MinimumMb)}–{Gb(ram.MaximumMb)} GB");
         content.Children.Add(new TextBlock { Text = string.Join("  ·  ", facts), Style = (Style)FindResource("LabelText"), FontSize = 10.5, Foreground = metaInk, Margin = new Thickness(0, 7, 0, 0) });
         if (recommended)

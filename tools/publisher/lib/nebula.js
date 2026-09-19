@@ -149,7 +149,7 @@ function summarize(config, id, active = true) {
         address: meta.meta.address,
         mainServer: !!meta.meta.mainServer,
         whitelist: !!meta.meta.whitelist,
-        profiles: meta.profiles && Array.isArray(meta.profiles.list) ? meta.profiles.list.length : 0,
+        profileLinks: meta.profiles && Array.isArray(meta.profiles.list) ? meta.profiles.list.filter((entry) => entry && typeof entry.pack === 'string').map((entry) => entry.pack) : [],
         counts: { required: mods.required.length, optionalon: mods.optionalon.length, optionaloff: mods.optionaloff.length },
         hasIcon: fs.existsSync(path.join(dir, 'icon.png'))
     }
@@ -166,7 +166,11 @@ function packsIn(dir, active, config) {
 
 /** Every modpack: the active ones first (what gets published), then the deactivated ones (marked `active: false`). */
 function listPacks(config) {
-    return [...packsIn(serversDir(config), true, config), ...packsIn(hideDir(config), false, config)]
+    const packs = [...packsIn(serversDir(config), true, config), ...packsIn(hideDir(config), false, config)]
+    // a modpack that another lists as one of its profiles says whose (the launcher shows it inside that one, not on its own)
+    const hostOf = new Map()
+    for (const pack of packs) for (const linked of pack.profileLinks) if (!hostOf.has(linked)) hostOf.set(linked, pack.id)
+    return packs.map((pack) => ({ ...pack, profiles: pack.profileLinks.length, profileOf: hostOf.get(pack.id) || null }))
 }
 
 /**

@@ -95,4 +95,4 @@ function onDistroLoaded(ConfigManager, distro) {
     ensureJavaSettings(ConfigManager, distro)
 }
 
-module.exports = { onDistroLoaded, syncModConfigurations, ensureJavaSettings, mergeModConfiguration }
+module.exports = { onDistroLoaded, syncModConfigurations, ensureJavaSettings }
