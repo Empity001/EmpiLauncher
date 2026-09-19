@@ -23,6 +23,17 @@ const PUBLIC_DIR = path.join(__dirname, 'public')
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' }
 const ALLOWED_HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`])
 
+// Which version of this code is running: the newest change in server.js and lib/. A Publisher that is still open from before an update keeps
+// running its old code (the page is read from disk every time, so it looks new); opening Publicar.bat again used to just show that old one.
+function codeStamp() {
+    let newest = 0
+    for (const dir of [__dirname, path.join(__dirname, 'lib')]) {
+        for (const name of fs.readdirSync(dir)) if (name.endsWith('.js')) newest = Math.max(newest, Math.floor(fs.statSync(path.join(dir, name)).mtimeMs))
+    }
+    return String(newest)
+}
+const BUILD = process.env.PUBLISHER_BUILD || codeStamp()
+
 // ------------------------------------------------------------------ jobs
 // One long task at a time (nebula, git and electron-builder don't like company). Its output is
 // kept as a list of events so a reloaded page can pick the log back up.
@@ -137,6 +148,13 @@ const route = (method, pattern, handler) => {
 }
 
 route('GET', '/api/health', () => health())
+route('GET', '/api/build', () => ({ build: BUILD }))
+// A newer copy of the tool asks the one that is open to go away (see the "already running" case at the bottom)
+route('POST', '/api/quit', () => {
+    if (activeJob && !activeJob.done) throw new HttpError(409, `Hay una tarea en marcha: ${activeJob.title}`)
+    setTimeout(() => process.exit(0), 250)
+    return { ok: true }
+})
 route('GET', '/api/config', () => config.load())
 route('POST', '/api/config', async ({ req }) => {
     const merged = { ...config.load(), ...(await readJson(req)) }
@@ -320,13 +338,44 @@ function openBrowser() {
     if (process.platform === 'win32') exec(`start "" http://localhost:${PORT}`)
 }
 
+/** A small request to the copy of the tool that already has the port. Rejects on any failure or after 1.5 s. */
+function askRunning(method, pathName) {
+    return new Promise((resolve, reject) => {
+        const request = http.request({ host: '127.0.0.1', port: PORT, path: pathName, method, headers: { Host: `localhost:${PORT}` }, timeout: 1500 }, (res) => {
+            let body = ''
+            res.on('data', (chunk) => { body += chunk })
+            res.on('end', () => { try { resolve({ status: res.statusCode, body: JSON.parse(body) }) } catch { resolve({ status: res.statusCode, body: null }) } })
+        })
+        request.on('timeout', () => request.destroy(new Error('timeout')))
+        request.on('error', reject)
+        request.end()
+    })
+}
+
+/** True when the copy that had the port was running older code and agreed to leave, so this one can take its place. */
+async function replaceOlder() {
+    try {
+        const running = await askRunning('GET', '/api/build')
+        if (running.status === 200 && running.body && running.body.build === BUILD) return false   // the same code: just show its page
+        const quit = await askRunning('POST', '/api/quit')
+        if (quit.status !== 200) return false   // one from before this existed cannot be asked; or it is busy with a task
+        await new Promise((resolve) => setTimeout(resolve, 900))
+        return true
+    } catch {
+        return false
+    }
+}
+
+let triedReplacing = false
 server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-        // Already running (e.g. the old copy is still in its 45s grace after the tab closed):
-        // bring its page up instead of starting a second one. The exit is delayed so the
+        // Already running (e.g. the old copy is still in its 45s grace after the tab closed). If it runs older code than this one it is asked
+        // to leave and this copy takes over; otherwise bring its page up instead of starting a second one. The exit is delayed so the
         // browser launch, which runs in a child process, is not cut off.
-        openBrowser()
-        setTimeout(() => process.exit(0), 2500)
+        const showTheOpenOne = () => { openBrowser(); setTimeout(() => process.exit(0), 2500) }
+        if (triedReplacing) return showTheOpenOne()
+        triedReplacing = true
+        replaceOlder().then((replaced) => (replaced ? listen() : showTheOpenOne()))
         return
     }
     throw err
@@ -338,8 +387,11 @@ process.on('uncaughtException', (err) => {
     process.exit(1)
 })
 
-server.listen(PORT, HOST, () => {
-    console.log(`Empi Publisher: http://localhost:${PORT}  (se cierra solo al cerrar la pagina)`)
-    scheduleExit(120000)
-    openBrowser()
-})
+function listen() {
+    server.listen(PORT, HOST, () => {
+        console.log(`Empi Publisher: http://localhost:${PORT}  (se cierra solo al cerrar la pagina)`)
+        scheduleExit(120000)
+        openBrowser()
+    })
+}
+listen()
