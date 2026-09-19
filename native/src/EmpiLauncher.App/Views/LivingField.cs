@@ -276,6 +276,17 @@ internal sealed class LivingField : Grid
         var p = e.GetPosition(this);
         var target = FindHot(e.OriginalSource as DependencyObject);
         var accent = target != null && (ReferenceEquals(target, NextAction) || target is Button b && ReferenceEquals(b.Style, Application.Current.TryFindResource("PrimaryButton")));
+        AddRipple(p, accent);
+    }
+
+    /// <summary>A ring from a point, as if it were clicked there (the opening sends one from the logo's accent dot as the launcher is uncovered).</summary>
+    public void Burst(Point p, bool accent)
+    {
+        if (_running) AddRipple(p, accent);
+    }
+
+    private void AddRipple(Point p, bool accent)
+    {
         // The ring has to be able to leave the window: its reach is the distance to the farthest corner, and its life follows from it.
         var reach = Math.Max(Math.Max(Hyp(p.X, p.Y), Hyp(_w - p.X, p.Y)), Math.Max(Hyp(p.X, _h - p.Y), Hyp(_w - p.X, _h - p.Y))) + 3 * RippleBand;
         var life = Math.Clamp(1.2 + reach / RipplePxPerSecond, RippleMinLife, RippleMaxLife);

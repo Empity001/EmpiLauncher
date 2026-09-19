@@ -41,6 +41,10 @@
                 </Border>
 
                 <Border x:Name="ProgressPanel" Style="{StaticResource Module}" Margin="0,12,0,0" MaxWidth="560" HorizontalAlignment="Left" Padding="20,16" Visibility="Collapsed">
+                    <Grid>
+                    <!-- work is going on: a halftone cloud sits behind the text and crosses the panel as the progress advances (set by the code, only while busy) -->
+                    <Image x:Name="ProgressCloud" Width="230" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-8,-16" Opacity="0.16" IsHitTestVisible="False" Stretch="Uniform"
+                           Visibility="Collapsed"><Image.RenderTransform><TranslateTransform x:Name="ProgressCloudShift"/></Image.RenderTransform></Image>
                     <StackPanel>
                         <DockPanel>
                             <TextBlock x:Name="ProgressPercent" DockPanel.Dock="Right" Style="{StaticResource DisplayText}" FontSize="20" Margin="12,0,0,0"/>
@@ -49,6 +53,7 @@
                         <ProgressBar x:Name="ProgressBar" Style="{StaticResource PillProgress}" Margin="0,12,0,0"/>
                         <TextBlock x:Name="ProgressDetail" Style="{StaticResource CaptionText}" Margin="0,10,0,0" TextWrapping="NoWrap"/>
                     </StackPanel>
+                    </Grid>
                 </Border>
             </StackPanel>
 

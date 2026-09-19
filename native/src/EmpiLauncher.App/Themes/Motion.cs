@@ -78,6 +78,9 @@ public static class Motion
     public static readonly BezierEase Out = Frozen(0.23, 1, 0.32, 1);
     public static readonly BezierEase InOut = Frozen(0.77, 0, 0.175, 1);
 
+    /// <summary>Constant speed, for things that drift (a cloud) rather than answer.</summary>
+    public static readonly IEasingFunction Linear = new PowerEase { Power = 1, EasingMode = EasingMode.EaseIn };
+
     private static BezierEase Frozen(double x1, double y1, double x2, double y2)
     {
         var ease = new BezierEase { X1 = x1, Y1 = y1, X2 = x2, Y2 = y2 };

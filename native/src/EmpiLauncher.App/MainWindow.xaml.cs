@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 using EmpiLauncher.App.Services;
 using EmpiLauncher.App.Themes;
@@ -53,9 +54,18 @@ public partial class MainWindow : Window
             ("Ahora no", () => _ = _l.DismissJavaAsync(), false),
             ("Instalar Java", () => _ = _l.InstallJavaAsync(), true));
 
-        Loaded += async (_, _) => await StartAsync();
+        Loaded += async (_, _) =>
+        {
+            // The logo opens over the window while the engine starts (SplashLayer decides whether it plays at all); the field sends its pink ring from the lit dot as it uncovers the launcher.
+            if (SplashLayer.Wanted) _ = SplashLayer.OpenAsync(SplashHost, point => Field.Burst(point, accent: true));
+            await StartAsync();
+        };
         Closing += OnClosing;
+        Closed += (_, _) => _closed = true;
+        Application.Current.SessionEnding += (_, _) => _sessionEnding = true;   // Windows is shutting down: nothing may hold it up
     }
+
+    private bool _closed, _sessionEnding, _goodbyeStarted;
 
     private async Task StartAsync()
     {
@@ -114,9 +124,13 @@ public partial class MainWindow : Window
     /// <summary>Downloads and starts the installer while a dialog shows the progress; the launcher closes once the installer is running.</summary>
     private async Task InstallUpdateAsync(UpdateInfo update)
     {
-        void Progress(long got, long total) => SetWaitingText(total > 0
-            ? $"Descargando la versión {update.Version}: {got * 100 / total} %  ({got / 1048576} de {total / 1048576} MB)"
-            : $"Descargando la versión {update.Version}: {got / 1048576} MB");
+        void Progress(long got, long total)
+        {
+            SetWaitingText(total > 0
+                ? $"Descargando la versión {update.Version}: {got * 100 / total} %  ({got / 1048576} de {total / 1048576} MB)"
+                : $"Descargando la versión {update.Version}: {got / 1048576} MB");
+            if (total > 0) SetWaitingProgress((double)got / total);
+        }
         _l.UpdateProgress += Progress;
         ShowWaiting("Actualizando Empi Launcher", $"Descargando la versión {update.Version}…", () => _ = _l.CancelUpdateAsync());
         try
@@ -271,6 +285,19 @@ public partial class MainWindow : Window
     {
         ShowDialog(title, message, ("Cancelar", cancel, false));
         _waiting = _dialogOpen;
+        if (_waiting)
+        {
+            // work is going on: a halftone cloud sits behind the text (the Publisher's activity drawer does the same) and drifts as it advances
+            DialogCloud.Source = Art.Cloud(360);
+            DialogCloud.Visibility = Visibility.Visible;
+            Motion.Snap(DialogCloudShift, TranslateTransform.XProperty, 20);
+        }
+    }
+
+    /// <summary>How far the work in the waiting dialog has got (0 to 1): the cloud drifts across, in steps that follow the download, so there is nothing moving on its own.</summary>
+    public void SetWaitingProgress(double fraction)
+    {
+        if (_waiting && _dialogOpen) Motion.Follow(DialogCloudShift, TranslateTransform.XProperty, 20 - 80 * Math.Clamp(fraction, 0, 1), 400);
     }
 
     /// <summary>Changes the message of the waiting dialog while it is up (download progress).</summary>
@@ -449,6 +476,8 @@ public partial class MainWindow : Window
         DialogInput.Visibility = DialogHint.Visibility = DialogImage.Visibility = Visibility.Collapsed;
         DialogImage.Source = null;
         DialogInput.MaxLength = 16;
+        DialogCloud.Source = null;
+        DialogCloud.Visibility = Visibility.Collapsed;
         if (_linkClick != null) { DialogLink.Click -= _linkClick; _linkClick = null; }
         DialogLink.Visibility = Visibility.Collapsed;
         _dialogOpen = false;
@@ -517,8 +546,30 @@ public partial class MainWindow : Window
     {
         // While Minecraft runs, closing the window only sends the launcher to the tray.
         if (!_exiting && (_l.Game.Running || _l.Game.Busy)) { e.Cancel = true; HideToTray(); return; }
+        // A player closing the launcher sees the logo glitch it away (about half a second). Not when something else is closing it (an update,
+        // the tray, Windows shutting down), not when it is not on screen, and a second click on close means "now".
+        if (!_exiting && !_sessionEnding && SplashLayer.Wanted && IsVisible && WindowState != WindowState.Minimized)
+        {
+            if (!_goodbyeStarted)
+            {
+                _goodbyeStarted = true;
+                e.Cancel = true;
+                _ = GoodbyeAsync();
+                return;
+            }
+            _exiting = true;
+        }
         _tray?.Dispose();
         _ = _l.DisposeAsync();
+    }
+
+    private async Task GoodbyeAsync()
+    {
+        try { await SplashLayer.CoverAsync(SplashHost); }
+        catch (Exception) { /* the animation is not worth keeping the launcher open for */ }
+        if (_closed) return;
+        _exiting = true;
+        try { Close(); } catch (InvalidOperationException) { /* already closing */ }
     }
 
     private void TrimMemory()

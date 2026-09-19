@@ -1,7 +1,7 @@
 # MotionCheck
 
-Comprueba con el reloj real que las animaciones del launcher nativo se mueven como se diseñaron: que un botón empieza a moverse a los
-50 ms (no salta), que cambiar de idea a mitad continúa desde donde estaba, que un interruptor creado encendido no se desliza al abrirse,
+Comprueba con el reloj real que las animaciones del launcher nativo se mueven como se diseñaron: que un botón empieza a moverse suavemente (su primera muestra queda entre el reposo y el final, no salta),
+que cambiar de idea a mitad continúa desde donde estaba, que un interruptor creado encendido no se desliza al abrirse,
 que un elemento que espera su turno no parpadea antes de tiempo y que las curvas son las de CSS.
 
 ```

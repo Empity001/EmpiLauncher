@@ -68,7 +68,7 @@ el "modo ligero" es una condición (`performanceMode` y el `FieldGovernor`) del 
 | `node native/build/test/migration.mjs` | el instalador contra un "launcher clásico" de mentira (registro, carpeta y accesos propios): lo cierra, lo desinstala con el protocolo de electron-builder, instala en la misma carpeta, conserva accesos y datos, `--force-run`, nativo → nativo, desinstalar, carpeta ajena |
 | `node engine/test/ram.mjs` | la memoria que fija el autor de un modpack (`javaOptions.ram`, mínima y máxima): el jugador nuevo empieza ahí, quien ya tenía el modpack la recibe una vez cuando el autor la cambia, lo que el jugador toque después es suyo, nunca más de lo que da el equipo ni menos de 512 MB, y un modpack con solo los números del spec no cambia |
 | `node --test "tools/publisher/test/*.test.js"` | Publisher: activar/desactivar modpacks, banderas, lectura de lo que dejó la compilación del launcher, memoria por modpack (redondeo a 512 MB, errores con motivo, no se pierde al cambiar de Java) y la carpeta `files` (shaders, resource packs, configs; rutas que se escapan, archivos de Apariencia) |
-| `dotnet run -c Release --project native/tools/MotionCheck` | las animaciones con el reloj real: un botón ya se mueve a los 50 ms, cambiar de idea a mitad continúa desde donde estaba, un interruptor creado encendido no se desliza, lo que espera su turno no parpadea, las curvas son las de CSS (`native/tools/MotionCheck/README.md`) |
+| `dotnet run -c Release --project native/tools/MotionCheck` | las animaciones con el reloj real: un botón empieza suave (su primera muestra no es el final), cambiar de idea a mitad continúa desde donde estaba, un interruptor creado encendido no se desliza, lo que espera su turno no parpadea, las curvas son las de CSS (`native/tools/MotionCheck/README.md`) |
 | `native/tools/shot.ps1` | maneja la interfaz por UI Automation y guarda capturas (y mide con `-Probe`); también `burst` (varias capturas seguidas para ver una animación a medias), `wheel` y `range` |
 
 Todas las pruebas usan carpetas temporales (`--user-data` y `--data-dir`): ninguna toca la instalación real.
@@ -85,6 +85,26 @@ Reglas aprendidas al construirla: WPF dibuja una elipse si el radio de esquina s
 ClearType no ponga franjas de color en cada punto.
 
 Estático por defecto: los módulos no se animan en reposo. Solo el campo de puntos se mueve, y solo cuando el gobernador lo permite.
+
+### Movimiento de la interfaz (`Themes/Motion.cs`, `Themes/Controls.xaml`)
+
+Una sola forma de moverse: curvas de CSS (`cubic-bezier(.23,1,.32,1)` para lo que entra, sale o responde a una mano,
+`cubic-bezier(.77,0,.175,1)` para lo que cruza la pantalla), solo `transform` y `opacity`, nada por encima de 300 ms
+(pulsar 100 ms, pasar el puntero 140 ms, pestaña o interruptor ~200 ms, un panel que llega 240 ms). Las transiciones son de
+"hasta aquí" (no "desde aquí"), así que cambiar de idea a mitad continúa desde donde se estaba. El interruptor de animaciones de
+Windows es el de "reducir movimiento": apagado, no hay elevación, viaje, escalonado ni glitch, solo un fundido corto.
+Nada se anima solo en reposo: todo responde a una acción o a algo que llega (por eso las nubes de las descargas avanzan con el
+progreso en vez de girar en bucle). Detalle que costó descubrirlo: una transición de `VisualStateManager` solo interpola una
+transformación si la animación apunta al **elemento** con una ruta de propiedad; por el nombre de la transformación salta al final.
+
+**Logo al abrir y cerrar** (`Views/SplashLayer.cs`): bandas opacas cubren la ventana, los puntos de la E del Publisher aparecen
+desordenados, el punto de acento cae con rebote y lanza un anillo, el nombre se rasga con las franjas de `tear.png`, y las
+nubes de `cloud.png` derivan detrás; después las bandas se retiran alternando lados y descubren el launcher, cuyas pantallas
+llegan en ese instante y cuyo campo de puntos manda un anillo desde el punto de acento. Al cerrar, las mismas bandas se cierran
+y la ventana se cierra a los ~0,55 s. Un clic o una tecla lo salta; no se muestra con las animaciones de Windows apagadas, ni
+con `EMPI_SPLASH=off`, ni si se apaga en Ajustes › Launcher (`ui.json` junto al log, porque hace falta antes de que exista el
+motor); no retrasa un cierre por actualización, por la bandeja ni por el apagado de Windows, y un segundo clic en cerrar cierra
+ya. Coste: unos veinte elementos y ~2 MB de imágenes decodificadas que se sueltan al terminar; nada por fotograma.
 
 ## Imágenes animadas del modpack (banner y fondo: GIF, APNG, WebP)
 

@@ -3,6 +3,9 @@
   <ItemGroup>
     <ProjectReference Include="..\EmpiLauncher.Ipc\EmpiLauncher.Ipc.csproj" />
     <Resource Include="Assets\Fonts\Doto.ttf" />
+    <!-- the halftone cloud and the glitch stripes: the same art the Publisher wears -->
+    <Resource Include="Assets\Art\cloud.png" />
+    <Resource Include="Assets\Art\tear.png" />
   </ItemGroup>
 
   <PropertyGroup>

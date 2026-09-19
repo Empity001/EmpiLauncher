@@ -48,14 +48,22 @@ public partial class HomeView : UserControl
         Loaded += (_, _) =>
         {
             _l.Changed += OnChanged; _l.GameChanged += OnGame; _l.ArtChanged += RefreshBanner;
-            Entrance();   // first, so what Refresh fills in below is already waiting its turn (invisible) and never flashes
+            // First, so what Refresh fills in below is already waiting its turn (invisible) and never flashes. While the logo's opening
+            // still covers the window the parts wait hidden, and arrive the moment it uncovers them.
+            if (SplashLayer.Playing)
+            {
+                _entrancePending = true;
+                foreach (var part in EntranceParts()) part.Opacity = 0;
+                SplashLayer.WhenRevealing(Entrance);
+            }
+            else Entrance();
             Refresh(); RefreshBanner(); _status.Start(); _ = _l.RefreshStatusAsync();
             LivingField.NextAction = PlayButton;   // the main action glows in the modpack's accent
             LivingField.Quiet.Add(Hero);           // dots stay faint behind the title and the facts
         };
         Unloaded += (_, _) =>
         {
-            _l.Changed -= OnChanged; _l.GameChanged -= OnGame; _l.ArtChanged -= RefreshBanner; _status.Stop(); PackBanner.Source = null;
+            _l.Changed -= OnChanged; _l.GameChanged -= OnGame; _l.ArtChanged -= RefreshBanner; _status.Stop(); PackBanner.Source = null; ProgressCloud.Source = null;
             if (ReferenceEquals(LivingField.NextAction, PlayButton)) LivingField.NextAction = null;
             LivingField.Quiet.Remove(Hero);
         };
@@ -76,7 +84,10 @@ public partial class HomeView : UserControl
     // ---- arriving and changing ------------------------------------------------------------------------------------
 
     private long _entranceAt;
+    private bool _entrancePending;
     private string? _shownPack;
+
+    private List<UIElement> EntranceParts() => [RailModule, .. HeroParts(), Dock];
 
     /// <summary>The parts of the modpack's presentation, in reading order: what the pack is, its name (or logo), what it says, and its facts.</summary>
     private List<UIElement> HeroParts() => [Pills, PackBanner.Visibility == Visibility.Visible ? PackBanner : PackTitle, PackDescription, FactsModule];
@@ -87,6 +98,7 @@ public partial class HomeView : UserControl
     /// </summary>
     private void Entrance()
     {
+        _entrancePending = false;
         _entranceAt = Environment.TickCount64;
         Motion.Rise(RailModule, 0, 260, 10);
         Motion.Reveal(HeroParts(), 45, 60, 260, 10);
@@ -98,7 +110,7 @@ public partial class HomeView : UserControl
     {
         var previous = _shownPack;
         _shownPack = _l.SelectedId;
-        if (previous == _shownPack || previous == null && Environment.TickCount64 - _entranceAt < 800) return;   // nothing new, or the entrance is still playing
+        if (previous == _shownPack || previous == null && (_entrancePending || Environment.TickCount64 - _entranceAt < 800)) return;   // nothing new, or the entrance is still (about to be) playing
         var parts = HeroParts();
         if (previous == null) { Motion.Reveal(parts, 35, 0, 200, 6); return; }
         var title = parts[1];
@@ -313,12 +325,21 @@ public partial class HomeView : UserControl
 
         var panelAppears = game.Busy && ProgressPanel.Visibility != Visibility.Visible;
         ProgressPanel.Visibility = game.Busy ? Visibility.Visible : Visibility.Collapsed;
-        if (panelAppears) { Motion.Snap(ProgressBar, System.Windows.Controls.Primitives.RangeBase.ValueProperty, 0); Motion.Rise(ProgressPanel, 0, 220, 8); }
+        if (panelAppears)
+        {
+            Motion.Snap(ProgressBar, System.Windows.Controls.Primitives.RangeBase.ValueProperty, 0);
+            Motion.Rise(ProgressPanel, 0, 220, 8);
+            ProgressCloud.Source = Art.Cloud(320);
+            ProgressCloud.Visibility = Visibility.Visible;
+            Motion.Snap(ProgressCloudShift, TranslateTransform.XProperty, 24);
+        }
+        else if (!game.Busy && ProgressCloud.Source != null) { ProgressCloud.Source = null; ProgressCloud.Visibility = Visibility.Collapsed; }   // the picture is let go of with the panel
         if (game.Busy)
         {
             ProgressText.Text = game.Text;
             ProgressPercent.Text = $"{game.Percent}%";
             Motion.Follow(ProgressBar, System.Windows.Controls.Primitives.RangeBase.ValueProperty, game.Percent);
+            Motion.Follow(ProgressCloudShift, TranslateTransform.XProperty, 24 - 110 * Math.Clamp(game.Percent, 0, 100) / 100.0, 400);   // the cloud crosses the panel as the work advances: nothing moves on its own
             var parts = new List<string>();
             if (game.Received != null && game.Total != null) parts.Add($"{Fmt.Bytes(game.Received)} / {Fmt.Bytes(game.Total)}");
             if (game.BytesPerSecond is > 0) parts.Add($"{Fmt.Bytes(game.BytesPerSecond)}/s");

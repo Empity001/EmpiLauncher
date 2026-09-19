@@ -32,6 +32,7 @@ internal sealed class AboutTab : SettingsTab
 
         var launcher = Ui.Section("Launcher", out var l);
         l.Children.Add(Ui.Row("Modo de rendimiento", "Automático ahorra recursos en equipos justos: sin efectos que cuesten memoria o GPU.", ModeChoice()));
+        l.Children.Add(Ui.Row("Animación del logo", "El logo se arma con un efecto glitch al abrir el launcher y se deshace al cerrarlo (un clic o una tecla la salta). No se muestra si Windows tiene las animaciones apagadas.", Ui.Switch(NativeSettings.Splash, v => NativeSettings.Splash = v, "Animación del logo al abrir y cerrar")));
         l.Children.Add(Ui.Row("Versiones de prueba", "Recibir también las versiones del launcher que aún se están probando.", Ui.Switch(Bool("allowPrerelease"), v => _ = Set("allowPrerelease", v), "Versiones de prueba")));
         Root.Children.Add(launcher);
         Root.Children.Add(FieldSection());

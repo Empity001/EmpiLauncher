@@ -60,6 +60,10 @@
         <!-- dialog: a question or a failure that needs an answer -->
         <Grid x:Name="DialogLayer" Grid.RowSpan="2" Visibility="Collapsed" Background="#B3060607">
             <Border x:Name="DialogPanel" Style="{StaticResource Module}" Background="#FF111114" Width="480" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="28,24">
+                <Grid>
+                <!-- a halftone cloud behind a dialog that waits for work (the update, the Microsoft window): it drifts with the progress -->
+                <Image x:Name="DialogCloud" Visibility="Collapsed" Width="250" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-14,-10" Opacity="0.3"
+                       IsHitTestVisible="False" Stretch="Uniform"><Image.RenderTransform><TranslateTransform x:Name="DialogCloudShift"/></Image.RenderTransform></Image>
                 <StackPanel>
                     <TextBlock x:Name="DialogTitle" Style="{StaticResource DisplayText}" FontSize="24" TextWrapping="Wrap" TextTrimming="None"/>
                     <TextBlock x:Name="DialogMessage" Style="{StaticResource BodyText}" Foreground="{StaticResource Paper2Brush}" Margin="0,12,0,0"/>
@@ -72,7 +76,11 @@
                     <Image x:Name="DialogImage" Visibility="Collapsed" Width="90" Height="180" Stretch="Uniform" HorizontalAlignment="Left" Margin="4,14,0,0" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
                     <StackPanel x:Name="DialogButtons" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0"/>
                 </StackPanel>
+                </Grid>
             </Border>
         </Grid>
+
+        <!-- the logo's opening and closing (SplashLayer): above everything, and gone the moment it is done -->
+        <Grid x:Name="SplashHost" Grid.RowSpan="2" Panel.ZIndex="100"/>
     </Grid>
 </Window>
