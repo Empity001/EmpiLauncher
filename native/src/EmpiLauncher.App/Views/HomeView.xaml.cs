@@ -44,8 +44,19 @@ public partial class HomeView : UserControl
     public HomeView()
     {
         InitializeComponent();
-        Loaded += (_, _) => { _l.Changed += OnChanged; _l.GameChanged += OnGame; _l.ArtChanged += RefreshBanner; Refresh(); RefreshBanner(); _status.Start(); _ = _l.RefreshStatusAsync(); };
-        Unloaded += (_, _) => { _l.Changed -= OnChanged; _l.GameChanged -= OnGame; _l.ArtChanged -= RefreshBanner; _status.Stop(); PackBanner.Source = null; };
+        Loaded += (_, _) =>
+        {
+            _l.Changed += OnChanged; _l.GameChanged += OnGame; _l.ArtChanged += RefreshBanner;
+            Refresh(); RefreshBanner(); _status.Start(); _ = _l.RefreshStatusAsync();
+            LivingField.NextAction = PlayButton;   // the main action glows in the modpack's accent
+            LivingField.Quiet.Add(Hero);           // dots stay faint behind the title and the facts
+        };
+        Unloaded += (_, _) =>
+        {
+            _l.Changed -= OnChanged; _l.GameChanged -= OnGame; _l.ArtChanged -= RefreshBanner; _status.Stop(); PackBanner.Source = null;
+            if (ReferenceEquals(LivingField.NextAction, PlayButton)) LivingField.NextAction = null;
+            LivingField.Quiet.Remove(Hero);
+        };
         // Players online: only asked while the window is in front, once every 90 s. A hidden launcher does not poll the network.
         _status.Tick += (_, _) =>
         {

@@ -16,8 +16,8 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- title bar -->
-        <Grid Margin="24,0,10,0">
+        <!-- title bar (above the modpack picture and the dot field, which span both rows) -->
+        <Grid Margin="24,0,10,0" Panel.ZIndex="10">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <TextBlock Text="EMPI" Style="{StaticResource DisplayText}" FontSize="19" FontWeight="ExtraBold"/>
                 <Border Style="{StaticResource Pill}" Margin="14,0,0,0" Padding="9,2"><TextBlock x:Name="ChannelLabel" Text="NATIVO" Style="{StaticResource LabelText}" FontSize="10.5"/></Border>
@@ -36,8 +36,7 @@
                RenderOptions.BitmapScalingMode="LowQuality"/>
         <Rectangle x:Name="BackdropScrim" Grid.RowSpan="2" Fill="{StaticResource BackdropScrim}" Visibility="Collapsed" IsHitTestVisible="False"/>
 
-        <!-- decoration behind everything: a faint dot grid that never redraws, and the living field on top, still unless the FieldGovernor allows it -->
-        <Rectangle x:Name="DotGrid" Grid.RowSpan="2" Fill="{StaticResource DotGridBrush}" IsHitTestVisible="False"/>
+        <!-- decoration behind everything: the halftone ground, one lattice of dots; still unless the FieldGovernor allows it to move -->
         <views:LivingField x:Name="Field" Grid.Row="0" Grid.RowSpan="2"/>
 
         <ContentPresenter x:Name="ViewHost" Grid.Row="1"/>

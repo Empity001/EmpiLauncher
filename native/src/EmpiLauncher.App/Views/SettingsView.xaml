@@ -7,7 +7,7 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <DockPanel Margin="0,0,0,18">
+        <DockPanel x:Name="Header" Margin="0,0,0,18">
             <Button x:Name="DoneButton" DockPanel.Dock="Right" Style="{StaticResource PaperButton}" Content="Listo" Padding="26,11"/>
             <TextBlock Text="AJUSTES" Style="{StaticResource DisplayText}" FontSize="30" VerticalAlignment="Center" Margin="0,0,24,0" DockPanel.Dock="Left"/>
             <Border Background="#B3111215" BorderBrush="{StaticResource HairBrush}" BorderThickness="1" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource PillRadius}}" Padding="4" HorizontalAlignment="Left">

@@ -38,7 +38,8 @@ public partial class SettingsView : UserControl
             pill.Checked += async (_, _) => await ShowAsync(tab);
             Tabs.Children.Add(pill);
         }
-        Loaded += async (_, _) => await ShowAsync(tabs.First(t => t.Id == initialTab));
+        Loaded += async (_, _) => { LivingField.Quiet.Add(Header); await ShowAsync(tabs.First(t => t.Id == initialTab)); };
+        Unloaded += (_, _) => LivingField.Quiet.Remove(Header);
     }
 
     private async Task ShowAsync(SettingsTab tab)

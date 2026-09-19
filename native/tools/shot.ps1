@@ -21,6 +21,7 @@ public static class Win {
     [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr dc, uint flags);
     [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr h, int x, int y, int w, int hgt, bool repaint);
     [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+    [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extra);
 }
 '@
 
@@ -64,6 +65,12 @@ foreach ($step in $Steps.Split(';')) {
         'shot'  { Save-Shot $arg }
         'click' { Click-Named $arg }
         'size'  { $wh = $arg.Split('x'); [void][Win]::MoveWindow($hwnd, 40, 40, [int]$wh[0], [int]$wh[1], $true) }
+        # tap:x,y  a real left click at x,y inside the window (unlike click:, which goes through UI Automation and raises no mouse events)
+        'tap'   {
+            $xy = $arg.Split(','); $r = New-Object Win+RECT; [void][Win]::GetWindowRect($hwnd, [ref]$r)
+            [void][Win]::SetCursorPos($r.L + [int]$xy[0], $r.T + [int]$xy[1]); Start-Sleep -Milliseconds 60
+            [Win]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 40; [Win]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero)
+        }
         # move:x,y  puts the real mouse pointer at x,y inside the window (in small steps, so the app sees it moving)
         'move'  {
             $xy = $arg.Split(','); $r = New-Object Win+RECT; [void][Win]::GetWindowRect($hwnd, [ref]$r)

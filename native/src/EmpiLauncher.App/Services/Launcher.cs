@@ -159,6 +159,7 @@ public sealed class Launcher : IAsyncDisposable
     public async Task SetFieldModeAsync(string mode)
     {
         Prefs = await Client.CallAsync<UiPrefs>("ui.set", new { key = "fieldMode", value = mode });
+        FieldGovernor.ResetYield();   // picking a mode again is an explicit "try it"
         PrefsChanged?.Invoke();
     }
 

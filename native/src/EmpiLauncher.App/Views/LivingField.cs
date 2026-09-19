@@ -1,4 +1,7 @@
+using System.Diagnostics;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -7,58 +10,102 @@ using EmpiLauncher.App.Services;
 namespace EmpiLauncher.App.Views;
 
 /// <summary>
-/// The living halftone field, drawn over the window's faint dot grid. Two feathered plates (bottom-left, top-right) swell and shrink
-/// slowly, and the dots around the mouse pointer rise toward it in the modpack's accent colour and settle again when it stops.
+/// The living halftone ground: a port of the Publisher's field (tools/publisher/public/life.js) to WPF.
 ///
-/// It draws a still frame by default and moves only while the <see cref="FieldGovernor"/> allows it. Cost is kept low on purpose:
-/// the waves run at 6 frames a second, the pointer effect at 30 but only while the mouse is actually moving (and for a moment after),
-/// and it only touches the ~250 dots within reach of the pointer. Settings > Acerca shows whether it is moving and, if not, why.
+/// ONE hex lattice of dots covers the window and every effect is a tone added to the same dots, so nothing looks like a separate plane:
+///   - slow interference waves and two plates that swell at the free corners (bottom-left, top-right);
+///   - the pointer lifts the dots around it;
+///   - every click sends a ring of waves outward (accent-coloured on the main action);
+///   - the control under the pointer is contoured: the dots around its outline light up;
+///   - the next action (Jugar, Iniciar sesión) glows in the modpack's accent and pulses.
+/// Dot size is the tone. Dots stay faint behind text ("quiet" zones the views register).
+///
+/// Cost, because this shares a machine with a game: two layers. The faint base dots are one static drawing that is never re-recorded;
+/// only the dots that differ from it are redrawn each frame (12 fps for the ambient motion, 24 while the player is interacting).
+/// It measures its own frame cost and thins the lattice, and in the end stops, if the machine cannot afford it. The FieldGovernor
+/// decides whether it may move at all; when it may not, the still frame is drawn once.
 /// </summary>
-internal sealed class LivingField : FrameworkElement
+internal sealed class LivingField : Grid
 {
-    // 6 frames a second and a coarse grid for the waves: measured (docs/native/MEASUREMENTS.md), 8 fps at 17 px cost ~4 % of a core.
-    private const double Cell = 22, MaxRadius = 6.6, Feather = 150, WaveFrameMs = 167, PointerFrameMs = 33;
-    private const double Reach = 170, PointerMaxRadius = 8.5, PointerLinger = 1200;
+    private const double StillTime = 7.3, RippleSpeed = 460, RippleLife = 1.3;
+    private const double AmbientMs = 125, InteractiveMs = 41;
 
-    private static readonly Brush[] PaperLevels = MakeLevels(Color.FromRgb(0xf1, 0xef, 0xe8), 10, 12);
-    private Brush[] _accentLevels = MakeLevels(Color.FromRgb(0xff, 0x3d, 0x8b), 40, 24);
+    /// <summary>A layer that paints through a callback. The base one is cached as a texture, so it costs one blit per frame, not 4,000 dots.</summary>
+    private sealed class Layer : FrameworkElement
+    {
+        public Action<DrawingContext>? Painter { get; set; }
+        public Layer(bool cached)
+        {
+            IsHitTestVisible = false;
+            RenderOptions.SetEdgeMode(this, EdgeMode.Aliased);
+            if (cached) CacheMode = new BitmapCache(1.0);
+        }
+        protected override void OnRender(DrawingContext dc) => Painter?.Invoke(dc);
+    }
+
+    /// <summary>The main action of the screen (Jugar / Iniciar sesión): it glows. Views set and clear it.</summary>
+    public static FrameworkElement? NextAction { get; set; }
+    /// <summary>Areas where text lives: dots stay faint there so nothing is ever hard to read.</summary>
+    public static readonly List<FrameworkElement> Quiet = [];
+
+    private readonly Layer _baseLayer = new(cached: true), _liveLayer = new(cached: false);
+    private readonly DispatcherTimer _gate = new() { Interval = TimeSpan.FromSeconds(2) };
+    private readonly DispatcherTimer _frame = new() { Interval = TimeSpan.FromMilliseconds(AmbientMs) };
+    private readonly DispatcherTimer _quietTimer = new() { Interval = TimeSpan.FromMilliseconds(700) };
+    private readonly Stopwatch _clock = Stopwatch.StartNew();
+
+    // the lattice: worked out once per size, not per frame
+    private double _pitch = 24, _w, _h;
+    private float[] _gx = [], _gy = [], _gp = [], _gq = [], _rBase = [];
+    private int _n;
+    private string _quietSig = "";
+
+    // time and interaction state
+    private double _t = StillTime, _last;
+    private bool _running;
+    private readonly Pointer _ptr = new(), _hot = new(), _next = new();
+    private FrameworkElement? _hotElement;
+    private long _movedAt = long.MinValue;
+    private readonly List<Ripple> _ripples = [];
+    private double _cost; private int _slow;
+
+    // dot colours: opaque, so a bigger dot always fully covers the smaller base dot under it
+    private Brush _paperDot = Solid(0x64, 0x63, 0x5f), _accentDot = Solid(0xff, 0x3d, 0x8b);
     private Color _accentFor = Color.FromRgb(0xff, 0x3d, 0x8b);
 
-    private readonly DispatcherTimer _gate = new() { Interval = TimeSpan.FromSeconds(2) };
-    private readonly DispatcherTimer _waves = new() { Interval = TimeSpan.FromMilliseconds(WaveFrameMs) };
-    private readonly DispatcherTimer _pointerFrames = new() { Interval = TimeSpan.FromMilliseconds(PointerFrameMs) };
-    private double _t;
-    private Point _pointer;
-    private long _pointerAt = long.MinValue;
+    private sealed class Pointer { public double X = -999, Y = -999, W, H, Amp, Want; }
+    private readonly record struct Ripple(double X, double Y, double T0, bool Accent);
 
     public LivingField()
     {
         IsHitTestVisible = false;
-        RenderOptions.SetEdgeMode(this, EdgeMode.Aliased);   // dots are large and soft anyway; anti-aliasing every one costs more than it shows
+        _baseLayer.Painter = PaintBase;
+        _liveLayer.Painter = PaintLive;
+        Children.Add(_baseLayer);
+        Children.Add(_liveLayer);
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
         _gate.Tick += (_, _) => Gate();
-        _waves.Tick += (_, _) => { _t += WaveFrameMs / 1000.0; if (!PointerActive) InvalidateVisual(); };
-        _pointerFrames.Tick += (_, _) =>
-        {
-            if (PointerActive) InvalidateVisual();
-            else { _pointerFrames.Stop(); InvalidateVisual(); }   // the pointer settled: one last frame without it
-        };
-        SizeChanged += (_, _) => InvalidateVisual();
+        _frame.Tick += (_, _) => Frame();
+        _quietTimer.Tick += (_, _) => MeasureQuiet();
+        SizeChanged += (_, _) => Rebuild();
     }
 
-    private bool PointerActive => Environment.TickCount64 - _pointerAt < PointerLinger;
+    private static Brush Solid(byte r, byte g, byte b) { var brush = new SolidColorBrush(Color.FromRgb(r, g, b)); brush.Freeze(); return brush; }
+
+    // ---- wiring -------------------------------------------------------------------------------------------------------
 
     private void OnLoaded(object? sender, RoutedEventArgs e)
     {
-        // React at once to what changes the answer, instead of waiting for the next 2 s check.
         Launcher.Instance.GameChanged += Gate;
         Launcher.Instance.PrefsChanged += Gate;
         if (Window.GetWindow(this) is { } window)
         {
             window.Activated += OnWindowEvent; window.Deactivated += OnWindowEvent; window.StateChanged += OnWindowEvent;
-            window.IsVisibleChanged += OnVisible; window.PreviewMouseMove += OnMouse;
+            window.IsVisibleChanged += OnVisible;
+            window.PreviewMouseMove += OnMouseMove; window.PreviewMouseDown += OnMouseDown; window.MouseLeave += OnMouseLeave;
         }
+        Rebuild();
         Gate();
         _gate.Start();
     }
@@ -70,117 +117,324 @@ internal sealed class LivingField : FrameworkElement
         if (Window.GetWindow(this) is { } window)
         {
             window.Activated -= OnWindowEvent; window.Deactivated -= OnWindowEvent; window.StateChanged -= OnWindowEvent;
-            window.IsVisibleChanged -= OnVisible; window.PreviewMouseMove -= OnMouse;
+            window.IsVisibleChanged -= OnVisible;
+            window.PreviewMouseMove -= OnMouseMove; window.PreviewMouseDown -= OnMouseDown; window.MouseLeave -= OnMouseLeave;
         }
-        _gate.Stop(); _waves.Stop(); _pointerFrames.Stop();
+        _gate.Stop(); _frame.Stop(); _quietTimer.Stop();
     }
 
     private void OnWindowEvent(object? sender, EventArgs e) => Gate();
     private void OnVisible(object sender, DependencyPropertyChangedEventArgs e) => Gate();
 
-    private void OnMouse(object sender, MouseEventArgs e)
-    {
-        if (!_waves.IsEnabled) return;   // the governor said no: the pointer does nothing either
-        _pointer = e.GetPosition(this);
-        _pointerAt = Environment.TickCount64;
-        if (!_pointerFrames.IsEnabled) _pointerFrames.Start();
-    }
-
-    /// <summary>True while it is actually moving; the About tab shows this and why not.</summary>
-    public bool Moving => _waves.IsEnabled;
+    /// <summary>True while it is actually moving; Ajustes > Acerca shows this and why not.</summary>
+    public bool Moving => _running;
 
     private void Gate()
     {
         FieldGovernor.Evaluate(Window.GetWindow(this));
-        if (FieldGovernor.Allowed && !_waves.IsEnabled) _waves.Start();
-        else if (!FieldGovernor.Allowed && _waves.IsEnabled)
+        if (FieldGovernor.Allowed && !_running)
         {
-            _waves.Stop(); _pointerFrames.Stop(); _t = 0; _pointerAt = long.MinValue;
-            InvalidateVisual();   // back to the still frame
+            _running = true; _last = _clock.Elapsed.TotalSeconds; _t = StillTime;
+            _frame.Start(); _quietTimer.Start();
+        }
+        else if (!FieldGovernor.Allowed && _running)
+        {
+            _running = false;
+            _frame.Stop(); _quietTimer.Stop();
+            _ptr.Amp = _hot.Amp = _next.Amp = 0; _ptr.Want = 0; _hotElement = null; _ripples.Clear();
+            _t = StillTime;
+            DrawLive();   // back to the still frame
         }
     }
 
-    private static Brush[] MakeLevels(Color color, int baseAlpha, int step)
+    // ---- lattice -----------------------------------------------------------------------------------------------------
+
+    private void Rebuild()
     {
-        var levels = new Brush[8];
-        for (var i = 0; i < levels.Length; i++)
+        _w = ActualWidth; _h = ActualHeight;
+        if (_w < 200 || _h < 200) return;
+        var rowH = _pitch * 0.866;
+        var cols = (int)Math.Ceiling((_w + _pitch) / _pitch) + 1;
+        var rows = (int)Math.Ceiling((_h + _pitch) / rowH) + 1;
+        var cap = cols * rows;
+        _gx = new float[cap]; _gy = new float[cap]; _gp = new float[cap]; _gq = new float[cap]; _rBase = new float[cap]; _mark = new int[cap];
+        _rowH = rowH;
+        var rowStart = new List<int>(); var rowCount = new List<int>(); var plates = new List<int>();
+        _n = 0;
+        for (var row = 0; row < rows; row++)
         {
-            var brush = new SolidColorBrush(Color.FromArgb((byte)Math.Min(255, baseAlpha + i * step), color.R, color.G, color.B));
-            brush.Freeze();
-            levels[i] = brush;
+            var y = rowH * 0.5 + row * rowH;
+            if (y >= _h + _pitch) break;
+            var off = (row & 1) != 0 ? _pitch / 2 : 0;
+            rowStart.Add(_n);
+            for (var x = off; x < _w + _pitch; x += _pitch)
+            {
+                _gx[_n] = (float)x; _gy[_n] = (float)y;
+                // where the two plates are: an ellipse at the bottom-left and a shorter one at the top-right
+                _gp[_n] = (float)Math.Max(1 - Hyp(x / (_w * 0.3), (_h - y) / (_h * 0.6)), 1 - Hyp((_w - x) / (_w * 0.3), y / (_h * 0.32)));
+                if (_gp[_n] > -0.12f) plates.Add(_n);   // the plate edge undulates by up to 0.12, so these can gain a plate tone
+                _n++;
+            }
+            rowCount.Add(_n - rowStart[^1]);
         }
-        return levels;
+        _rowStart = rowStart.ToArray(); _rowCount = rowCount.ToArray(); _plateIdx = plates.ToArray(); _stamp = 0;
+        _quietSig = "";
+        MeasureQuiet(force: true);
+        DrawBase();
+        DrawLive();
     }
 
-    /// <summary>The pointer dots use the modpack's accent; rebuild the shades only when it actually changed.</summary>
+    private static double Hyp(double a, double b) => Math.Sqrt(a * a + b * b);
+
+    /// <summary>How much of each dot lies under a block of text (0 in the open, 1 inside, feathered at the edge).</summary>
+    private void MeasureQuiet(bool force = false)
+    {
+        var boxes = new List<Rect>();
+        foreach (var el in Quiet)
+        {
+            if (!el.IsVisible || el.ActualWidth <= 0) continue;
+            try { boxes.Add(el.TransformToVisual(this).TransformBounds(new Rect(0, 0, el.ActualWidth, el.ActualHeight))); } catch (InvalidOperationException) { }
+        }
+        var sig = string.Join('|', boxes.Select(b => $"{(int)b.Left},{(int)b.Top},{(int)b.Right},{(int)b.Bottom}"));
+        if (sig == _quietSig && !force) return;
+        _quietSig = sig;
+        for (var i = 0; i < _n; i++)
+        {
+            double q = 0;
+            foreach (var b in boxes)
+            {
+                var dx = Math.Max(Math.Max(b.Left - 8 - _gx[i], 0), _gx[i] - (b.Right + 8));
+                var dy = Math.Max(Math.Max(b.Top - 8 - _gy[i], 0), _gy[i] - (b.Bottom + 8));
+                var inside = 1 - Math.Min(1, Hyp(dx, dy) / 30);
+                if (inside > q) q = inside;
+            }
+            _gq[i] = (float)q;
+        }
+        if (!force) { DrawBase(); DrawLive(); }
+    }
+
+    private double Radius(double tone) => _pitch * 0.53 * Math.Sqrt(tone > 1 ? 1 : tone);
+
+    /// <summary>The faint base dots: one static layer (cached as a texture), redrawn only when the size or the quiet zones change.</summary>
+    private void DrawBase()
+    {
+        // radii first (the live layer compares against them), then ask for a repaint of the cached layer
+        for (var i = 0; i < _n; i++)
+            _rBase[i] = (float)Radius((0.012 + 0.03 * 0.25) * (1 - 0.5 * _gq[i]));
+        _baseLayer.InvalidateVisual();
+    }
+
+    private void PaintBase(DrawingContext dc)
+    {
+        for (var i = 0; i < _n; i++)
+        {
+            // the smallest tone the waves ever give (wave = 0.25): every live dot is at least this big, so it always covers its base dot
+            var r = _rBase[i];
+            if (r >= 0.75) dc.DrawEllipse(_paperDot, null, new Point(_gx[i], _gy[i]), r, r);
+        }
+    }
+
+    // ---- input -------------------------------------------------------------------------------------------------------
+
+    private void OnMouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_running) return;
+        var p = e.GetPosition(this);
+        _ptr.X = p.X; _ptr.Y = p.Y; _ptr.Want = 1;
+        _movedAt = _clock.ElapsedMilliseconds;
+        _hotElement = FindHot(e.OriginalSource as DependencyObject);
+    }
+
+    private void OnMouseLeave(object sender, MouseEventArgs e) { _ptr.Want = 0; _hotElement = null; }
+
+    private void OnMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (!_running) return;
+        var p = e.GetPosition(this);
+        var target = FindHot(e.OriginalSource as DependencyObject);
+        var accent = target != null && (ReferenceEquals(target, NextAction) || target is Button b && ReferenceEquals(b.Style, Application.Current.TryFindResource("PrimaryButton")));
+        _ripples.Add(new Ripple(p.X, p.Y, _t, accent));
+        if (_ripples.Count > 4) _ripples.RemoveAt(0);
+        _movedAt = _clock.ElapsedMilliseconds;
+    }
+
+    /// <summary>The control under the pointer, if it is one the player can act on (or a card): that is what gets contoured.</summary>
+    private static object? _moduleStyle, _tileStyle;
+
+    private static FrameworkElement? FindHot(DependencyObject? d)
+    {
+        var module = _moduleStyle ??= Application.Current.TryFindResource("Module");
+        var tile = _tileStyle ??= Application.Current.TryFindResource("Tile");
+        while (d != null)
+        {
+            if (d is ButtonBase or TextBox or Slider or Selector) return (FrameworkElement)d;
+            if (d is Border b && (ReferenceEquals(b.Style, module) || ReferenceEquals(b.Style, tile))) return b;
+            d = d is Visual or System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d);
+        }
+        return null;
+    }
+
+    // ---- frames ------------------------------------------------------------------------------------------------------
+
+    private void Frame()
+    {
+        var started = Stopwatch.GetTimestamp();
+        var now = _clock.Elapsed.TotalSeconds;
+        _t += Math.Min(0.1, now - _last);
+        _last = now;
+
+        _ptr.Amp += (_ptr.Want - _ptr.Amp) * 0.12;
+        Ease(_hot, _hotElement);
+        Ease(_next, NextAction is { IsVisible: true, IsHitTestVisible: true } && !Launcher.Instance.Game.Busy ? NextAction : null);
+        _ripples.RemoveAll(r => _t - r.T0 > RippleLife);
+
+        // fast while the player is interacting (moving, clicking, a control being contoured), gentle otherwise
+        var interacting = _clock.ElapsedMilliseconds - _movedAt < 1500 || _ripples.Count > 0 || _hot.Amp > 0.03;
+        var wanted = TimeSpan.FromMilliseconds(interacting ? InteractiveMs : AmbientMs);
+        if (_frame.Interval != wanted) _frame.Interval = wanted;
+
+        DrawLive();
+
+        // frame cost: thin the field out, and in the end stop, if this machine cannot afford it
+        var ms = (Stopwatch.GetTimestamp() - started) * 1000.0 / Stopwatch.Frequency;
+        _cost = _cost * 0.9 + ms * 0.1;
+        _slow = _cost > 9 ? _slow + 1 : Math.Max(0, _slow - 1);
+        if (_slow > 90) { _slow = 0; _cost = 0; Degrade(); }
+    }
+
+    private void Degrade()
+    {
+        if (_pitch < 36) { _pitch += 6; Rebuild(); }
+        else FieldGovernor.Yield("el equipo iba justo y lo dejé quieto");
+    }
+
+    /// <summary>Follows the target element: eases toward its rectangle and its presence, fades when there is none.</summary>
+    private void Ease(Pointer s, FrameworkElement? el)
+    {
+        if (el is { IsVisible: true })
+        {
+            Rect r;
+            try { r = el.TransformToVisual(this).TransformBounds(new Rect(0, 0, el.ActualWidth, el.ActualHeight)); } catch (InvalidOperationException) { s.Amp *= 0.86; return; }
+            if (s.Amp < 0.02) { s.X = r.Left; s.Y = r.Top; s.W = r.Width; s.H = r.Height; }
+            else { s.X += (r.Left - s.X) * 0.3; s.Y += (r.Top - s.Y) * 0.3; s.W += (r.Width - s.W) * 0.3; s.H += (r.Height - s.H) * 0.3; }
+            s.Amp += (1 - s.Amp) * 0.12;
+        }
+        else
+        {
+            s.Amp *= 0.86;
+            if (s.Amp < 0.01) s.Amp = 0;
+        }
+    }
+
     private void SyncAccent()
     {
         if (Application.Current.Resources["AccentBrush"] is not SolidColorBrush brush || brush.Color == _accentFor) return;
         _accentFor = brush.Color;
-        _accentLevels = MakeLevels(_accentFor, 40, 24);
+        _accentDot = Solid(_accentFor.R, _accentFor.G, _accentFor.B);
     }
 
-    protected override void OnRender(DrawingContext dc)
-    {
-        double w = ActualWidth, h = ActualHeight;
-        if (w < 200 || h < 200) return;
-        // bottom-left plate and a shorter one at the top-right
-        DrawPlate(dc, 0, h - Math.Min(500, h * 0.56), 340, Math.Min(500, h * 0.56), fadeTop: true, fadeRight: true);
-        DrawPlate(dc, w - 320, 40, 320, 120, fadeTop: false, fadeRight: false, fadeLeft: true, fadeBottom: true);
-        if (PointerActive) DrawPointer(dc, w, h);
-    }
+    private void DrawLive() => _liveLayer.InvalidateVisual();
 
-    private void DrawPlate(DrawingContext dc, double x0, double y0, double width, double height, bool fadeTop = false, bool fadeRight = false, bool fadeLeft = false, bool fadeBottom = false)
-    {
-        var cols = (int)(width / Cell);
-        var rows = (int)(height / Cell);
-        for (var r = 0; r < rows; r++)
-        {
-            var y = y0 + r * Cell + Cell / 2;
-            var fy = fadeTop ? Math.Min(1, (y - y0) / Feather) : fadeBottom ? Math.Min(1, (y0 + height - y) / Feather) : 1;
-            for (var c = 0; c < cols; c++)
-            {
-                var x = x0 + c * Cell + Cell / 2;
-                var fx = fadeRight ? Math.Min(1, (x0 + width - x) / (Feather * 1.4)) : fadeLeft ? Math.Min(1, (x - x0) / (Feather * 1.4)) : 1;
-                var edge = fx * fy;
-                if (edge <= 0.03) continue;
-                // two slow crossing waves; at t = 0 this is the still frame
-                var wave = 0.5 + 0.5 * Math.Sin(c * 0.42 + _t * 0.9) * Math.Cos(r * 0.35 - _t * 0.6);
-                var radius = MaxRadius * (0.12 + 0.88 * wave) * (0.35 + 0.65 * edge);
-                if (radius < 0.6) continue;
-                var level = Math.Clamp((int)(wave * edge * PaperLevels.Length), 0, PaperLevels.Length - 1);
-                dc.DrawEllipse(PaperLevels[level], null, new Point(x, y), radius, radius);
-            }
-        }
-    }
+    // per-frame constants and the dot marks, so a dot reached by two effects is worked out once
+    private double _ph, _w1, _w2, _w3, _warp;
+    private bool _doPtr, _doHot, _doNext;
+    private DrawingContext? _dc;
+    private int _stamp;
+    private int[] _mark = [], _rowStart = [], _rowCount = [];
+    private int[] _plateIdx = [];
+    private double _rowH;
 
-    /// <summary>The grid dots within reach of the pointer swell toward it, strongest at the centre, in the accent colour.</summary>
-    private void DrawPointer(DrawingContext dc, double w, double h)
+    /// <summary>
+    /// Works out only the dots something is acting on: the two plates, the neighbourhood of the pointer, of the contoured control and of
+    /// the next action, and everything while a click ripple is alive. The rest of the lattice stays as the base layer shows it, so an
+    /// idle frame is a few hundred dots instead of four thousand.
+    /// </summary>
+    private void PaintLive(DrawingContext dc)
     {
+        if (_n == 0) return;
         SyncAccent();
-        // fades out as the pointer settles, so the dots ease back instead of vanishing
-        var age = Environment.TickCount64 - _pointerAt;
-        var life = age < PointerLinger * 0.5 ? 1.0 : Math.Max(0, 1 - (age - PointerLinger * 0.5) / (PointerLinger * 0.5));
+        _dc = dc; _stamp++;
+        _ph = _t; _w1 = _ph * 0.55; _w2 = _ph * 0.42; _w3 = _ph * 0.7; _warp = _ph * 0.6;
+        _doPtr = _ptr.Amp > 0.01; _doHot = _hot.Amp > 0.02; _doNext = _next.Amp > 0.02;
 
-        var c0 = Math.Max(0, (int)((_pointer.X - Reach) / Cell)); var c1 = Math.Min((int)(w / Cell), (int)((_pointer.X + Reach) / Cell) + 1);
-        var r0 = Math.Max(0, (int)((_pointer.Y - Reach) / Cell)); var r1 = Math.Min((int)(h / Cell), (int)((_pointer.Y + Reach) / Cell) + 1);
+        if (_ripples.Count > 0) { for (var i = 0; i < _n; i++) Dot(i); }   // a ring can be anywhere
+        else
+        {
+            foreach (var i in _plateIdx) Dot(i);
+            if (_doPtr) InRect(_ptr.X - 156, _ptr.Y - 156, _ptr.X + 156, _ptr.Y + 156);
+            if (_doHot) InRect(_hot.X - 58, _hot.Y - 58, _hot.X + _hot.W + 58, _hot.Y + _hot.H + 58);
+        }
+        if (_doNext) InRect(_next.X - 90, _next.Y - 90, _next.X + _next.W + 90, _next.Y + _next.H + 90);
+        _dc = null;
+    }
+
+    /// <summary>The lattice rows and columns inside a rectangle, found by arithmetic, not by scanning every dot.</summary>
+    private void InRect(double x0, double y0, double x1, double y1)
+    {
+        var r0 = Math.Max(0, (int)Math.Floor((y0 - _rowH * 0.5) / _rowH));
+        var r1 = Math.Min(_rowStart.Length - 1, (int)Math.Ceiling((y1 - _rowH * 0.5) / _rowH));
         for (var r = r0; r <= r1; r++)
         {
-            var y = r * Cell + Cell / 2;
-            for (var c = c0; c <= c1; c++)
+            var off = (r & 1) != 0 ? _pitch / 2 : 0;
+            var c0 = Math.Max(0, (int)Math.Ceiling((x0 - off) / _pitch));
+            var c1 = Math.Min(_rowCount[r] - 1, (int)Math.Floor((x1 - off) / _pitch));
+            for (var c = c0; c <= c1; c++) Dot(_rowStart[r] + c);
+        }
+    }
+
+    private void Dot(int i)
+    {
+        if (_mark[i] == _stamp) return;
+        _mark[i] = _stamp;
+        double x = _gx[i], y = _gy[i], q = _gq[i];
+        var wave = 0.5 + 0.25 * (Math.Sin(x * 0.0105 + _w1) * Math.Cos(y * 0.0125 - _w2) + Math.Sin((x + y) * 0.008 - _w3));
+
+        // the two plates, their edges undulating
+        var plate = _gp[i] + 0.12 * Math.Sin(_warp + y * 0.01 + x * 0.006);
+        plate = plate <= 0 ? 0 : plate > 1 ? 1 : plate;
+        plate = plate * plate * (3 - 2 * plate);
+
+        var tone = (0.012 + 0.03 * wave) * (1 - 0.5 * q) + plate * (0.24 + 0.4 * wave) * (1 - 0.86 * q);
+
+        if (_doPtr)
+        {
+            double dx = x - _ptr.X, dy = y - _ptr.Y, d2 = dx * dx + dy * dy;
+            if (d2 < 24000) tone += Math.Exp(-d2 / 6500) * 0.36 * _ptr.Amp * (1 - 0.6 * q);
+        }
+
+        double glow = 0;
+        for (var k = 0; k < _ripples.Count; k++)
+        {
+            var rp = _ripples[k];
+            var age = _t - rp.T0;
+            var ring = (Hyp(x - rp.X, y - rp.Y) - age * RippleSpeed) / 26;
+            if (ring > -3 && ring < 3)
             {
-                var x = c * Cell + Cell / 2;
-                var dx = x - _pointer.X; var dy = y - _pointer.Y;
-                var distance = Math.Sqrt(dx * dx + dy * dy);
-                if (distance >= Reach) continue;
-                var pull = Math.Pow(1 - distance / Reach, 1.6) * life;
-                var radius = 1.3 + (PointerMaxRadius - 1.3) * pull;
-                if (radius < 1.6) continue;
-                // the dot leans a little toward the pointer, as if drawn to it
-                var lean = pull * 5.0 / Math.Max(distance, 1);
-                var level = Math.Clamp((int)(pull * _accentLevels.Length), 0, _accentLevels.Length - 1);
-                dc.DrawEllipse(_accentLevels[level], null, new Point(x - dx * lean * 0.5, y - dy * lean * 0.5), radius, radius);
+                var v = Math.Exp(-ring * ring) * (1 - age / RippleLife) * 0.55 * (1 - 0.5 * q);
+                if (rp.Accent) glow += v; else tone += v;
             }
         }
+
+        if (_doHot)
+        {
+            var dx = Math.Max(Math.Max(_hot.X - x, 0), x - (_hot.X + _hot.W));
+            var dy = Math.Max(Math.Max(_hot.Y - y, 0), y - (_hot.Y + _hot.H));
+            var d = Hyp(dx, dy);
+            if (d < 58) tone += Math.Pow(1 - d / 58, 2) * _hot.Amp * (0.4 + 0.6 * (0.5 + 0.5 * Math.Sin(x * 0.11 + _ph * 3) * Math.Cos(y * 0.11 - _ph * 2))) * 0.5;
+        }
+        if (_doNext)
+        {
+            var dx = Math.Max(Math.Max(_next.X - x, 0), x - (_next.X + _next.W));
+            var dy = Math.Max(Math.Max(_next.Y - y, 0), y - (_next.Y + _next.H));
+            var d = Hyp(dx, dy);
+            if (d < 90) glow += Math.Pow(1 - d / 90, 2) * _next.Amp * (0.45 + 0.55 * Math.Sin(d * 0.09 - _ph * 4.2)) * 0.6;
+        }
+
+        var useAccent = glow > tone * 0.7 && glow > 0.05;
+        var value = useAccent ? Math.Max(glow, tone) : tone;
+        if (value <= 0.02) return;
+        var r = Radius(value);
+        if (r < 0.75 || r <= _rBase[i] + 0.35) return;   // the base layer already shows this dot
+        _dc!.DrawEllipse(useAccent ? _accentDot : _paperDot, null, new Point(x, y), r, r);
     }
 }

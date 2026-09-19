@@ -38,16 +38,6 @@
     <SolidColorBrush x:Key="WarnBrush" Color="#ffb14a"/>
     <SolidColorBrush x:Key="OkBrush" Color="#48dc35"/>
 
-    <!-- The faint halftone grid over the whole window: one dot per 22 px cell, drawn once (it never re-renders). The living field
-         draws its bigger, moving dots on exactly these positions. -->
-    <DrawingBrush x:Key="DotGridBrush" TileMode="Tile" Viewport="0,0,22,22" ViewportUnits="Absolute" Viewbox="0,0,22,22" ViewboxUnits="Absolute">
-        <DrawingBrush.Drawing>
-            <GeometryDrawing Brush="#12F1EFE8">
-                <GeometryDrawing.Geometry><EllipseGeometry Center="11,11" RadiusX="1.3" RadiusY="1.3"/></GeometryDrawing.Geometry>
-            </GeometryDrawing>
-        </DrawingBrush.Drawing>
-    </DrawingBrush>
-
     <!-- Darkens the modpack's picture so text stays readable: heavier at the left (where the rail is) and at the bottom (the dock). -->
     <LinearGradientBrush x:Key="BackdropScrim" StartPoint="0,0" EndPoint="1,1">
         <GradientStop Color="#F5060607" Offset="0"/>

@@ -28,7 +28,7 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <StackPanel VerticalAlignment="Center" Margin="12,0,12,24">
+            <StackPanel x:Name="Hero" VerticalAlignment="Center" Margin="12,0,12,24">
                 <WrapPanel x:Name="Pills" Margin="0,0,0,16"/>
                 <!-- the modpack's own logo when it has one (a small still preview from the engine); the dotted name otherwise -->
                 <Image x:Name="PackBanner" Visibility="Collapsed" Stretch="Uniform" HorizontalAlignment="Left" MaxHeight="190" MaxWidth="440"

@@ -41,7 +41,8 @@
 
     <!-- buttons -->
     <ControlTemplate x:Key="PillButtonTemplate" TargetType="Button">
-        <Grid>
+        <!-- things answer the hand: a button lifts a pixel under the pointer and sinks when pressed -->
+        <Grid x:Name="Root" RenderTransformOrigin="0.5,0.5">
             <Border x:Name="Face" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
                     BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource PillRadius}}" Padding="{TemplateBinding Padding}">
                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"/>
@@ -49,8 +50,14 @@
             <Border x:Name="Over" Background="White" Opacity="0" CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource PillRadius}}" IsHitTestVisible="False"/>
         </Grid>
         <ControlTemplate.Triggers>
-            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Over" Property="Opacity" Value="0.10"/></Trigger>
-            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Over" Property="Opacity" Value="0.02"/></Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Over" Property="Opacity" Value="0.10"/>
+                <Setter TargetName="Root" Property="RenderTransform"><Setter.Value><TranslateTransform Y="-1"/></Setter.Value></Setter>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Over" Property="Opacity" Value="0.02"/>
+                <Setter TargetName="Root" Property="RenderTransform"><Setter.Value><ScaleTransform ScaleX="0.97" ScaleY="0.97"/></Setter.Value></Setter>
+            </Trigger>
             <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
         </ControlTemplate.Triggers>
     </ControlTemplate>
@@ -97,6 +104,10 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="{StaticResource RadiusModule}"/>
         <Setter Property="Padding" Value="20,18"/>
+        <!-- the module answers the pointer: its outline firms up (the living field also contours it in dots) -->
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter Property="BorderBrush" Value="{StaticResource HairStrongBrush}"/></Trigger>
+        </Style.Triggers>
     </Style>
     <Style x:Key="Tile" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource TintBrush}"/>
@@ -138,14 +149,18 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Grid>
+                    <!-- a card leans in a few pixels toward the pointer, like the Publisher's -->
+                    <Grid x:Name="Root">
                         <Border Background="{TemplateBinding Background}" CornerRadius="{StaticResource RadiusTile}" Padding="14,12">
                             <ContentPresenter HorizontalAlignment="Stretch"/>
                         </Border>
                         <Border x:Name="Over" Background="White" Opacity="0" CornerRadius="{StaticResource RadiusTile}" IsHitTestVisible="False"/>
                     </Grid>
                     <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Over" Property="Opacity" Value="0.06"/></Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Over" Property="Opacity" Value="0.06"/>
+                            <Setter TargetName="Root" Property="RenderTransform"><Setter.Value><TranslateTransform X="4"/></Setter.Value></Setter>
+                        </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>

@@ -23,6 +23,12 @@ internal static class FieldGovernor
     public static string Reason { get; private set; } = "";
     public static bool Allowed => Reason.Length == 0;
 
+    private static string _yielded = "";
+
+    /// <summary>The field measured its own frames, could not afford them even thinned out, and stops until the player picks a mode again.</summary>
+    public static void Yield(string reason) { _yielded = reason; Reason = reason; }
+    public static void ResetYield() => _yielded = "";
+
     public static void Evaluate(Window? window)
     {
         Reason = Decide(window);
@@ -42,6 +48,7 @@ internal static class FieldGovernor
         if (window is not { IsVisible: true } || window.WindowState == WindowState.Minimized) return "la ventana no está a la vista";
         if (choice == "always") return window.IsActive ? "" : "la ventana no está en primer plano";
 
+        if (_yielded.Length > 0) return _yielded;
         if (l.Game.Busy) return "hay una operación en curso";
         if (l.Game.Running) return "Minecraft está en marcha";
         if (!window.IsActive) return "la ventana no está en primer plano";
