@@ -2,7 +2,8 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 
-const HOME = os.homedir()
+// EMPI_PUBLISHER_HOME points settings, state and cache somewhere else: tests and demos use it so they never touch the real ones.
+const HOME = process.env.EMPI_PUBLISHER_HOME || os.homedir()
 const CONFIG_PATH = path.join(HOME, '.empilauncher-publisher.json')
 const STATE_PATH = path.join(HOME, '.empilauncher-publisher-state.json')
 const CACHE_PATH = path.join(HOME, '.empilauncher-publisher-cache.json')

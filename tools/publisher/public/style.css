@@ -844,3 +844,40 @@ dialog { border-radius: 24px; border: 1px solid var(--hair-strong); }
     .tile .v { font-size: 19px; }
     h1 { font-size: 24px; }
 }
+
+/* ------------------------------------------------------------ flags (main / whitelist / off) and the switches in the head */
+.pack-flags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.flag {
+    display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border-radius: 999px;
+    font: 500 10.5px/18px var(--font-code); letter-spacing: .02em; text-transform: uppercase;
+    border: 1px solid var(--hair); background: rgb(255 255 255 / .05); color: var(--text-2); white-space: nowrap;
+}
+.flag.main { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.flag.wl { color: var(--warn); border-color: rgb(255 177 74 / .45); }
+.flag.off { color: var(--text-3); border-style: dashed; }
+.pack-card.active .flag { background: rgb(5 5 6 / .08); border-color: rgb(5 5 6 / .28); color: #47473f; }
+.pack-card.active .flag.main { background: var(--bg); border-color: var(--bg); color: var(--text); }
+.pack-card.active .flag.wl { color: #7a4a00; border-color: rgb(122 74 0 / .5); }
+.pack-card.off { opacity: .6; }
+.pack-card.off:hover, .pack-card.off.active { opacity: 1; }
+.list-divider { margin: 14px 4px 4px; padding-top: 10px; border-top: 1px dotted var(--dot); color: var(--text-3); font: 500 11px/1.2 var(--font-code); letter-spacing: .06em; text-transform: uppercase; }
+
+.head-toggles { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.toggle-pill {
+    display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px 7px 10px; border-radius: 999px;
+    background: rgb(255 255 255 / .06); border: 1px solid var(--hair); color: var(--text-2);
+    font: 500 12.5px/1 var(--font-code); cursor: pointer;
+    transition: background .16s var(--ease-out), color .16s var(--ease-out), border-color .16s var(--ease-out), transform .16s var(--ease-out);
+}
+.toggle-pill .dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid currentColor; transition: background .16s var(--ease-out); }
+.toggle-pill:hover:not(:disabled) { border-color: var(--hair-strong); color: var(--text); }
+.toggle-pill:active:not(:disabled) { transform: scale(.97); }
+.toggle-pill[aria-pressed=true] { background: var(--text); border-color: var(--text); color: var(--bg); font-weight: 700; }
+.toggle-pill[aria-pressed=true] .dot { background: currentColor; }
+.toggle-pill.main[aria-pressed=true] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.toggle-pill.wl[aria-pressed=true] { background: var(--warn); border-color: var(--warn); color: #1a0e00; }
+.toggle-pill:disabled { opacity: .5; cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) { .toggle-pill, .toggle-pill .dot { transition: none; } .toggle-pill:active:not(:disabled) { transform: none; } }
+
+.off-notice { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 14px; padding: 14px 16px; border: 1px dashed var(--dot); border-radius: 16px; color: var(--text-2); }
+.off-notice p { margin: 0; flex: 1 1 260px; }

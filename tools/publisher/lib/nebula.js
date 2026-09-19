@@ -36,6 +36,11 @@ function serversDir(config) {
     return path.join(rootPath(config), 'servers')
 }
 
+/** Deactivated modpacks wait here: Nebula only reads `servers`, so what is in `hide` is never published. */
+function hideDir(config) {
+    return path.join(rootPath(config), 'hide')
+}
+
 // ---------------------------------------------------------------- running nebula
 
 function newestMtime(dir) {
@@ -128,35 +133,86 @@ function modsOf(dir) {
     return result
 }
 
-function summarize(config, id) {
-    const dir = path.join(serversDir(config), id)
-    const meta = readMeta(config, id)
+function summarize(config, id, active = true) {
+    const dir = path.join(active ? serversDir(config) : hideDir(config), id)
+    const meta = readJson(path.join(dir, 'servermeta.json'), null)
     if (!meta) return null
     const mods = modsOf(dir)
     return {
         id,
+        active,
         minecraft: minecraftVersionOf(id),
         name: meta.meta.name,
         packVersion: meta.meta.version,
         loader: loaderOf(meta),
         address: meta.meta.address,
         mainServer: !!meta.meta.mainServer,
+        whitelist: !!meta.meta.whitelist,
         counts: { required: mods.required.length, optionalon: mods.optionalon.length, optionaloff: mods.optionaloff.length },
         hasIcon: fs.existsSync(path.join(dir, 'icon.png'))
     }
 }
 
-function listPacks(config) {
-    const dir = serversDir(config)
+function packsIn(dir, active, config) {
     if (!fs.existsSync(dir)) return []
     return fs.readdirSync(dir, { withFileTypes: true })
         .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(dir, entry.name, 'servermeta.json')))
-        .map((entry) => summarize(config, entry.name))
+        .map((entry) => summarize(config, entry.name, active))
         .filter(Boolean)
-        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+        .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id), undefined, { sensitivity: 'base' }))
+}
+
+/** Every modpack: the active ones first (what gets published), then the deactivated ones (marked `active: false`). */
+function listPacks(config) {
+    return [...packsIn(serversDir(config), true, config), ...packsIn(hideDir(config), false, config)]
+}
+
+/**
+ * Deactivate (move to `hide`) or activate (move back to `servers`) a modpack. Nothing is deleted and nothing is lost: the
+ * folder just changes place. The change reaches players with the next Compile and Send. There is always one main server,
+ * so if the one being deactivated was it, the first remaining active pack is promoted and the caller is told.
+ */
+function setActive(config, id, active) {
+    if (!id || id !== path.basename(id)) throw new Error(`No existe el modpack "${id}".`)
+    const from = path.join(active ? hideDir(config) : serversDir(config), id)
+    const to = path.join(active ? serversDir(config) : hideDir(config), id)
+    if (!fs.existsSync(path.join(from, 'servermeta.json'))) {
+        throw new Error(active ? `El modpack "${id}" no esta desactivado.` : `No existe el modpack "${id}".`)
+    }
+    if (fs.existsSync(to)) throw new Error(`Ya hay un modpack llamado "${id}" en ${active ? 'los activos' : 'los desactivados'}.`)
+
+    const wasMain = !active && !!(readJson(path.join(from, 'servermeta.json'), null)?.meta?.mainServer)
+    fs.mkdirSync(path.dirname(to), { recursive: true })
+    fs.renameSync(from, to)
+
+    let promoted = null
+    if (wasMain) {
+        // A deactivated pack must not stay "the main one": clear it, and hand the role to another active pack if there is one.
+        writeMainFlag(path.join(to, 'servermeta.json'), false)
+        const next = packsIn(serversDir(config), true, config)[0]
+        if (next) {
+            writeMainFlag(path.join(serversDir(config), next.id, 'servermeta.json'), true)
+            promoted = next.id
+        }
+    }
+    return { id, active, promoted }
+}
+
+function writeMainFlag(file, value) {
+    const data = readJson(file, null)
+    if (!data) return
+    data.meta.mainServer = value
+    writeJson(file, data)
 }
 
 function getPack(config, id) {
+    if (!id || id !== path.basename(id)) throw new Error(`No existe el modpack "${id}".`)
+    // A deactivated pack can be looked at (and reactivated) but not edited.
+    if (!fs.existsSync(path.join(serversDir(config), id, 'servermeta.json')) && fs.existsSync(path.join(hideDir(config), id, 'servermeta.json'))) {
+        const dir = path.join(hideDir(config), id)
+        const meta = readJson(path.join(dir, 'servermeta.json'), null)
+        return { ...summarize(config, id, false), meta: meta.meta, mods: modsOf(dir), filesEntries: [], path: dir, javaMajor: null }
+    }
     const dir = assertPackId(config, id)
     const summary = summarize(config, id)
     const meta = readMeta(config, id)
@@ -186,6 +242,12 @@ function patchMeta(config, id, patch) {
     }
     for (const key of ['mainServer', 'autoconnect', 'whitelist']) {
         if (typeof patch[key] === 'boolean') meta[key] = patch[key]
+    }
+    // There is one main server: choosing this one takes the role from whichever had it.
+    if (patch.mainServer === true) {
+        for (const other of packsIn(serversDir(config), true, config)) {
+            if (other.id !== id && other.mainServer) writeMainFlag(path.join(serversDir(config), other.id, 'servermeta.json'), false)
+        }
     }
     if ('javaMajor' in patch) {
         if (patch.javaMajor) meta.javaOptions = JAVA_OPTIONS(patch.javaMajor)
@@ -341,7 +403,7 @@ function openFolder(config, id, what) {
 }
 
 module.exports = {
-    LOADERS, CATEGORIES, env, rootPath, baseUrl, serversDir, generateDistro, runNebula, ensureBuilt,
-    listPacks, getPack, patchMeta, createPack, saveMod, deleteMod, moveMod, saveIcon, iconPath, openFolder,
+    LOADERS, CATEGORIES, env, rootPath, baseUrl, serversDir, hideDir, generateDistro, runNebula, ensureBuilt,
+    listPacks, getPack, setActive, patchMeta, createPack, saveMod, deleteMod, moveMod, saveIcon, iconPath, openFolder,
     packDir, readServerMeta, writeServerMeta, modsOf, loaderOf, minecraftVersionOf
 }

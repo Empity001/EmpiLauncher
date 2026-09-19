@@ -20,7 +20,7 @@
     const PAPER = 'rgba(241, 239, 232, 0.4)'
     const PINK = 'rgba(255, 61, 139, 0.9)'
     const hyp = (a, b) => Math.sqrt(a * a + b * b)
-    const HOT = '.pack-card, .btn:not(:disabled), .subtab, .tab, .choice, .zone, .icon-btn, .segmented button, input, select, textarea, .mod-row, .prow, .module, .section'
+    const HOT = '.pack-card, .toggle-pill, .btn:not(:disabled), .subtab, .tab, .choice, .zone, .icon-btn, .segmented button, input, select, textarea, .mod-row, .prow, .module, .section'
 
     const read = () => { try { return localStorage.getItem(KEY) } catch { return null } }
     const write = (value) => { try { localStorage.setItem(KEY, value) } catch { /* private window */ } }

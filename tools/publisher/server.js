@@ -150,6 +150,12 @@ route('GET', '/api/versions/loader', ({ query }) => versions.loader(query.get('t
 route('GET', '/api/packs', () => nebula.listPacks(config.load()))
 route('GET', '/api/packs/:id', ({ params }) => nebula.getPack(config.load(), params.id))
 route('POST', '/api/packs/:id/meta', async ({ req, params }) => nebula.patchMeta(config.load(), params.id, await readJson(req)))
+route('POST', '/api/packs/:id/active', async ({ req, params }) => {
+    // Moving folders while Nebula, git or a build is reading them would corrupt the run.
+    if (activeJob && !activeJob.done) throw new HttpError(409, `Espera a que termine la tarea en marcha: ${activeJob.title}`)
+    const { active } = await readJson(req)
+    return nebula.setActive(config.load(), params.id, active === true)
+})
 route('POST', '/api/packs/:id/mods', async ({ req, params, query }) => {
     await nebula.saveMod(config.load(), params.id, query.get('category'), query.get('name'), req)
     return { ok: true }

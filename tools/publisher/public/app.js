@@ -420,14 +420,29 @@ function renderPackList() {
         list.replaceChildren(h('p', { class: 'muted' }, 'Todavía no hay modpacks. Crea el primero con “Nuevo”.'))
         return
     }
-    list.replaceChildren(...state.packs.map((pack) => h('button', {
-        class: `pack-card${pack.id === state.selectedId && !state.creating ? ' active' : ''}`,
+    const card = (pack) => h('button', {
+        class: `pack-card${pack.id === state.selectedId && !state.creating ? ' active' : ''}${pack.active === false ? ' off' : ''}`,
         onclick: () => selectPack(pack.id)
     },
     packIcon(pack),
     h('div', { class: 'pack-meta' },
         h('div', { class: 'pack-name' }, pack.name),
-        h('div', { class: 'pack-sub tnum' }, `${LOADER_NAMES[pack.loader.type] || '?'} · MC ${pack.minecraft} · v${pack.packVersion}`)))))
+        h('div', { class: 'pack-sub tnum' }, `${LOADER_NAMES[pack.loader.type] || '?'} · MC ${pack.minecraft} · v${pack.packVersion}`),
+        packFlags(pack)))
+    const active = state.packs.filter((pack) => pack.active !== false)
+    const inactive = state.packs.filter((pack) => pack.active === false)
+    list.replaceChildren(
+        ...active.map(card),
+        ...(inactive.length ? [h('div', { class: 'list-divider' }, `Desactivados (${inactive.length})`), ...inactive.map(card)] : []))
+}
+
+/** The little pills under a modpack's name: what players will see it as, and whether it is published at all. */
+function packFlags(pack) {
+    const flags = []
+    if (pack.active === false) flags.push(h('span', { class: 'flag off' }, 'Desactivado'))
+    if (pack.mainServer) flags.push(h('span', { class: 'flag main' }, 'Principal'))
+    if (pack.whitelist) flags.push(h('span', { class: 'flag wl' }, 'Whitelist'))
+    return flags.length ? h('div', { class: 'pack-flags' }, ...flags) : null
 }
 
 function packIcon(pack) {
@@ -469,6 +484,22 @@ function renderPackDetail() {
     }
 
     const modCount = pack.counts.required + pack.counts.optionalon + pack.counts.optionaloff
+
+    // A deactivated modpack is only a shelf: read it, reactivate it. Everything editable waits until it is active again.
+    if (pack.active === false) {
+        box.replaceChildren(h('section', { class: 'module hero' },
+            h('div', { class: 'pack-head' },
+                pack.hasIcon ? h('img', { class: 'pack-icon', src: packIconUrl(pack), alt: '' }) : h('div', { class: 'pack-icon' }, icon('package')),
+                h('div', { class: 'grow' },
+                    h('h1', {}, pack.name),
+                    h('p', { class: 'muted' }, `${LOADER_NAMES[pack.loader.type] || 'Sin loader'} · Minecraft ${pack.minecraft} · v${pack.packVersion} · ${modCount} mods`))),
+            packFlags(pack) ? h('div', { style: 'margin-top:10px' }, packFlags(pack)) : null,
+            h('div', { class: 'off-notice' },
+                h('p', {}, 'Este modpack está desactivado: no se publica y los jugadores no lo ven. Sus archivos siguen guardados. Al activarlo vuelve a la lista y a la siguiente compilación.'),
+                h('button', { class: 'btn primary', onclick: () => setActive(pack.id, true) }, withIcon('checkCircle', 'Activar modpack')))))
+        return
+    }
+
     const tabs = [['settings', 'Ajustes'], ['appearance', 'Apariencia'], ['protection', 'Protección'], ['mods', `Mods (${modCount})`], ['files', 'Archivos']]
 
     const tile = (name, value, sub) => h('div', { class: 'tile' }, h('span', { class: 'k' }, name), h('span', { class: 'v' }, value), sub ? h('span', { class: 'sub' }, sub) : null)
@@ -491,6 +522,13 @@ function renderPackDetail() {
                     h('h1', {}, pack.name),
                     pack.meta.description ? h('p', { class: 'muted' }, pack.meta.description) : null),
                 h('button', { class: 'btn small', onclick: () => openFolder('root') }, withIcon('folder', 'Abrir carpeta'))),
+            h('div', { class: 'head-toggles' },
+                headToggle('main', 'Servidor principal', pack.mainServer, (value) => setFlag(pack, 'mainServer', value),
+                    'El que se abre primero en el launcher. Solo puede haber uno: al marcar este, se lo quita al anterior.'),
+                headToggle('wl', 'Whitelist', pack.whitelist, (value) => setFlag(pack, 'whitelist', value),
+                    'Avisa a los jugadores de que este servidor solo deja entrar a quien esté en la lista.'),
+                headToggle('', 'Publicado', true, () => setActive(pack.id, false),
+                    'Pulsa para desactivarlo: deja de publicarse, sin borrar nada.')),
             h('div', { class: 'tiles' },
                 tile('Minecraft', pack.minecraft),
                 tile('Loader', LOADER_NAMES[pack.loader.type] || 'Sin loader', pack.loader.version || ''),
@@ -510,6 +548,38 @@ function renderPackDetail() {
     if (state.subtab === 'settings') fillLoaderVersions(pack)
     if (state.subtab === 'appearance') loadVisuals()
     if (state.subtab === 'protection') loadProtection()
+}
+
+/** A pill you press to switch one thing on or off. It saves at once (these are not part of the form's draft). */
+function headToggle(kind, label, pressed, onChange, hint) {
+    return h('button', {
+        type: 'button', class: `toggle-pill ${kind}`.trim(), 'aria-pressed': String(!!pressed), title: hint,
+        onclick: () => onChange(!pressed)
+    }, h('span', { class: 'dot', 'aria-hidden': 'true' }), label)
+}
+
+async function setFlag(pack, key, value) {
+    try {
+        await api(`/api/packs/${encodeURIComponent(pack.id)}/meta`, { method: 'POST', body: { [key]: value } })
+        toast(key === 'mainServer' ? (value ? `${pack.name} es ahora el servidor principal` : 'Ya no es el principal') : (value ? 'Marcado con whitelist' : 'Sin whitelist'))
+        await refreshAll()
+    } catch (err) {
+        toast(err.message, true)
+    }
+}
+
+async function setActive(id, active) {
+    try {
+        const result = await api(`/api/packs/${encodeURIComponent(id)}/active`, { method: 'POST', body: { active } })
+        state.selectedId = id
+        state.subtab = 'settings'
+        toast(active
+            ? 'Modpack activado. Compila y envía para publicarlo.'
+            : `Modpack desactivado. Compila y envía para retirarlo de los jugadores.${result.promoted ? ` ${result.promoted} pasa a ser el principal.` : ''}`)
+        await refreshAll()
+    } catch (err) {
+        toast(err.message, true)
+    }
 }
 
 function settingsForm(pack) {
@@ -569,7 +639,8 @@ function settingsForm(pack) {
                     h('select', { onchange: set('javaMajor') }, ...JAVA_CHOICES.map(([id, label]) => h('option', { value: id, selected: String(value('javaMajor', pack.javaMajor || '')) === id }, label)))))),
         h('section', { class: 'module' }, head('Opciones'),
             h('div', { class: 'checks' },
-                ...[['mainServer', 'Servidor principal'], ['whitelist', 'Tiene whitelist'], ['autoconnect', 'Conectar solo']].map(([key, label]) =>
+                // "Servidor principal", "Whitelist" and "Publicado" live in the head of the modpack and save at once.
+                ...[['autoconnect', 'Conectar solo']].map(([key, label]) =>
                     h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: value(key, !!meta[key]), onchange: set(key) }), label)))),
         h('details', { class: 'module advanced span2', open: !!(meta.discord && meta.discord.shortId) },
             h('summary', {}, 'Discord (Rich Presence)'),
