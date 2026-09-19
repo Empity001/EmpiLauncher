@@ -49,6 +49,7 @@ Códigos de error comunes: `unknown_method`, `bad_json`, `busy`, `no_server`, `n
 | `distro.load` | `{refresh?}` | `{tookMs, selectedServer, mainServer, servers[]}`. Sincroniza la configuración de mods y de Java con el índice, como el launcher clásico |
 | `distro.select` | `{id}` | `{selectedServer}` |
 | `distro.theme` | `{id}` | `{source: remote\|local\|none, theme}` (acento del modpack) |
+| `profile.select` | `{serverId, profileId}` | `{changed, serverId, profileId, pack, distribution}`. Cambia el perfil con el que se juega un modpack (ver «Perfiles»). Falla con `busy` mientras hay una operación o el juego en marcha, `no_profiles`, `no_profile` |
 | `pack.status` | `{id?}` | `{serverId, installed, installedVersion, remoteVersion, needsUpdate, modified, differences[], action: play\|update\|restore}` |
 
 ### Jugar
@@ -112,6 +113,17 @@ Cómo la ve el juego: al lanzar, el motor arranca un servidor de skins **solo en
 | `update.install` | Descarga el instalador de la versión publicada, comprueba su sha512 y lo lanza en silencio (`/S --updated --force-run`). `{launched, file, version}`. Errores: `no_update bad_channel bad_checksum download_failed install_failed cancelled busy game_running`. No se instala nada sin huella, con un nombre que no sea un archivo, ni con Minecraft abierto |
 | `update.cancel` | Corta la descarga en curso (`update.install` responde `cancelled`) |
 | `update.changelog` | `{current, entries:[{version, name, date, body, url}], reason?}`: las notas de **todas** las versiones más nuevas que la instalada, de la más reciente a la más antigua (no solo la última). Sale de la lista pública de releases de GitHub, se pide como mucho cada 10 min; deja fuera borradores y, salvo que se permitan, las versiones de prueba |
+
+### Perfiles
+
+Un modpack puede publicar `profiles` en su entrada del índice: sus `modules` son lo que juega el perfil por defecto, `profiles.pool` guarda los módulos
+que solo juegan otros perfiles, y cada perfil dice qué quitar (`remove`) y qué traer del pool (`add`) **por posición** (los ids de los módulos
+`File` son solo el nombre del archivo y se repiten). El motor aplica el perfil elegido (guardado en `native-profiles.json`) y el resto del launcher ve un
+modpack normal con el **mismo id**: las carpetas de la instancia (mundos, opciones) y la configuración de mods y de Java se comparten entre perfiles.
+La reparación de helios-core lee su propia copia (`profile-view/distribution.json`) con el perfil elegido. Lo que el jugador ajustó en un perfil
+(memoria, mods opcionales) se conserva al dejarlo y vuelve al regresar. En `distro.load`, cada modpack lleva `profiles`:
+`{default, selected, machineGb, recommended, list: [{id, name, description, recommendedBelowGb, ram: {minimumMb, maximumMb}|null, mods}]}` (`null` si no tiene).
+Los launchers que no conocen los perfiles ven solo los `modules` del perfil por defecto, como siempre.
 
 ## Eventos
 

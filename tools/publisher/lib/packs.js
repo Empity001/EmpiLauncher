@@ -4,6 +4,7 @@ const crypto = require('crypto')
 const git = require('./git')
 const nebula = require('./nebula')
 const largeAssets = require('./largeAssets')
+const profiles = require('./profiles')
 const { loadState, saveState } = require('./config')
 
 const MIRRORED = ['repo', 'servers', 'images']
@@ -122,6 +123,8 @@ async function compile(config, options, log, step) {
     const urlMap = Object.fromEntries(planned.map((file) => [file.rel, file.url]))
 
     const distribution = JSON.parse(fs.readFileSync(path.join(root, 'distribution.json'), 'utf8').replace(/^﻿/, ''))
+    // Profiles first: the distribution must already hold its final modules (base + pool) when large files get their Release links.
+    for (const line of profiles.applyToDistribution(distribution, (id) => { try { return nebula.readServerMeta(config, id) } catch { return null } }).lines) log(line)
     const rewritten = largeAssets.rewriteDistributionUrls(distribution, urlMap, nebula.baseUrl(config))
     fs.writeFileSync(path.join(repoRoot, 'distribution.json'), JSON.stringify(distribution, null, 2) + '\n', 'utf8')
     if (planned.length > 0) {

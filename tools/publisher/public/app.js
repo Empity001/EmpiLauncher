@@ -502,7 +502,7 @@ function renderPackDetail() {
         return
     }
 
-    const tabs = [['settings', 'Ajustes'], ['appearance', 'Apariencia'], ['protection', 'Protección'], ['mods', `Mods (${modCount})`], ['files', 'Archivos']]
+    const tabs = [['settings', 'Ajustes'], ['appearance', 'Apariencia'], ['protection', 'Protección'], ['mods', `Mods (${modCount})`], ['files', 'Archivos'], ['profiles', 'Perfiles']]
 
     const tile = (name, value, sub) => h('div', { class: 'tile' }, h('span', { class: 'k' }, name), h('span', { class: 'v' }, value), sub ? h('span', { class: 'sub' }, sub) : null)
     const counts = pack.counts
@@ -544,13 +544,14 @@ function renderPackDetail() {
         state.subtab === 'settings' ? settingsForm(pack)
             : state.subtab === 'appearance' ? appearanceView(pack)
                 : state.subtab === 'protection' ? protectionView(pack)
-                    : state.subtab === 'mods' ? modsView(pack) : filesView())
+                    : state.subtab === 'mods' ? modsView(pack) : state.subtab === 'profiles' ? profilesView() : filesView())
 
     Life?.ink($('.subtabs'), 'sub', '.subtab[aria-selected="true"]', 0)
     if (state.subtab === 'settings') fillLoaderVersions(pack)
     if (state.subtab === 'appearance') loadVisuals()
     if (state.subtab === 'protection') loadProtection()
     if (state.subtab === 'files') loadFiles()
+    if (state.subtab === 'profiles') loadProfiles()
 }
 
 /** A pill you press to switch one thing on or off. It saves at once (these are not part of the form's draft). */

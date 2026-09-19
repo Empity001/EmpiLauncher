@@ -149,6 +149,7 @@ function summarize(config, id, active = true) {
         address: meta.meta.address,
         mainServer: !!meta.meta.mainServer,
         whitelist: !!meta.meta.whitelist,
+        profiles: meta.profiles && Array.isArray(meta.profiles.list) ? meta.profiles.list.length : 0,
         counts: { required: mods.required.length, optionalon: mods.optionalon.length, optionaloff: mods.optionaloff.length },
         hasIcon: fs.existsSync(path.join(dir, 'icon.png'))
     }

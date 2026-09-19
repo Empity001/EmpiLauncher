@@ -129,6 +129,33 @@ public sealed class Launcher : IAsyncDisposable
         _ = LoadArtAsync();
     }
 
+    /// <summary>
+    /// Plays a modpack with another of its profiles. The engine makes the change at once and says whether the installation has to follow;
+    /// when it does (the modpack is installed) the normal update starts right away, so choosing a profile is one click.
+    /// </summary>
+    public async Task<bool> SelectProfileAsync(string serverId, string profileId)
+    {
+        if (Game.Busy || Game.Running) { Notice?.Invoke("Termina o detén lo que está en marcha antes de cambiar de perfil."); return false; }
+        ProfileSelectResult result;
+        try { result = await Client.CallAsync<ProfileSelectResult>("profile.select", new { serverId, profileId }, TimeSpan.FromSeconds(30)); }
+        catch (EngineException ex) { Notice?.Invoke(ex.Message); return false; }
+        if (!result.Changed) return false;
+
+        if (result.Distribution != null) Distro = result.Distribution;
+        if (serverId == SelectedId) Pack = result.Pack;
+        Changed?.Invoke();
+
+        var name = Distro?.Servers.FirstOrDefault(s => s.Id == serverId)?.Profiles?.List.FirstOrDefault(p => p.Id == profileId)?.Name ?? profileId;
+        if (serverId == SelectedId && result.Pack is { Installed: true, NeedsUpdate: true })
+        {
+            Notice?.Invoke($"Perfil {name}: se actualizan los mods de tu instalación.");
+            try { await Client.CallAsync<GameStartResult>("game.start", new { mode = "update" }); }
+            catch (EngineException ex) { Notice?.Invoke(ex.Message); }
+        }
+        else Notice?.Invoke($"Perfil {name} elegido.");
+        return true;
+    }
+
     public async Task RefreshPackAsync()
     {
         try { Pack = await Client.CallAsync<PackStatus>("pack.status"); }

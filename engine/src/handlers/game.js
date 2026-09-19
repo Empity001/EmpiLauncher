@@ -23,6 +23,7 @@ const { ensureCore } = require('./core')
 const { describeDistribution, refreshWithoutCache } = require('./distro')
 const { createPackState, getServerPackFingerprint } = require('../lib/packstate')
 const { onDistroLoaded } = require('../lib/distrosync')
+const profilesLib = require('../lib/profiles')
 const offlineLib = require('../lib/offline')
 const { currentAccount } = offlineLib
 const skinLib = require('../lib/skin')
@@ -311,7 +312,8 @@ function register(handlers, state) {
         detail('verify', login ? TEXT.wait : restoring ? TEXT.verifyingRestore : TEXT.verifyingInstalled)
 
         const repair = new (rt().FullRepair)(
-            ConfigManager.getCommonDirectory(), ConfigManager.getInstanceDirectory(), ConfigManager.getLauncherDirectory(),
+            // the repair reads the distribution from a folder: for a modpack with profiles, one that holds the profile the player chose
+            ConfigManager.getCommonDirectory(), ConfigManager.getInstanceDirectory(), profilesLib.repairDirectory(ConfigManager.getLauncherDirectory(), DistroAPI['rawDistribution']),
             ConfigManager.getSelectedServer(), DistroAPI.isDevMode()
         )
         let receiverDestroyed = false

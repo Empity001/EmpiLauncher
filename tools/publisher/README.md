@@ -63,6 +63,14 @@ Los avisos de la barra superior te dicen si falta algo. Las rutas se pueden camb
   todos reciban de nuevo los archivos libres. Los jugadores con un launcher anterior a esta función siguen viendo todo
   como protegido.
 - **Mods**: arrastra los `.jar` a Obligatorios / Opcional activado / Opcional apagado.
+- **Perfiles**: un mismo modpack jugado de varias maneras (por ejemplo Completo y Lite) en lugar de dos modpacks. Los perfiles
+  comparten mundos, opciones y configuración; solo cambian qué mods y archivos lleva cada uno y, si quieres, la memoria con la
+  que empieza. Subes **todos** los mods a la pestaña Mods y aquí, en una matriz mods × perfiles (y carpetas de archivos), marcas
+  qué perfil lleva cada uno. Cada perfil tiene nombre, descripción, memoria propia y «recomendarlo si el equipo tiene menos de N GB».
+  El perfil por defecto es el que reciben los jugadores la primera vez y el que ven los launchers que aún no conocen los perfiles.
+  Se guarda en `servermeta.json` (`profiles`: lo que cada perfil **no** lleva, con los mods por nombre sin versión); al compilar se
+  escribe en `distribution.json` y se comprueba que ningún perfil apunte a algo que no existe ni se quede sin mods. En el
+  launcher aparece un chip «PERFIL» junto al nombre del modpack que despliega la lista.
 - **Archivos**: todo lo que no es un mod y se copia al Minecraft de cada jugador. Tres columnas con su propio sitio
   (**Shaders** `.zip` en `shaderpacks`, **Resource packs** `.zip` en `resourcepacks` y **Configuraciones** en `config`),
   cada una con arrastrar y soltar, el **+** y quitar; debajo, **Otros archivos** (`options.txt`, `servers.dat`, datapacks…).

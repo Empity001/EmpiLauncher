@@ -11,6 +11,7 @@ const packs = require('./lib/packs')
 const launcher = require('./lib/launcher')
 const versions = require('./lib/versions')
 const protection = require('./lib/protection')
+const profiles = require('./lib/profiles')
 const appearance = require('./lib/appearance')
 const gh = require('./lib/gh')
 const { capture, runInJob, killTree } = require('./lib/exec')
@@ -186,6 +187,9 @@ route('POST', '/api/packs/:id/open', async ({ req, params }) => ({ folder: nebul
 
 route('GET', '/api/packs/:id/protection', ({ params }) => protection.describe(config.load(), params.id))
 route('POST', '/api/packs/:id/protection', async ({ req, params }) => protection.save(config.load(), params.id, await readJson(req)))
+
+route('GET', '/api/packs/:id/profiles', ({ params }) => profiles.describe(config.load(), params.id))
+route('POST', '/api/packs/:id/profiles', async ({ req, params }) => profiles.save(config.load(), params.id, (await readJson(req)).profiles))
 
 route('GET', '/api/packs/:id/visuals', ({ params }) => appearance.info(config.load(), params.id))
 route('POST', '/api/packs/:id/visual', ({ req, params, query }) => appearance.save(config.load(), params.id, query.get('kind'), query.get('ext'), req))

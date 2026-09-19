@@ -8,6 +8,7 @@ const { EngineError } = require('../ipc/server')
 const fs = require('fs')
 const offline = require('../lib/offline')
 const skins = require('../lib/skin')
+const profiles = require('../lib/profiles')
 
 /** Loads the classic launcher's config and distribution API the way its preloader does, once. */
 function ensureCore(state) {
@@ -22,8 +23,33 @@ function ensureCore(state) {
     const { DistroAPI, REMOTE_DISTRO_URL } = require(path.join(state.appJs, 'distromanager'))
     DistroAPI['commonDir'] = ConfigManager.getCommonDirectory()
     DistroAPI['instanceDir'] = ConfigManager.getInstanceDirectory()
+    // Tests serve their own distribution (engine/test/profiles.mjs); it can only be changed when they turn the test hooks on.
+    if (process.env.EMPI_ENGINE_TEST === '1' && process.env.EMPI_DISTRO_URL) DistroAPI['remoteUrl'] = process.env.EMPI_DISTRO_URL
     state.core = { ConfigManager, DistroAPI, REMOTE_DISTRO_URL }
+    routeProfiles(state, ConfigManager, DistroAPI)
     return state.core
+}
+
+/**
+ * Whatever loads the distribution (first load, refresh, the copy on disk when offline) hands over the modpacks as the player has them
+ * (see lib/profiles.js). The published index is kept as it came in `state.profiles.pristine`, so the player can change profile without
+ * fetching anything, and the copy helios-core writes to disk stays the published one.
+ */
+function routeProfiles(state, ConfigManager, DistroAPI) {
+    state.profiles = { pristine: null }
+    const load = DistroAPI['_loadDistributionNullable']
+    if (typeof load !== 'function') throw new Error('helios-core no longer has the distribution loader the profiles hook into.')
+    DistroAPI['_loadDistributionNullable'] = async function () {
+        const raw = await load.call(this)
+        if (raw == null) return raw
+        state.profiles.pristine = raw
+        try {
+            return profiles.effectiveDistribution(raw, profiles.readState(ConfigManager.getLauncherDirectory()).selected)
+        } catch (err) {
+            state.log.error('Unable to apply the profiles of the modpacks; using the published index as it is.', err)
+            return raw
+        }
+    }
 }
 
 // The single-value settings the UI may read and write, and how each maps onto ConfigManager.

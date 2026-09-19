@@ -7,6 +7,7 @@ const path = require('path')
 const { ensureCore } = require('./core')
 const { EngineError } = require('../ipc/server')
 const { onDistroLoaded } = require('../lib/distrosync')
+const profilesLib = require('../lib/profiles')
 
 const VISUALS = {
     banner: ['banner.png', 'banner.gif', 'banner.apng', 'banner.webp', 'banner.jpg', 'banner.jpeg', 'banner.avif', 'logo.png', 'logo.gif', 'logo.apng', 'logo.webp'],
@@ -57,6 +58,7 @@ function describeServer(ConfigManager, server) {
         accent: raw.accent || raw.theme?.accent || raw.theme?.color || null,
         javaOptions: raw.javaOptions || null,
         discord: raw.discord || null,
+        profiles: profilesLib.describe(raw),
         visuals
     }
 }

@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using EmpiLauncher.App.Services;
@@ -64,6 +65,7 @@ public partial class HomeView : UserControl
         Unloaded += (_, _) =>
         {
             _l.Changed -= OnChanged; _l.GameChanged -= OnGame; _l.ArtChanged -= RefreshBanner; _status.Stop(); PackBanner.Source = null; ProgressCloud.Source = null;
+            if (_flyout != null) _flyout.IsOpen = false;
             if (ReferenceEquals(LivingField.NextAction, PlayButton)) LivingField.NextAction = null;
             LivingField.Quiet.Remove(Hero);
         };
@@ -154,6 +156,7 @@ public partial class HomeView : UserControl
             Pills.Children.Add(Fmt.Pill($"v{pack.Version}"));
             if (pack.MainServer) Pills.Children.Add(Fmt.Pill("PRINCIPAL", Fmt.Res("AccentInkBrush"), Fmt.Res("AccentBrush")));
             if (pack.Whitelist) Pills.Children.Add(Fmt.Pill("WHITELIST", Fmt.Res("WarnBrush")));
+            if (pack.Profiles is { } profiles) Pills.Children.Add(ProfileChipFor(pack, profiles));
         }
 
         RefreshFacts();
@@ -181,7 +184,7 @@ public partial class HomeView : UserControl
     private void RebuildRail()
     {
         var servers = _l.Distro?.Servers ?? [];
-        var key = string.Join("|", servers.Select(s => $"{s.Id}:{s.Name}:{s.Version}:{s.MainServer}"));
+        var key = string.Join("|", servers.Select(s => $"{s.Id}:{s.Name}:{s.Version}:{s.MainServer}:{ProfileOf(s)?.Name}"));
         if (key == _railKey)
         {
             // the same cards with another one chosen: nothing is rebuilt, the paper fill moves over
@@ -199,7 +202,7 @@ public partial class HomeView : UserControl
             var name = new TextBlock { Text = server.Name, FontWeight = FontWeights.SemiBold, FontSize = 14, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = nameInk };
             var meta = new TextBlock
             {
-                Text = $"{server.MinecraftVersion}  v{server.Version}",
+                Text = $"{server.MinecraftVersion}  v{server.Version}" + (ProfileOf(server) is { } inUse ? $"  ·  {inUse.Name}" : ""),
                 Style = (Style)FindResource("CaptionText"), TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 3, 0, 0),
                 Foreground = metaInk
             };
@@ -217,6 +220,140 @@ public partial class HomeView : UserControl
             Paint(entry, server.Id == _l.SelectedId, animate: false);
         }
     }
+
+    // ---- profiles -------------------------------------------------------------------------------------------------
+
+    private static ProfileInfo? ProfileOf(Modpack pack) => pack.Profiles is { } p ? p.List.FirstOrDefault(x => x.Id == p.Selected) ?? p.List.FirstOrDefault() : null;
+
+    private Button? _chip;
+    private string _chipKey = "";
+    private string? _shownProfile;
+
+    /// <summary>
+    /// "PERFIL  LITE  v": one small chip in the row of what the modpack is, so profiles take no room of their own. The same chip is kept
+    /// while nothing about the profiles changes (the engine's news arrive often), or an open flyout would lose the thing it hangs from.
+    /// </summary>
+    private Button ProfileChipFor(Modpack pack, ProfilesInfo profiles)
+    {
+        var key = $"{pack.Id}|{profiles.Selected}|{string.Join(",", profiles.List.Select(p => p.Name))}";
+        if (_chip != null && key == _chipKey) return _chip;
+
+        var current = ProfileOf(pack)!;
+        var label = new TextBlock { Text = current.Name.ToUpperInvariant(), Style = (Style)FindResource("LabelText"), FontSize = 11 };
+        label.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
+        var pill = new Border { Style = (Style)FindResource("Pill"), Padding = new Thickness(11, 3, 10, 3) };
+        pill.SetResourceReference(Border.BorderBrushProperty, "AccentBrush");
+        pill.SetResourceReference(Border.BackgroundProperty, "AccentSoftBrush");
+        pill.Child = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Children =
+            {
+                new TextBlock { Text = "PERFIL", Style = (Style)FindResource("LabelText"), FontSize = 11, Foreground = Fmt.Res("Paper2Brush"), Margin = new Thickness(0, 0, 8, 0) },
+                label,
+                new TextBlock { Text = "", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 8, Foreground = Fmt.Res("Paper2Brush"), Margin = new Thickness(8, 1, 0, 0), VerticalAlignment = VerticalAlignment.Center }
+            }
+        };
+        var chip = new Button { Style = (Style)FindResource("BareButton"), Content = pill, Margin = new Thickness(0, 0, 8, 6) };
+        System.Windows.Automation.AutomationProperties.SetName(chip, $"Perfil: {current.Name}");
+        chip.Click += (_, _) => ToggleProfiles(chip, pack.Id, profiles);
+
+        // another profile than the one shown a moment ago: the name tears once, like a modpack's does when another is chosen
+        var shown = _shownProfile;
+        _shownProfile = key;
+        if (shown != null && shown.StartsWith(pack.Id + "|") && shown != key) Motion.WhenLoaded(chip, () => Motion.Tear(label));
+
+        _chip = chip; _chipKey = key;
+        return chip;
+    }
+
+    private Popup? _flyout;
+    private long _flyoutClosedAt;
+
+    private void ToggleProfiles(Button anchor, string packId, ProfilesInfo profiles)
+    {
+        // the click that closes an open flyout is the click on its own chip: it must not open it again
+        if (_flyout is { IsOpen: true }) { CloseFlyout(); return; }
+        if (Environment.TickCount64 - _flyoutClosedAt < 220) return;
+
+        var items = new List<UIElement>();
+        var list = new StackPanel();
+        var heading = new StackPanel { Margin = new Thickness(8, 4, 8, 12) };
+        heading.Children.Add(new TextBlock { Text = "PERFIL", Style = (Style)FindResource("LabelText") });
+        heading.Children.Add(new TextBlock { Text = "Mismos mundos y ajustes. Solo cambian los mods.", Style = (Style)FindResource("CaptionText"), Margin = new Thickness(0, 5, 0, 0), TextWrapping = TextWrapping.Wrap });
+        list.Children.Add(heading); items.Add(heading);
+        foreach (var profile in profiles.List)
+        {
+            var item = ProfileItem(profile, profile.Id == profiles.Selected, profile.Id == profiles.Recommended, () =>
+            {
+                CloseFlyout();
+                if (profile.Id != profiles.Selected) _ = _l.SelectProfileAsync(packId, profile.Id);
+            });
+            list.Children.Add(item); items.Add(item);
+        }
+
+        var panel = new Border
+        {
+            Width = 372, Padding = new Thickness(10, 10, 10, 6), CornerRadius = (CornerRadius)FindResource("RadiusModule"), BorderThickness = new Thickness(1),
+            Background = new SolidColorBrush(Color.FromArgb(0xF5, 0x0E, 0x0F, 0x11)), BorderBrush = Fmt.Res("HairStrongBrush"), Child = list, Opacity = 0
+        };
+        var popup = new Popup { AllowsTransparency = true, StaysOpen = false, PopupAnimation = PopupAnimation.None, Placement = PlacementMode.Bottom, PlacementTarget = anchor, VerticalOffset = 8, Child = panel };
+        popup.Closed += (_, _) => _flyoutClosedAt = Environment.TickCount64;
+        _flyout = popup;
+        popup.IsOpen = true;
+
+        // it unfolds from the chip: the panel grows from its top-left corner while its rows follow one after the other
+        Motion.WhenLoaded(panel, () =>
+        {
+            Motion.Pop(panel, new Point(0.08, 0), 210, 0.94);
+            Motion.Reveal(items, 32, 50, 200, 6);
+        });
+    }
+
+    private void CloseFlyout()
+    {
+        if (_flyout is not { IsOpen: true } popup) return;
+        if (popup.Child is UIElement child) Motion.Leave(child, () => popup.IsOpen = false, 120, -4);
+        else popup.IsOpen = false;
+    }
+
+    /// <summary>One profile in the flyout: paper-white when it is the one in use (like the chosen modpack in the rail), its facts underneath.</summary>
+    private Button ProfileItem(ProfileInfo profile, bool selected, bool recommended, Action chosen)
+    {
+        var back = new SolidColorBrush(); var nameInk = new SolidColorBrush(); var metaInk = new SolidColorBrush();
+        var content = new StackPanel();
+        content.Children.Add(new TextBlock { Text = profile.Name, FontWeight = FontWeights.SemiBold, FontSize = 14, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = nameInk });
+        if (!string.IsNullOrWhiteSpace(profile.Description))
+            content.Children.Add(new TextBlock { Text = profile.Description, Style = (Style)FindResource("CaptionText"), TextWrapping = TextWrapping.Wrap, Foreground = metaInk, Margin = new Thickness(0, 3, 0, 0) });
+        var facts = new List<string> { profile.Mods == 1 ? "1 MOD" : $"{profile.Mods} MODS" };
+        if (profile.Ram is { } ram) facts.Add(ram.MinimumMb == ram.MaximumMb ? $"MEMORIA {Gb(ram.MaximumMb)} GB" : $"MEMORIA {Gb(ram.MinimumMb)}–{Gb(ram.MaximumMb)} GB");
+        content.Children.Add(new TextBlock { Text = string.Join("  ·  ", facts), Style = (Style)FindResource("LabelText"), FontSize = 10.5, Foreground = metaInk, Margin = new Thickness(0, 7, 0, 0) });
+        if (recommended)
+        {
+            var tag = Fmt.Pill("RECOMENDADO PARA TU PC", Fmt.Res("AccentInkBrush"), Fmt.Res("AccentBrush"));
+            tag.Margin = new Thickness(0, 8, 0, 2); tag.HorizontalAlignment = HorizontalAlignment.Left;
+            content.Children.Add(tag);
+        }
+
+        var row = new Grid();
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.Children.Add(content);
+        if (selected)
+        {
+            var mark = new TextBlock { Text = "", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 13, Foreground = nameInk, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(10, 2, 2, 0) };
+            Grid.SetColumn(mark, 1);
+            row.Children.Add(mark);
+        }
+
+        var card = new Button { Style = (Style)FindResource("PackCard"), Margin = new Thickness(0, 0, 0, 6), Background = back, Content = row };
+        System.Windows.Automation.AutomationProperties.SetName(card, $"Elegir perfil {profile.Name}");
+        card.Click += (_, _) => chosen();
+        Paint(new RailCard(profile.Id, card, back, nameInk, metaInk), selected, animate: false);
+        return card;
+    }
+
+    private static string Gb(int megabytes) => (megabytes / 1024.0).ToString(megabytes % 1024 == 0 ? "0" : "0.#", System.Globalization.CultureInfo.InvariantCulture);
 
     private void RefreshFacts()
     {
