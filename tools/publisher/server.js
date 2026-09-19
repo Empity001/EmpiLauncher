@@ -12,6 +12,7 @@ const launcher = require('./lib/launcher')
 const versions = require('./lib/versions')
 const protection = require('./lib/protection')
 const profiles = require('./lib/profiles')
+const profileImport = require('./lib/profileimport')
 const appearance = require('./lib/appearance')
 const gh = require('./lib/gh')
 const { capture, runInJob, killTree } = require('./lib/exec')
@@ -190,6 +191,16 @@ route('POST', '/api/packs/:id/protection', async ({ req, params }) => protection
 
 route('GET', '/api/packs/:id/profiles', ({ params }) => profiles.describe(config.load(), params.id))
 route('POST', '/api/packs/:id/profiles', async ({ req, params }) => profiles.save(config.load(), params.id, (await readJson(req)).profiles))
+
+// bringing a modpack that already exists in as a profile: which ones could be, what it would do, and doing it
+route('GET', '/api/packs/:id/profiles/sources', ({ params }) => profileImport.candidates(config.load(), params.id))
+route('GET', '/api/packs/:id/profiles/import', ({ params, query }) => profileImport.plan(config.load(), params.id, query.get('from')))
+route('POST', '/api/packs/:id/profiles/import', async ({ req, params }) => {
+    // it copies files and may move a modpack's folder: never while Nebula, git or a build is reading them
+    if (activeJob && !activeJob.done) throw new HttpError(409, `Espera a que termine la tarea en marcha: ${activeJob.title}`)
+    const body = await readJson(req)
+    return profileImport.importFrom(config.load(), params.id, body.from, { name: body.name, baseName: body.baseName, deactivate: body.deactivate !== false })
+})
 
 route('GET', '/api/packs/:id/visuals', ({ params }) => appearance.info(config.load(), params.id))
 route('POST', '/api/packs/:id/visual', ({ req, params, query }) => appearance.save(config.load(), params.id, query.get('kind'), query.get('ext'), req))

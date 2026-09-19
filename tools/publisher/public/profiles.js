@@ -5,7 +5,7 @@
    stored is what each profile does NOT take (so a mod or file uploaded later is in every profile until someone decides otherwise). The
    editor works on single files; on saving, a folder whose files are all left out becomes one rule ("shaderpacks/"). */
 
-const profilesUi = { data: null, draft: null, dirty: false, filter: '', open: new Set(), uid: 0, cardSummaries: new Map() }
+const profilesUi = { data: null, draft: null, dirty: false, filter: '', open: new Set(), uid: 0, cardSummaries: new Map(), importing: null }
 
 const pKey = (path) => String(path).replace(/\\/g, '/').replace(/^\.?\/+/, '').toLowerCase()
 const ruleHits = (rule, path) => (rule.endsWith('/') ? pKey(path).startsWith(rule) : pKey(path) === rule)
@@ -157,17 +157,20 @@ function paintProfiles() {
             h('p', { class: 'prose' }, 'Un modpack puede jugarse de varias maneras: por ejemplo el Completo y uno Lite con menos carga. En el launcher los jugadores eligen el perfil desde un desplegable pequeño junto al nombre del modpack.'),
             h('p', { class: 'prose' }, 'Todos los perfiles comparten mundos, opciones y configuración: solo cambian qué mods y archivos lleva cada uno (y, si quieres, la memoria con la que empiezan). Sube todos los mods de todos los perfiles en la pestaña ', h('b', {}, 'Mods'),
                 ' y aquí marcas qué perfil usa cada uno.'),
-            items.mods.length === 0 ? h('p', { class: 'note' }, icon('alert'), 'Este modpack todavía no tiene mods. Sube primero los mods en su pestaña.') : null,
+            h('p', { class: 'prose' }, 'Lo más fácil: si ya tienes el otro modpack hecho (por ejemplo «PanolisSMP Lite»), tráelo aquí como perfil y yo calculo todo. También puedes empezar de cero y marcar a mano qué lleva cada perfil.'),
+            h('div', { id: 'profilesImport' }),
             h('div', { class: 'form-actions', style: 'margin-top:16px' },
+                h('button', { class: 'btn paper', type: 'button', onclick: openImport }, withIcon('package', 'Traer un modpack como perfil')),
                 h('button', {
-                    class: 'btn paper', type: 'button', disabled: items.mods.length === 0,
+                    class: 'btn', type: 'button', disabled: items.mods.length === 0, title: items.mods.length === 0 ? 'Este modpack todavía no tiene mods' : null,
                     onclick: () => {
                         const first = newProfile({ id: 'completo', name: 'Completo' })
                         profilesUi.draft = { default: first.uid, list: [first, newProfile({ name: 'Lite' })] }
                         profilesUi.dirty = true
                         paintProfiles()
                     }
-                }, withIcon('plus', 'Crear perfiles')))))
+                }, withIcon('plus', 'Crear perfiles desde cero')))))
+        paintImport()
         return
     }
 
@@ -178,8 +181,10 @@ function paintProfiles() {
             h('p', { class: 'muted' }, 'Cada tarjeta es un perfil. El «por defecto» es el que reciben los jugadores la primera vez, y el que ven los launchers que todavía no conocen los perfiles.'),
             h('div', { class: 'pcards', id: 'profileCards' }),
             h('div', { class: 'form-actions', style: 'margin-top:14px' },
-                h('button', { class: 'btn small', type: 'button', disabled: draft.list.length >= 12, onclick: addProfile }, withIcon('plus', 'Agregar perfil')),
-                h('span', { class: 'hint-line' }, 'El nuevo empieza igual que el perfil por defecto.'))),
+                h('button', { class: 'btn small', type: 'button', disabled: draft.list.length >= 12, onclick: openImport }, withIcon('package', 'Traer otro modpack como perfil')),
+                h('button', { class: 'btn small', type: 'button', disabled: draft.list.length >= 12, onclick: addProfile }, withIcon('plus', 'Agregar perfil vacío')),
+                h('span', { class: 'hint-line' }, 'El vacío empieza igual que el perfil por defecto.')),
+            h('div', { id: 'profilesImport' })),
         h('section', { class: 'section' },
             h('h2', {}, 'Qué lleva cada perfil'),
             h('p', { class: 'muted' }, 'Marcado: el perfil lo lleva. Vacío: no. En un mod, cada clic pasa de «lo lleva» a «lo lleva apagado al empezar» (○, opcional: el jugador puede encenderlo) y a «no lo lleva». Una carpeta entera se marca o desmarca de una vez; si dejas fuera todos los archivos de una carpeta, también queda fuera lo que subas ahí después.'),
@@ -194,6 +199,7 @@ function paintProfiles() {
     paintCards()
     paintMatrix()
     paintProfilesBar()
+    paintImport()
 }
 
 function addProfile() {
@@ -256,6 +262,7 @@ function paintCards() {
                     oninput: (event) => { const n = parse(event.target.value); profile.below = n == null ? '' : n; markProfilesDirty() }
                 })),
             summary,
+            ownFilesNote(profile),
             profile.keep.mods.length + profile.keep.files.length + profile.keep.off.length
                 ? h('p', { class: 'muted small-help' }, `${plural(profile.keep.mods.length + profile.keep.files.length + profile.keep.off.length, 'regla', 'reglas')} sin efecto ahora (un mod o archivo que ya no está). `,
                     h('button', { type: 'button', class: 'link', onclick: () => { profile.keep = { mods: [], files: [], off: [] }; markProfilesDirty(); paintProfiles() } }, 'Limpiar'))
@@ -267,6 +274,156 @@ function paintCards() {
                     onclick: () => removeProfile(profile)
                 }, withIcon('trash', 'Quitar'))))
     }))
+}
+
+// ---- bringing a modpack that already exists in as a profile
+
+/** "3 archivos propios" with the paths on hover, in the card of a profile that has its own versions of some files. */
+function ownFilesNote(profile) {
+    const own = profile.id && profilesUi.data.own ? profilesUi.data.own[profile.id] : null
+    if (!own || !own.length) return null
+    return h('p', { class: 'muted small-help', title: own.map((file) => file.path).join('\n') },
+        `${plural(own.length, 'archivo propio', 'archivos propios')} de este perfil (con el mismo nombre que otros pero distinto contenido): `, own.slice(0, 3).map((file) => file.path).join(', '), own.length > 3 ? '…' : '')
+}
+
+async function openImport() {
+    if (profilesUi.dirty) { toast('Guarda o descarta los cambios de los perfiles antes de traer un modpack.', true); return }
+    try {
+        const sources = await api(`/api/packs/${encodeURIComponent(state.selectedId)}/profiles/sources`)
+        profilesUi.importing = { sources, from: null, plan: null, name: '', baseName: 'Normal', deactivate: true, busy: false }
+    } catch (err) { toast(err.message, true); return }
+    paintImport()
+    const slot = $('#profilesImport')
+    if (slot) slot.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+}
+
+function closeImport() {
+    profilesUi.importing = null
+    paintImport()
+}
+
+async function chooseSource(sourceId) {
+    const importing = profilesUi.importing
+    importing.from = sourceId
+    importing.plan = null
+    paintImport()
+    try {
+        const plan = await api(`/api/packs/${encodeURIComponent(state.selectedId)}/profiles/import?from=${encodeURIComponent(sourceId)}`)
+        if (profilesUi.importing !== importing || importing.from !== sourceId) return
+        importing.plan = plan
+        importing.name = plan.suggestedName
+        importing.deactivate = plan.source.active
+    } catch (err) {
+        toast(err.message, true)
+        importing.from = null
+    }
+    paintImport()
+}
+
+async function runImport() {
+    const importing = profilesUi.importing
+    if (!importing || !importing.plan || importing.busy) return
+    importing.busy = true
+    paintImport()
+    try {
+        const name = importing.name.trim()
+        const result = await api(`/api/packs/${encodeURIComponent(state.selectedId)}/profiles/import`, {
+            method: 'POST', body: { from: importing.from, name, baseName: importing.baseName, deactivate: importing.deactivate }
+        })
+        profilesUi.importing = null
+        profilesUi.data = result.editor
+        profilesUi.draft = draftFromData(result.editor)
+        profilesUi.dirty = false
+        const parts = []
+        if (result.copied.mods) parts.push(plural(result.copied.mods, 'mod copiado', 'mods copiados'))
+        if (result.copied.files + result.copied.own) parts.push(plural(result.copied.files + result.copied.own, 'archivo copiado', 'archivos copiados'))
+        toast(`Perfil «${name}» listo${parts.length ? `: ${parts.join(' y ')}` : ''}. ${result.deactivated ? `«${importing.plan.source.name}» quedó desactivado (no se borró). ` : ''}${result.warning ? `No pude desactivarlo: ${result.warning} ` : ''}Falta compilar y enviar.`)
+        await refreshAll()
+    } catch (err) {
+        importing.busy = false
+        toast(err.message, true)
+        paintImport()
+    }
+}
+
+function paintImport() {
+    const slot = $('#profilesImport')
+    if (!slot) return
+    const importing = profilesUi.importing
+    if (!importing) { slot.replaceChildren(); return }
+    const { sources, plan } = importing
+    const mb = (bytes) => formatSize(bytes)
+
+    const list = (title, items, note) => (items.length
+        ? h('details', { class: 'import-more' }, h('summary', {}, title), note ? h('p', { class: 'muted small-help' }, note) : null, h('ul', {}, ...items.slice(0, 80).map((item) => h('li', {}, item)), items.length > 80 ? h('li', { class: 'muted' }, `… y ${items.length - 80} más`) : null))
+        : null)
+
+    let body
+    if (!sources.length) {
+        body = h('p', { class: 'note' }, icon('alert'), 'No hay otro modpack con la misma versión de Minecraft y el mismo loader que este.')
+    } else {
+        body = h('div', { class: 'import-sources', role: 'radiogroup', 'aria-label': 'Modpack a traer' },
+            ...sources.map((source) => h('button', {
+                type: 'button', role: 'radio', 'aria-checked': String(importing.from === source.id), class: `import-src${importing.from === source.id ? ' on' : ''}`, disabled: importing.busy,
+                onclick: () => chooseSource(source.id)
+            }, h('b', {}, source.name), h('span', { class: 'muted' }, `v${source.packVersion} · ${plural(source.mods, 'mod', 'mods')}${source.active ? '' : ' · desactivado'}`))))
+    }
+
+    let detail = null
+    if (importing.from && !plan) {
+        detail = h('div', { class: 'skeleton', style: 'height:96px;margin-top:14px' })
+    } else if (plan) {
+        const name = importing.name.trim() || 'el perfil'
+        const m = plan.mods
+        const f = plan.files
+        detail = h('div', { class: 'import-plan' },
+            h('div', { class: 'ram-fields', style: 'grid-template-columns:minmax(0,1fr)' },
+                h('label', {}, 'Nombre del perfil nuevo',
+                    h('input', { value: importing.name, maxlength: '32', 'aria-label': 'Nombre del perfil nuevo', oninput: (event) => { importing.name = event.target.value; paintImportPreview() } })),
+                plan.hadProfiles ? null : h('label', {}, `Nombre de lo que ya es «${plan.target.name}» (pasa a ser el otro perfil)`,
+                    h('input', { value: importing.baseName, maxlength: '32', 'aria-label': 'Nombre del perfil actual', oninput: (event) => { importing.baseName = event.target.value } }))),
+            h('ul', { class: 'import-summary', id: 'importSummary' }),
+            list(`Mods que solo tiene «${plan.source.name}» (se copian)`, m.copy.map((mod) => mod.names[0])),
+            list(`Mods que solo tiene «${plan.target.name}» (el perfil no los lleva)`, m.leave),
+            list('Mods que el perfil lleva apagados al empezar', m.off),
+            list('Archivos con el mismo nombre pero distinto contenido (versión propia del perfil)', f.own.map((file) => file.path)),
+            list('Archivos que solo tiene el otro modpack (se copian)', f.copy.map((file) => file.path)),
+            list('Archivos que solo tiene este modpack (el perfil no los lleva)', f.leave),
+            m.differentVersion.length ? h('p', { class: 'note' }, icon('alert'), `${plural(m.differentVersion.length, 'mod está', 'mods están')} en otra versión en «${plan.source.name}» (${m.differentVersion.slice(0, 3).map((mod) => mod.stem).join(', ')}${m.differentVersion.length > 3 ? '…' : ''}). El perfil usa la de este modpack.`) : null,
+            m.stillOff.length ? h('p', { class: 'note' }, icon('alert'), `${plural(m.stillOff.length, 'mod está', 'mods están')} apagados aquí y encendidos en «${plan.source.name}» (${m.stillOff.slice(0, 3).join(', ')}${m.stillOff.length > 3 ? '…' : ''}). El perfil los deja como están aquí.`) : null,
+            plan.source.active ? h('label', { class: 'check', style: 'margin-top:12px' },
+                h('input', { type: 'checkbox', checked: importing.deactivate, onchange: (event) => { importing.deactivate = event.target.checked } }),
+                `Desactivar «${plan.source.name}» al terminar (no se borra; se puede volver a activar)`) : null)
+        importing.previewName = name
+    }
+
+    slot.replaceChildren(h('div', { class: 'import-panel' },
+        h('div', { class: 'module-head' }, h('h3', {}, 'Traer un modpack como perfil'), h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Cerrar', onclick: closeImport }, icon('x'))),
+        h('p', { class: 'muted small-help' }, 'Elige un modpack que ya tengas. Copio a este los mods y archivos que solo tiene él, calculo qué lleva cada perfil y lo dejo guardado. No se borra nada.'),
+        body, detail,
+        plan ? h('div', { class: 'form-actions', style: 'margin-top:14px' },
+            h('button', { class: 'btn paper', type: 'button', disabled: importing.busy || !importing.name.trim(), onclick: runImport }, importing.busy ? 'Trayendo…' : 'Traer como perfil'),
+            h('button', { class: 'btn', type: 'button', disabled: importing.busy, onclick: closeImport }, 'Cancelar'),
+            h('span', { class: 'hint-line tnum' }, plan.bytes ? `Se copian ${mb(plan.bytes)}` : 'No hay que copiar nada')) : null))
+    paintImportPreview()
+}
+
+/** The plain-words summary of what "Traer como perfil" will do, with the name being typed. */
+function paintImportPreview() {
+    const importing = profilesUi.importing
+    const box = $('#importSummary')
+    if (!importing || !importing.plan || !box) return
+    const { plan } = importing
+    const name = importing.name.trim() || 'el perfil'
+    const m = plan.mods
+    const f = plan.files
+    const lines = [
+        `Se copian a «${plan.target.name}» ${plural(m.copy.length, 'mod', 'mods')} y ${plural(f.copy.length, 'archivo', 'archivos')} que solo tenía «${plan.source.name}».`,
+        `«${name}» lleva ${plural(m.shared + m.copy.length, 'mod', 'mods')} (${m.off.length ? `${m.off.length} apagados al empezar, ` : ''}${m.leave.length} de los de «${plan.target.name}» se quedan fuera).`
+    ]
+    if (f.own.length) lines.push(`${plural(f.own.length, 'archivo tiene', 'archivos tienen')} otro contenido en «${plan.source.name}»: «${name}» usa el suyo (por ejemplo ${f.own.slice(0, 2).map((file) => file.path).join(', ')}).`)
+    if (plan.hadProfiles) lines.push(`Lo que solo tiene «${plan.source.name}» no lo llevarán los perfiles que ya existen (${plan.existing.join(', ')}).`)
+    box.replaceChildren(...lines.map((line) => h('li', {}, line)))
 }
 
 // ---- the matrix

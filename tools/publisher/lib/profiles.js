@@ -14,6 +14,9 @@
 // required in the folders, it becomes optional for that profile). That is how a lighter profile ships the same mods with fewer of
 // them running.
 //
+// A file that must differ between profiles (the same path, another content: an options.txt, a mod's config) is kept next to the
+// original as files/_perfiles/<profile id>/<same path>. That profile plays it instead of the original; nothing else changes.
+//
 // Mods are named by their "stem" (the file name up to its version), so putting a newer jar in the folder keeps every choice; a file is
 // named by its path inside "files", and a path ending in "/" means everything under it.
 //
@@ -36,6 +39,8 @@ const MOD_TYPES = new Set(['FabricMod', 'ForgeMod', 'NeoForgeMod', 'LiteMod'])
 const OPTIONAL_OFF = { value: false, def: false }
 const MAX_PROFILES = 12
 const MAX_RULES = 2000
+// where a profile's own version of a file lives: files/_perfiles/<profile id>/<path inside the instance>
+const VARIANT_DIR = '_perfiles'
 // what the Apariencia tab looks after: every profile shows the same background, banner and theme
 const APPEARANCE_FILE = /^(background|banner)(-preview)?\.[a-z0-9]+$|^theme\.json$/i
 
@@ -175,24 +180,37 @@ function walk(dir, root, out) {
     return out
 }
 
+/** "_perfiles/lite/config/x.json" -> { profile: 'lite', target: 'config/x.json' }; null for any other path. */
+function variantOf(relative) {
+    const match = /^_perfiles\/([^/]+)\/(.+)$/i.exec(posix(relative))
+    return match ? { profile: match[1].toLowerCase(), target: match[2] } : null
+}
+
 /** Every mod (grouped by stem) and every file the modpack folders hold: the rows of the editor. */
 function inventory(config, id) {
-    const dir = nebula.packDir(config, id)
+    return inventoryOf(nebula.packDir(config, id))
+}
+
+/** The same for a modpack folder wherever it is (also a deactivated one). Each item carries its absolute path. */
+function inventoryOf(dir) {
     const mods = new Map()
     const found = nebula.modsOf(dir)
     for (const category of nebula.CATEGORIES) {
         for (const file of found[category]) {
             const stem = stemOf(file.name)
-            const row = mods.get(stem) || { stem, names: [], category, size: 0 }
+            const row = mods.get(stem) || { stem, names: [], category, size: 0, files: [] }
             row.names.push(file.name)
             row.size += file.size
+            row.files.push({ name: file.name, category, size: file.size, abs: path.join(dir, found.folder, category, file.name) })
             mods.set(stem, row)
         }
     }
     const filesRoot = path.join(dir, 'files')
-    const files = walk(filesRoot, filesRoot, []).filter((file) => file.path.includes('/') || !APPEARANCE_FILE.test(file.path))
-    files.sort((a, b) => a.path.localeCompare(b.path, undefined, { sensitivity: 'base', numeric: true }))
-    return { mods: [...mods.values()].sort((a, b) => a.stem.localeCompare(b.stem)), files }
+    const every = walk(filesRoot, filesRoot, []).map((file) => ({ ...file, abs: path.join(filesRoot, ...file.path.split('/')) }))
+    const byPath = (a, b) => a.path.localeCompare(b.path, undefined, { sensitivity: 'base', numeric: true })
+    const files = every.filter((file) => !variantOf(file.path) && (file.path.includes('/') || !APPEARANCE_FILE.test(file.path))).sort(byPath)
+    const variants = every.filter((file) => variantOf(file.path)).sort(byPath)
+    return { mods: [...mods.values()].sort((a, b) => a.stem.localeCompare(b.stem)), files, variants }
 }
 
 function tally(profile, items) {
@@ -210,7 +228,14 @@ function tally(profile, items) {
 function describe(config, id) {
     const profiles = stored(nebula.readServerMeta(config, id))
     const items = inventory(config, id)
-    const result = { profiles, items, totals: null, stale: {} }
+    const own = {}
+    for (const file of items.variants) {
+        const info = variantOf(file.path)
+        ;(own[info.profile] = own[info.profile] || []).push({ path: info.target, size: file.size })
+    }
+    // the rows the editor draws do not need where the files are on this disk
+    const rows = { mods: items.mods.map(({ files: _files, ...mod }) => mod), files: items.files.map(({ abs: _abs, ...file }) => file) }
+    const result = { profiles, items: rows, own, totals: null, stale: {} }
     if (!profiles) return result
     result.totals = Object.fromEntries(profiles.list.map((profile) => [profile.id, tally(profile, items)]))
     const stems = new Set(items.mods.map((mod) => mod.stem))
@@ -232,7 +257,19 @@ function save(config, id, input) {
     if (next) meta.profiles = next
     else delete meta.profiles
     nebula.writeServerMeta(config, id, meta)
+    dropOrphanVariants(config, id, next)
     return describe(config, id)
+}
+
+/** A profile that no longer exists has no use for its own files: they would only be published for nothing. */
+function dropOrphanVariants(config, id, profiles) {
+    const root = path.join(nebula.packDir(config, id), 'files', VARIANT_DIR)
+    if (!fs.existsSync(root)) return
+    const keep = new Set(profiles ? profiles.list.map((profile) => profile.id) : [])
+    for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+        if (!keep.has(entry.name.toLowerCase())) fs.rmSync(path.join(root, entry.name), { recursive: true, force: true })
+    }
+    if (fs.readdirSync(root).length === 0) fs.rmdirSync(root)
 }
 
 // ---------------------------------------------------------------- compile: the distribution
@@ -249,28 +286,49 @@ function applyToDistribution(distribution, metaOf) {
         if (!profiles) continue
 
         const packRam = server.javaOptions && server.javaOptions.ram ? server.javaOptions.ram : null
-        const original = server.modules || []
+        // the profiles' own versions of files are modules of their own in the index (Nebula publishes whatever is in "files"): they are
+        // not part of any profile until one of them picks them up below
+        const everything = server.modules || []
+        const variantModules = everything.filter((module) => module.type === 'File' && variantOf((module.artifact && module.artifact.path) || module.id))
+        const original = everything.filter((module) => !variantModules.includes(module))
         const byProfile = new Map(profiles.list.map((profile) => [profile.id, excluder(profile)]))
         const main = byProfile.get(profiles.default)
 
+        const ownFiles = new Map(profiles.list.map((profile) => [profile.id, new Map()]))
+        for (const module of variantModules) {
+            const info = variantOf((module.artifact && module.artifact.path) || module.id)
+            if (ownFiles.has(info.profile)) ownFiles.get(info.profile).set(fileKey(info.target), { target: info.target, module })
+        }
+
         const offSets = new Map(profiles.list.map((profile) => [profile.id, new Set(profile.optionalOff)]))
         const modStem = (module) => { const info = classify(module); return info && info.kind === 'mod' ? info.key : null }
-        // how the module is delivered to a profile: as published, or as an optional mod that starts off
-        const shapeFor = (profileId, module) => (modStem(module) !== null && offSets.get(profileId).has(modStem(module)) ? OPTIONAL_OFF : module.required)
-        const sameShape = (a, b) => JSON.stringify(a === undefined ? null : a) === JSON.stringify(b === undefined ? null : b)
-        const withShape = (module, shape) => { const { required: _old, ...rest } = module; return shape === undefined ? rest : { ...rest, required: shape } }
+        const pathOf = (module) => fileKey((module.artifact && module.artifact.path) || module.id)
+        // how a module reaches a profile: as published, as an optional mod that starts off, or with the profile's own version of the file
+        const deliveryFor = (profileId, module) => {
+            const stem = modStem(module)
+            const own = module.type === 'File' ? ownFiles.get(profileId).get(pathOf(module)) : null
+            return { required: stem !== null && offSets.get(profileId).has(stem) ? OPTIONAL_OFF : module.required, artifact: own ? own.module.artifact : null }
+        }
+        const deliveryKey = (delivery) => JSON.stringify([delivery.required === undefined ? null : delivery.required, delivery.artifact ? delivery.artifact.url : null])
+        const asPublished = (module) => ({ required: module.required, artifact: null })
+        const deliver = (module, delivery) => {
+            const { required: _old, ...rest } = module
+            const shaped = delivery.required === undefined ? rest : { ...rest, required: delivery.required }
+            return delivery.artifact ? { ...shaped, artifact: { ...shaped.artifact, url: delivery.artifact.url, size: delivery.artifact.size, MD5: delivery.artifact.MD5 } } : shaped
+        }
 
-        // the modpack itself is what the default profile plays, with the default profile's own way of delivering each mod
+        // the modpack itself is what the default profile plays, with the default profile's own way of delivering each module
         const kept = original.filter((module) => !excludes(main, module))
-        const base = kept.map((module) => { const shape = shapeFor(profiles.default, module); return sameShape(shape, module.required) ? module : withShape(module, shape) })
-        const pool = original.filter((module) => excludes(main, module))
+        const base = kept.map((module) => { const delivery = deliveryFor(profiles.default, module); return deliveryKey(delivery) === deliveryKey(asPublished(module)) ? module : deliver(module, delivery) })
+        const excluded = original.filter((module) => excludes(main, module))
+        const pool = [...excluded]
 
         // a copy of a module delivered in another way lives in the pool, once, however many profiles want it
-        const variants = new Map()
-        const variantFor = (module, shape) => {
-            const key = `${original.indexOf(module)}|${JSON.stringify(shape === undefined ? null : shape)}`
-            if (!variants.has(key)) { pool.push(withShape(module, shape)); variants.set(key, pool.length - 1) }
-            return variants.get(key)
+        const copies = new Map()
+        const copyFor = (module, delivery) => {
+            const key = `${original.indexOf(module)}|${deliveryKey(delivery)}`
+            if (!copies.has(key)) { pool.push(deliver(module, delivery)); copies.set(key, pool.length - 1) }
+            return copies.get(key)
         }
 
         const list = profiles.list.map((profile) => {
@@ -281,14 +339,21 @@ function applyToDistribution(distribution, metaOf) {
             if (!isDefault) {
                 kept.forEach((module, position) => {
                     if (excludes(rules, module)) { remove.push(position); return }
-                    const shape = shapeFor(profile.id, module)
-                    if (!sameShape(shape, base[position].required)) { remove.push(position); add.push(variantFor(module, shape)) }
+                    const delivery = deliveryFor(profile.id, module)
+                    if (deliveryKey(delivery) !== deliveryKey(deliveryFor(profiles.default, module))) { remove.push(position); add.push(copyFor(module, delivery)) }
                 })
-                original.filter((module) => excludes(main, module)).forEach((module, index) => {
+                excluded.forEach((module, index) => {
                     if (excludes(rules, module)) return
-                    const shape = shapeFor(profile.id, module)
-                    add.push(sameShape(shape, module.required) ? index : variantFor(module, shape))
+                    const delivery = deliveryFor(profile.id, module)
+                    add.push(deliveryKey(delivery) === deliveryKey(asPublished(module)) ? index : copyFor(module, delivery))
                 })
+            }
+            // a file only this profile has (there is no original to replace) goes in as one more file, for this profile only
+            for (const { target, module } of ownFiles.get(profile.id).values()) {
+                if (original.some((candidate) => candidate.type === 'File' && pathOf(candidate) === fileKey(target))) continue
+                const name = path.posix.basename(posix(target))
+                pool.push({ ...module, id: name, name, artifact: { ...module.artifact, path: posix(target) } })
+                add.push(pool.length - 1)
             }
             return {
                 id: profile.id,
@@ -340,4 +405,4 @@ function verify(server) {
     }
 }
 
-module.exports = { stemOf, slugify, normalize, stored, excluder, classify, inventory, describe, save, applyToDistribution, effectiveModules, verify, MOD_TYPES, MAX_PROFILES }
+module.exports = { stemOf, slugify, normalize, stored, excluder, classify, inventory, inventoryOf, variantOf, describe, save, applyToDistribution, effectiveModules, verify, MOD_TYPES, MAX_PROFILES, VARIANT_DIR, APPEARANCE_FILE, posix, fileKey }

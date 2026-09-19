@@ -71,6 +71,13 @@ Los avisos de la barra superior te dicen si falta algo. Las rutas se pueden camb
   Se guarda en `servermeta.json` (`profiles`: lo que cada perfil **no** lleva, con los mods por nombre sin versión); al compilar se
   escribe en `distribution.json` y se comprueba que ningún perfil apunte a algo que no existe ni se quede sin mods. En el
   launcher aparece un chip «PERFIL» junto al nombre del modpack que despliega la lista.
+  **Lo más fácil es «Traer un modpack como perfil»**: eliges uno que ya tengas (mismo Minecraft y loader, publicado o
+  desactivado), por ejemplo «PanolisSMP Lite» dentro de PanolisSMP, y lo repites con cuantos quieras. Compara las dos
+  carpetas, copia a este modpack los mods y archivos que solo tenía el otro, deja fuera del perfil nuevo lo que solo tiene
+  este, marca como «apagados al empezar» los opcionales que el otro entregaba apagados, y si un archivo tiene el mismo
+  nombre pero otro contenido (un `options.txt`, la config de un mod) lo guarda como versión propia del perfil en
+  `files/_perfiles/<perfil>/`. Te enseña un resumen antes, no borra nada y puede desactivar el modpack traído (se puede
+  volver a activar). La memoria y la descripción del otro modpack pasan al perfil.
 - **Archivos**: todo lo que no es un mod y se copia al Minecraft de cada jugador. Tres columnas con su propio sitio
   (**Shaders** `.zip` en `shaderpacks`, **Resource packs** `.zip` en `resourcepacks` y **Configuraciones** en `config`),
   cada una con arrastrar y soltar, el **+** y quitar; debajo, **Otros archivos** (`options.txt`, `servers.dat`, datapacks…).

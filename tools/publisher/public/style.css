@@ -997,3 +997,16 @@ button.link { background: none; border: 0; padding: 0; color: var(--text); font:
 .mcell[data-state=off] { border-style: dashed; border-color: var(--text-2); }
 .moff { width: 10px; height: 10px; border: 2px solid var(--text-2); border-radius: 50%; }
 @media (prefers-reduced-motion: reduce) { .mcell { transition: none; } .mcell:active { transform: none; } }
+
+/* bringing a modpack in as a profile */
+.import-panel { margin-top: 16px; padding: 16px 16px 14px; border: 1px solid var(--hair-strong); border-radius: 18px; background: rgb(17 18 21 / .7); }
+.import-sources { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; margin-top: 10px; }
+.import-src { display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 10px 14px; background: none; border: 1px solid var(--hair); border-radius: 14px; color: var(--text); font: inherit; cursor: pointer; transition: background .14s var(--ease-out), border-color .14s var(--ease-out); }
+.import-src:hover:not(:disabled) { border-color: var(--hair-strong); background: rgb(255 255 255 / .04); }
+.import-src.on { background: var(--text); border-color: var(--text); color: var(--bg); }
+.import-src.on .muted { color: var(--bg); opacity: .7; }
+.import-plan { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+.import-summary { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; color: var(--text); }
+.import-more summary { cursor: pointer; color: var(--text-2); font-size: 13px; }
+.import-more ul { margin: 6px 0 0; padding-left: 18px; max-height: 180px; overflow: auto; color: var(--text-2); font: 12px/1.6 var(--font-code); }
+@media (prefers-reduced-motion: reduce) { .import-src { transition: none; } }

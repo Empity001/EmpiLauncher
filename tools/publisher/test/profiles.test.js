@@ -352,3 +352,93 @@ test('leaving a mod out wins over handing it over switched off', () => {
     const lite = server.profiles.list[1]
     assert.ok(!profiles.effectiveModules(server, lite).some((module) => module.id === 'generated.fabricmod:iris:1.10.7@jar'))
 })
+
+// ------------------------------------------------------------ a file that differs between profiles (files/_perfiles/<profile>/<path>)
+
+const own = (profile, relative, tag) => ({ id: path.posix.basename(relative), name: path.posix.basename(relative), type: 'File', artifact: { size: 77, url: `https://example.test/servers/Pack-1.21.11/files/_perfiles/${profile}/${relative}`, MD5: tag, path: `_perfiles/${profile}/${relative}` } })
+const played = (server, profile, relative) => profiles.effectiveModules(server, profile).filter((module) => module.type === 'File' && module.artifact.path === relative)
+
+test("a profile's own version of a file replaces the original for that profile only", () => {
+    const distribution = fixture()
+    distribution.servers[0].modules.push(own('lite', 'options.txt', 'lite-md5'))
+    compile(distribution, { profiles: { default: 'completo', list: [{ name: 'Completo', id: 'completo' }, { name: 'Lite', id: 'lite' }] } })
+    const server = distribution.servers[0]
+    const [completo, lite] = server.profiles.list
+    assert.ok(![...server.modules, ...server.profiles.pool].some((module) => module.artifact && String(module.artifact.path).startsWith('_perfiles/')), 'the raw variant is not delivered as a file of its own')
+    const forLite = played(server, lite, 'options.txt')
+    assert.strictEqual(forLite.length, 1)
+    assert.strictEqual(forLite[0].artifact.MD5, 'lite-md5')
+    assert.ok(forLite[0].artifact.url.includes('/_perfiles/lite/options.txt'))
+    assert.strictEqual(forLite[0].artifact.size, 77)
+    assert.strictEqual(played(server, completo, 'options.txt')[0].artifact.MD5, 'y')
+})
+
+test('the copy keeps everything else of the original (a "free" file stays free), and its place in the instance', () => {
+    const distribution = fixture()
+    distribution.servers[0].modules.find((module) => module.id === 'options.txt').policy = 'free'
+    distribution.servers[0].modules.push(own('lite', 'options.txt', 'lite-md5'))
+    compile(distribution, { profiles: { default: 'completo', list: [{ name: 'Completo', id: 'completo' }, { name: 'Lite', id: 'lite' }] } })
+    const server = distribution.servers[0]
+    const copy = played(server, server.profiles.list[1], 'options.txt')[0]
+    assert.strictEqual(copy.policy, 'free')
+    assert.strictEqual(copy.id, 'options.txt')
+})
+
+test('when the default profile has its own version, the modpack itself carries it and the others get the original', () => {
+    const distribution = fixture()
+    distribution.servers[0].modules.push(own('lite', 'options.txt', 'lite-md5'))
+    compile(distribution, { profiles: { default: 'lite', list: [{ name: 'Lite', id: 'lite' }, { name: 'Completo', id: 'completo' }] } })
+    const server = distribution.servers[0]
+    assert.strictEqual(server.modules.find((module) => module.artifact.path === 'options.txt').artifact.MD5, 'lite-md5')
+    const [lite, completo] = server.profiles.list
+    assert.strictEqual(played(server, lite, 'options.txt')[0].artifact.MD5, 'lite-md5')
+    assert.strictEqual(played(server, completo, 'options.txt')[0].artifact.MD5, 'y')
+})
+
+test('a file only one profile has is delivered to that profile alone, where the profile says', () => {
+    const distribution = fixture()
+    distribution.servers[0].modules.push(own('lite', 'config/only-lite.json', 'only'))
+    compile(distribution, { profiles: { default: 'completo', list: [{ name: 'Completo', id: 'completo' }, { name: 'Lite', id: 'lite' }] } })
+    const server = distribution.servers[0]
+    const [completo, lite] = server.profiles.list
+    assert.strictEqual(played(server, completo, 'config/only-lite.json').length, 0)
+    const forLite = played(server, lite, 'config/only-lite.json')
+    assert.strictEqual(forLite.length, 1)
+    assert.strictEqual(forLite[0].id, 'only-lite.json')
+    assert.strictEqual(forLite[0].artifact.MD5, 'only')
+})
+
+test('a version for a profile that is gone, or for a file the profile leaves out, is not delivered', () => {
+    const distribution = fixture()
+    distribution.servers[0].modules.push(own('viejo', 'options.txt', 'stale'), own('lite', 'config/iris.properties', 'iris-lite'))
+    compile(distribution, { profiles: { default: 'completo', list: [{ name: 'Completo', id: 'completo' }, { name: 'Lite', id: 'lite', exclude: { files: ['config/iris.properties'] } }] } })
+    const server = distribution.servers[0]
+    const [completo, lite] = server.profiles.list
+    assert.strictEqual(played(server, lite, 'config/iris.properties').length, 0)
+    assert.strictEqual(played(server, completo, 'options.txt')[0].artifact.MD5, 'y')
+    assert.ok(![...server.modules, ...server.profiles.pool].some((module) => module.artifact && module.artifact.MD5 === 'stale'))
+})
+
+test('the editor does not list the profiles\' own files among the files, and says which profile has which', () => {
+    const { config, id, put } = makeRoot()
+    put('fabricmods/required/fabric-api-0.1.jar', 10)
+    put('files/options.txt', 5)
+    put('files/_perfiles/lite/options.txt', 6)
+    put('files/_perfiles/lite/config/x.json', 7)
+    const view = profiles.describe(config, id)
+    assert.deepStrictEqual(view.items.files.map((entry) => entry.path), ['options.txt'])
+    assert.deepStrictEqual(view.own, { lite: [{ path: 'config/x.json', size: 7 }, { path: 'options.txt', size: 6 }] })
+    assert.ok(view.items.files.every((entry) => !('abs' in entry)))
+})
+
+test('saving without a profile takes its own files away too, and the ones of the profiles that stay are left alone', () => {
+    const { config, id, put, dir } = makeRoot()
+    put('fabricmods/required/fabric-api-0.1.jar', 10)
+    put('files/_perfiles/lite/options.txt', 6)
+    put('files/_perfiles/viejo/options.txt', 6)
+    profiles.save(config, id, { list: [{ name: 'Completo', id: 'completo' }, { name: 'Lite', id: 'lite' }] })
+    assert.ok(fs.existsSync(path.join(dir, 'files', '_perfiles', 'lite', 'options.txt')))
+    assert.ok(!fs.existsSync(path.join(dir, 'files', '_perfiles', 'viejo')))
+    profiles.save(config, id, null)
+    assert.ok(!fs.existsSync(path.join(dir, 'files', '_perfiles')))
+})
