@@ -26,6 +26,7 @@ const { onDistroLoaded } = require('../lib/distrosync')
 const offlineLib = require('../lib/offline')
 const { currentAccount } = offlineLib
 const skinLib = require('../lib/skin')
+const { createJavaScan } = require('../lib/javascan')
 const { startSkinServer } = require('../lib/skinserver')
 const fsSync = require('fs')
 
@@ -57,6 +58,7 @@ const TEXT = {
     javaPrepare: 'Preparando la descarga de Java...',
     extractingJava: 'Extrayendo Java',
     javaInstalled: 'Java instalado.',
+    searchingJava: 'Buscando Java en el equipo... puede tardar un poco.',
     stopping: 'Deteniendo Minecraft...'
 }
 
@@ -188,12 +190,19 @@ function register(handlers, state) {
 
     // ---- Java ---------------------------------------------------------------------------------------------------------
 
+    /** The bounded Java search (lib/javascan.js): cheap local places first, then helios-core's full search with a time limit. */
+    function javaScan() {
+        const { ConfigManager } = core()
+        const { validateSelectedJvm, discoverBestJvmInstallation, javaExecFromRoot, ensureJavaDirIsRoot } = rt()
+        return createJavaScan({ java: { validateSelectedJvm, discoverBestJvmInstallation, javaExecFromRoot, ensureJavaDirIsRoot }, dataDir: ConfigManager.getDataDirectory(), log: log() })
+    }
+
     /** Finds a compatible Java (or asks the UI to offer installing one), then continues with the launch. */
     async function scanJava(server) {
         const { ConfigManager } = core()
         const options = server.effectiveJavaOptions
         detail('java-scan', TEXT.checkingJava)
-        const jvm = await rt().discoverBestJvmInstallation(ConfigManager.getDataDirectory(), options.supported)
+        const jvm = await javaScan().find(options.supported, { onSlow: () => detail('java-scan', TEXT.searchingJava) })
         if (jvm == null) {
             game.pendingJava = { serverId: server.rawServer.id }
             setPhase('idle')
@@ -607,7 +616,7 @@ function register(handlers, state) {
             const { ConfigManager } = core()
             const jExe = ConfigManager.getJavaExecutable(server.rawServer.id)
             if (jExe == null) return scanJava(server)
-            const details = await rt().validateSelectedJvm(rt().ensureJavaDirIsRoot(jExe), server.effectiveJavaOptions.supported)
+            const details = await javaScan().validate(rt().ensureJavaDirIsRoot(jExe), server.effectiveJavaOptions.supported)
             if (details != null) {
                 log().info('Jvm Details', details)
                 return pipeline({ login: true })

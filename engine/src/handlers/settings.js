@@ -12,6 +12,7 @@ const path = require('path')
 const { Type } = require('helios-distribution-types')
 const { ensureCore } = require('./core')
 const { EngineError } = require('../ipc/server')
+const { withTimeout } = require('../lib/javascan')
 
 const GiB = 1073741824
 const isModType = (type) => type === Type.ForgeMod || type === Type.LiteMod || type === Type.LiteLoader || type === Type.FabricMod
@@ -92,7 +93,8 @@ function register(handlers, state) {
         const server = await serverById(serverId)
         const target = execPath ?? ConfigManager.getJavaExecutable(server.rawServer.id) ?? ''
         if (!target) return { valid: false, version: null, vendor: null, path: '' }
-        const details = await rt().validateSelectedJvm(rt().ensureJavaDirIsRoot(target), server.effectiveJavaOptions.supported)
+        // bounded: a Java that does not answer must not freeze the settings screen either
+        const details = await withTimeout(rt().validateSelectedJvm(rt().ensureJavaDirIsRoot(target), server.effectiveJavaOptions.supported), 12000, 'Ese Java').catch(() => null)
         return details ? { valid: true, version: details.semverStr, vendor: details.vendor, path: target } : { valid: false, version: null, vendor: null, path: target }
     })
 
