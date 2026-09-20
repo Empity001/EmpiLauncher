@@ -583,6 +583,8 @@ function register(handlers, state) {
 
         const { server } = await currentServer()
         if (!server) throw new EngineError('no_server', 'no modpack is selected')
+        const blocked = state.notices && state.notices.gateFor(server.rawServer.id)
+        if (blocked) throw new EngineError('blocked', blocked)
         game.serverId = server.rawServer.id
         game.pendingJava = null
 
