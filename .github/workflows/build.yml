@@ -31,8 +31,10 @@ jobs:
         run: npm ci
         shell: bash
 
+      # This only checks that the classic launcher still builds. It must NEVER publish: with GH_TOKEN, electron-builder uploads its
+      # artifacts to a draft release of the same version if one exists, and the Publisher creates exactly such a draft (holding the native
+      # installer, which has the same file name) while this job is still running. They collided: the draft was replaced under the
+      # Publisher's upload ("HTTP 404 ... releases/<id>/assets") and the v3.4.0 release could not be created.
       - name: Build
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run dist
+        run: npm run dist -- --publish never
         shell: bash
