@@ -77,7 +77,8 @@ function createPackState({ ConfigManager, PackIntegrity, log }) {
         const instancePath = path.join(ConfigManager.getInstanceDirectory(), id)
         if (!(await fs.pathExists(instancePath))) return false
         try {
-            return (await fs.readdir(instancePath)).some((entry) => entry !== PACK_STATE_DIRECTORY)
+            // worlds and screenshots are the player's and stay when a modpack is taken off the PC: alone, they are not an installation
+            return (await fs.readdir(instancePath)).some((entry) => entry !== PACK_STATE_DIRECTORY && entry !== 'saves' && entry !== 'screenshots')
         } catch (err) {
             log.debug('Unable to inspect the local modpack installation.', err)
             return false

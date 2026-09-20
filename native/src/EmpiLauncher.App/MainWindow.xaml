@@ -25,7 +25,10 @@
                         WindowChrome.IsHitTestVisibleInChrome="True" AutomationProperties.Name="Actualización disponible"/>
             </StackPanel>
             <!-- the three window buttons sit in a small box of their own, so the dots behind never blur them together -->
-            <Border HorizontalAlignment="Right" VerticalAlignment="Center" Background="#F20E0F11" BorderBrush="{StaticResource HairStrongBrush}" BorderThickness="1"
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+            <!-- general notices: the megaphone (filled in by the code: it is the same icon the modpack's speech bubble is) -->
+            <ContentControl x:Name="MegaHost" Margin="0,0,12,0" Visibility="Collapsed" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True" IsTabStop="False"/>
+            <Border VerticalAlignment="Center" Background="#F20E0F11" BorderBrush="{StaticResource HairStrongBrush}" BorderThickness="1"
                     CornerRadius="16" Padding="3,2" WindowChrome.IsHitTestVisibleInChrome="True">
                 <StackPanel Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
                     <Button x:Name="MinButton" Style="{StaticResource IconButton}" Content="&#xE921;" Width="38" Height="28" ToolTip="Minimizar" AutomationProperties.Name="Minimizar"/>
@@ -33,6 +36,7 @@
                     <Button x:Name="CloseButton" Style="{StaticResource IconButton}" Content="&#xE8BB;" Width="38" Height="28" ToolTip="Cerrar" AutomationProperties.Name="Cerrar"/>
                 </StackPanel>
             </Border>
+            </StackPanel>
         </Grid>
 
         <!-- the selected modpack's picture (a small still preview made by the engine), then its scrim -->
@@ -47,6 +51,17 @@
 
         <!-- the screenshot viewer lives here while it is open -->
         <Grid x:Name="ViewerLayer" Grid.RowSpan="2"/>
+
+        <!-- on opening: what is waiting to be read, in a few seconds, and gone -->
+        <Border x:Name="NoticePopup" Grid.Row="1" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,24,0" Style="{StaticResource Module}"
+                Background="#F218181C" Padding="18,9" Cursor="Hand" AutomationProperties.Name="Tienes avisos sin leer. Pulsa para abrirlos">
+            <StackPanel x:Name="NoticePopupBody" Orientation="Horizontal"/>
+        </Border>
+
+        <!-- the notices, as a newspaper -->
+        <Grid x:Name="NoticesLayer" Grid.RowSpan="2" Visibility="Collapsed" Background="#B3060607">
+            <views:NoticesPanel x:Name="NoticesPanelView" HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="28,64,28,28"/>
+        </Grid>
 
         <!-- toast: short messages that do not need an answer -->
         <Border x:Name="Toast" Grid.Row="1" Visibility="Collapsed" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,110" MaxWidth="620"
@@ -74,7 +89,7 @@
                     <Button x:Name="DialogLink" Style="{StaticResource GhostButton}" Visibility="Collapsed" HorizontalAlignment="Left" Margin="0,12,0,0" Padding="14,6"/>
                     <!-- a skin's preview (96x192, drawn by the engine), shown as its pixels -->
                     <Image x:Name="DialogImage" Visibility="Collapsed" Width="90" Height="180" Stretch="Uniform" HorizontalAlignment="Left" Margin="4,14,0,0" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
-                    <StackPanel x:Name="DialogButtons" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0"/>
+                    <WrapPanel x:Name="DialogButtons" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0"/>
                 </StackPanel>
                 </Grid>
             </Border>

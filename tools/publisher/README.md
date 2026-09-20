@@ -33,6 +33,21 @@ no queda nada consumiendo recursos en segundo plano.
 3. **Enviar** sube el código, crea el Release `vX.Y.Z` con el instalador, su `.blockmap` y
    `latest.yml` (lo que necesita la actualización automática) y borra los instaladores viejos de `dist/`.
 
+## Avisos: publicar sin tocar modpacks ni launcher
+
+La pestaña **Avisos** controla lo que ven los jugadores, **sin compilar ni enviar nada más**: tiene su propio botón **Publicar avisos**, que solo sube
+`avisos.json` y su carpeta `avisos/` (un `git commit --only`, así que un modpack compilado y aún sin enviar no se cuela). Lo lee el launcher 3.4.0 en adelante.
+
+- **Avisos**: cada uno es *una página de periódico* que armas pieza por pieza en un lienzo (titulares, texto en una o dos columnas, imágenes, cajas, etiquetas y líneas) y que se exporta a una imagen WebP
+  (~40–95 KB); el launcher la muestra tal cual. Eliges gravedad (información / importante / crítico), **dónde se ve** (todos los modpacks, o los que marques: el perfil «Lite»
+  es otro modpack y se marca aparte), cuándo caduca y un botón opcional con enlace `https`. Un aviso que editas vuelve a salir como no leído.
+- **Modpacks**: por cada uno, **mantenimiento** (bloquea jugar y actualizar, con mensaje, hora de fin automática y lista de cuentas Microsoft que sí pasan, por UUID; escribes el nombre y el Publisher
+  busca su UUID), **agenda** (*desde* = «próximamente», *hasta* = «retirado»: botón de cristal roto y papelera) y **enlace de novedades**.
+- **Launcher**: **versión mínima** (por debajo, el launcher entero pide actualizar y no deja jugar) y enlace de novedades general.
+
+Lo que escribes se guarda en `~/.empilauncher-publisher-avisos/` (borradores e imágenes; nada de eso sube hasta «Publicar avisos»). Antes de publicar, el Publisher valida el
+documento con la misma función que usa el launcher, y si nada cambió no crea un commit vacío.
+
 ## Requisitos
 
 - Node.js, Git y `gh` (GitHub CLI) con sesión iniciada (`gh auth login`).

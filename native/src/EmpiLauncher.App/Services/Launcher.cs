@@ -92,6 +92,7 @@ public sealed class Launcher : IAsyncDisposable
         Game.ApplyState(JsonSerializer.SerializeToElement(new { phase = status.Phase, mode = status.Mode }));
         GameChanged?.Invoke();
         _ = RefreshStatusAsync();   // the home screen asked before the engine was up; ask again now
+        _ = RefreshNoticesAsync();
         try { Prefs = await Client.CallAsync<UiPrefs>("ui.get"); PrefsChanged?.Invoke(); } catch (EngineException) { }
         _ = LoadArtAsync();
     }
@@ -110,6 +111,7 @@ public sealed class Launcher : IAsyncDisposable
     {
         Config = await Client.CallAsync<ConfigResult>("config.get");
         Changed?.Invoke();
+        if (Notices != null) _ = RefreshNoticesAsync(network: false);   // who plays decides who a maintenance lets in
     }
 
     /// <summary>
@@ -491,6 +493,12 @@ public sealed class Launcher : IAsyncDisposable
                 Notice?.Invoke("Se detectaron cambios en las carpetas protegidas del modpack. Pulsa Restaurar para volver a la versión original.");
             }
         }
+        catch (EngineException ex) when (ex.Code == "blocked")
+        {
+            // the author closed this modpack (or this launcher is too old): the engine refused, and says why
+            await RefreshNoticesAsync();
+            Failure?.Invoke(new GameFailure("blocked", "No se puede jugar ahora", ex.Message));
+        }
         catch (EngineException ex) { Notice?.Invoke(ex.Message); }
     }
 
@@ -528,6 +536,9 @@ public sealed class Launcher : IAsyncDisposable
                 Distro = data.Deserialize<DistroResult>(Json.Options);
                 Changed?.Invoke();
                 break;
+            case "game.exit":
+                if (data.Deserialize<GameExit>(Json.Options) is { Stopped: false, Code: not (null or 0) } exit) GameCrashed?.Invoke(exit);
+                break;
             case "config.changed":
                 _ = RefreshConfigAsync();
                 break;
@@ -537,6 +548,72 @@ public sealed class Launcher : IAsyncDisposable
                 break;
         }
     }
+
+    // ---- avisos, mantenimiento, agenda, version minima ---------------------------------------------------------------
+
+    public NoticesView? Notices { get; private set; }
+    private long _noticesTick;
+
+    /// <summary>"Now" by the server's clock (moving the PC's clock changes nothing). Frozen while the last read failed, like the engine's.</summary>
+    public DateTimeOffset ServerNow => Notices == null || !DateTimeOffset.TryParse(Notices.ServerNow, out var at)
+        ? DateTimeOffset.UtcNow
+        : Notices.Online ? at.AddMilliseconds(Environment.TickCount64 - _noticesTick) : at;
+    /// <summary>What avisos.json says changed (a read, or something the player did with a notice).</summary>
+    public event Action? NoticesChanged;
+    /// <summary>Minecraft closed with an error (not because the player stopped it): the window offers the failure report.</summary>
+    public event Action<GameExit>? GameCrashed;
+
+    /// <summary>Asks EmpiPacks for avisos.json (a small conditional request). Quiet: without a network the last read stays and blocks stay blocks.</summary>
+    public async Task RefreshNoticesAsync(bool network = true)
+    {
+        try
+        {
+            Notices = await Client.CallAsync<NoticesView>(network ? "notices.refresh" : "notices.get", timeout: TimeSpan.FromSeconds(25));
+            _noticesTick = Environment.TickCount64;
+            NoticesChanged?.Invoke();
+        }
+        catch (Exception) { }
+    }
+
+    public async Task MarkNoticeAsync(string id, string state)
+    {
+        try { Notices = await Client.CallAsync<NoticesView>("notices.mark", new { id, state }); _noticesTick = Environment.TickCount64; NoticesChanged?.Invoke(); }
+        catch (Exception) { }
+    }
+
+    private static readonly AccessInfo AllClear = new("ok", null, null, null, null, null);
+
+    /// <summary>What stops this modpack from being played or updated (maintenance, not out yet, retired), or the launcher itself being too old.</summary>
+    public AccessInfo Access(string? modpackId)
+    {
+        if (Notices?.Launcher.Blocked == true) return new AccessInfo("launcher", Notices.Launcher.Message, null, null, null, Notices.Launcher.MinVersion);
+        return modpackId != null && Notices != null && Notices.Modpacks.TryGetValue(modpackId, out var entry) ? entry.Access : AllClear;
+    }
+
+    public static bool BlocksPlaying(AccessInfo access) => access.State is "launcher" or "upcoming" or "retired" || access is { State: "maintenance", Allowed: not true };
+
+    /// <summary>The link of this modpack's news, or the general one.</summary>
+    public string? NovedadesFor(string? modpackId) =>
+        modpackId != null && Notices != null && Notices.Modpacks.TryGetValue(modpackId, out var entry) && entry.Novedades != null ? entry.Novedades : Notices?.Launcher.Novedades;
+
+    public IEnumerable<NoticeInfo> ActiveNotices => Notices?.Notices.Where(n => n.State != "closed") ?? [];
+    public IEnumerable<NoticeInfo> GeneralNotices => ActiveNotices.Where(n => n.General);
+    /// <summary>The notices of one modpack. A profile has its own: the author ticks each modpack in "Donde se ve".</summary>
+    public IEnumerable<NoticeInfo> NoticesOf(string? modpackId) => modpackId == null ? [] : ActiveNotices.Where(n => !n.General && n.Targets.Contains(modpackId));
+
+    public Task<UninstallPreview> UninstallPreviewAsync(string id) => Client.CallAsync<UninstallPreview>("pack.uninstall.preview", new { id }, TimeSpan.FromSeconds(60));
+
+    public async Task<long> UninstallAsync(string id, bool includePersonal)
+    {
+        var result = await Client.CallAsync<UninstallResult>("pack.uninstall", new { id, includePersonal }, TimeSpan.FromMinutes(5));
+        await RefreshPackAsync();
+        Changed?.Invoke();
+        return result.FreedBytes;
+    }
+
+    /// <summary>The failure report as text to copy. Nothing in it identifies the player, and it is never sent anywhere.</summary>
+    public async Task<string> BuildReportAsync(string? serverId = null) =>
+        (await Client.CallAsync<ReportResult>("report.build", new { serverId }, TimeSpan.FromSeconds(30))).Text;
 
     public void TrimMemory() => _host?.Trim();
 

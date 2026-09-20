@@ -128,16 +128,52 @@ cuyo anfitrión no existe o no lo lista se ignora (ese modpack se muestra normal
 dentro de su anfitrión, con la memoria de cada uno (`ram`) tal como la fijó su autor en su propia ficha. Los launchers que no conocen los perfiles ignoran
 los dos campos y muestran todos los modpacks como siempre.
 
+### Avisos, mantenimiento, agenda y versión mínima
+
+Todo sale de un solo archivo, `avisos.json`, que vive junto a `distribution.json` en EmpiPacks y se publica **por su cuenta** (el botón «Publicar avisos» del
+Publisher no toca ningún modpack ni el launcher). El motor lo pide con una petición condicional (ETag) y **valida todo**: solo pasan textos, fechas, enlaces
+`https` y la ruta de una imagen dentro de `avisos/`; lo demás se descarta, así que un `avisos.json` torcido no puede ejecutar nada ni salirse de su carpeta.
+Los launchers anteriores a la 3.4.0 no lo leen.
+
+```json
+{ "version": 1, "generatedAt": "…",
+  "launcher": { "minVersion": "3.4.0", "novedades": "https://…" },
+  "notices": [{ "id": "…", "title": "…", "severity": "info|important|critical", "targets": ["*" | "<id de modpack>"],
+                "page": "avisos/<id>-<hash>.webp", "pageHash": "…", "summary": "…", "publishedAt": "…", "expiresAt": "…",
+                "button": { "label": "…", "url": "https://…" } }],
+  "modpacks": { "<id>": { "maintenance": { "active": true, "message": "…", "until": "…", "allow": ["<uuid de 32 hex>"] },
+                          "schedule": { "from": "…", "until": "…" }, "novedades": "https://…" } } }
+```
+
+Cada aviso es **una página de periódico** que el autor armó pieza por pieza en el Publisher y que se exporta a una imagen; el launcher la muestra tal cual
+(nunca interpreta HTML). El motor baja la imagen una sola vez (por `pageHash`) a `notices-cache`.
+
+| Método | Parámetros | Respuesta |
+|---|---|---|
+| `notices.get` | | La última lectura, sin red: `{online, fetchedAt, serverNow, launcher:{minVersion, blocked, message, novedades}, notices[], modpacks:{<id>:{access, novedades}}}`. Cada aviso: `{id, title, severity, general, targets, summary, button, publishedAt, expiresAt, image, state}` (`image` es un archivo local; `state`: `unread read later closed`) |
+| `notices.refresh` | | Igual, pero antes pregunta a EmpiPacks. Sin red no falla: se queda la última lectura y **lo que estaba bloqueado sigue bloqueado** hasta la próxima lectura con internet |
+| `notices.mark` | `{id, state}` | La vista con el estado nuevo. Un aviso editado (otro `pageHash` o título) vuelve a estar sin leer. «Recordar más tarde» (`later`) cuenta como sin leer y vuelve en el próximo arranque |
+| `report.build` | `{serverId?}` | `{text}`: el informe de fallo (versiones, Java, memoria, mods y el final del registro). **Se queda en el equipo**: no se envía a ningún sitio, y `redact()` quita tokens, JWT, nombre y UUID del jugador, correos, el nombre de usuario de las rutas y cadenas largas opacas |
+| `pack.uninstall.preview` | `{id}` | `{installed, gameBytes, savesBytes, screenshotsBytes}`: lo que liberaría «quitar de mi PC» |
+| `pack.uninstall` | `{id, includePersonal?}` | `{freedBytes}`. Borra los archivos del juego; `saves` y `screenshots` se quedan salvo `includePersonal:true`. Error `busy` con Minecraft en uso. Con solo mundos y capturas en la carpeta, `pack.status` ya no cuenta el modpack como instalado |
+
+**Acceso de cada modpack** (`modpacks[<id>].access`): `{state, message, until, from, allowed, minVersion}` con `state` = `ok`, `maintenance` (bloquea **jugar y actualizar**;
+`until` la termina sola; `allowed` es `true` si la cuenta en uso es Microsoft y su UUID está en `allow`: el jugador sin conexión nunca entra, y quien ya está dentro no
+se saca), `upcoming` (`from` aún no llegó), `retired` (`schedule.until` ya pasó) o `launcher` (la versión instalada es menor que `minVersion`: el launcher entero se
+bloquea, no solo un modpack). La hora es la del **servidor** (cabecera `Date` de GitHub) más un reloj monotónico, así que adelantar el reloj del PC no acorta nada; sin red se
+queda congelada en la última lectura. `game.start` responde con el error `blocked` (con `message`) cuando `access` bloquea; la interfaz ya no deja pulsar el botón, esto es
+la última barrera.
+
 ## Eventos
 
 | Evento | Datos |
 |---|---|
 | `game.state` | `{phase: idle\|launching\|updating\|restoring\|running\|stopping, mode, serverId, pid}` |
 | `game.progress` | Solo los campos que cambian; `null` borra uno: `{stage, text, percent, received, total, bytesPerSecond, pendingFiles}`. Etapas: `refresh protect clean verify download restore-personal prepare launch launched java-scan java-download java-extract java-installed stop` |
-| `game.failure` | `{code, title, message}`. Códigos: `distribution no_account protect clean verify download restore-personal metadata launch launchwrapper java unhandled` |
+| `game.failure` | `{code, title, message}`. Códigos: `distribution no_account protect clean verify download restore-personal metadata launch launchwrapper java blocked unhandled` |
 | `game.needJava` | `{serverId, suggestedMajor, distribution}` |
 | `game.done` | `{mode: update\|restore, changed}` |
-| `game.exit` | `{code, signal, stopped}` |
+| `game.exit` | `{code, signal, stopped}`. Con `code` distinto de 0 y sin que el jugador lo detuviera, la interfaz ofrece el informe de fallo (`report.build`) |
 | `game.notice` | `{level, text}` |
 | `pack.status` | igual que el método |
 | `distro.refreshed` | igual que `distro.load` sin `tookMs` |

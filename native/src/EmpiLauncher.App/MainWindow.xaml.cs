@@ -16,6 +16,10 @@ public partial class MainWindow : Window
     private readonly Launcher _l = Launcher.Instance;
     private readonly DispatcherTimer _idle = new() { Interval = TimeSpan.FromSeconds(4) };
     private readonly DispatcherTimer _toastTimer = new() { Interval = TimeSpan.FromSeconds(7) };
+    private readonly DispatcherTimer _noticeTimer = new() { Interval = TimeSpan.FromMinutes(5) };
+    private NoticeIconButton _mega = null!;
+    private bool _popupShown;
+    private DispatcherTimer? _popupTimer;
     private readonly Queue<Action> _dialogQueue = new();
     private bool _dialogOpen;
     private SettingsView? _settings;
@@ -42,6 +46,17 @@ public partial class MainWindow : Window
         _l.ArtChanged += UpdateBackdrop;
         _l.Changed += OnUpdateChanged;
         _l.Changed += OnAccountsChanged;
+        _l.NoticesChanged += OnNoticesChanged;
+        _l.GameCrashed += OnGameCrashed;
+        _mega = new NoticeIconButton(NoticeLook.Megaphone, "Avisos generales");
+        _mega.Clicked += () => ShowNotices(general: true);
+        MegaHost.Content = _mega;
+        NoticePopup.MouseLeftButtonUp += (_, _) => { HideNoticePopup(); ShowNotices(general: _l.GeneralNotices.Any(NoticeLook.Unread) || !_l.NoticesOf(_l.SelectedId).Any(NoticeLook.Unread)); };
+        NoticesPanelView.CloseRequested += HideNotices;
+        NoticesLayer.MouseLeftButtonDown += (_, e) => { if (ReferenceEquals(e.OriginalSource, NoticesLayer)) HideNotices(); };
+        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape && NoticesLayer.Visibility == Visibility.Visible) { HideNotices(); e.Handled = true; } };
+        // while the window is in front, EmpiPacks is asked for news every five minutes (a few KB, and nothing when it is hidden)
+        _noticeTimer.Tick += async (_, _) => { if (IsActive && WindowState != WindowState.Minimized && _l.Connected && !_l.Game.Busy) await _l.RefreshNoticesAsync(); };
         UpdateButton.Click += (_, _) => ShowUpdateDialog();
         _l.AuthWindow += (open, text) =>
         {
@@ -75,6 +90,7 @@ public partial class MainWindow : Window
         {
             await _l.StartAsync();
             _idle.Start();
+            _noticeTimer.Start();
         }
         catch (Exception ex)
         {
@@ -168,6 +184,7 @@ public partial class MainWindow : Window
 
     private void ShowHome()
     {
+        if (_l.Notices?.Launcher.Blocked == true) { ShowBlocked(); return; }   // a launcher below the minimum plays nothing until it is updated
         if (_l.SignedOut) { ShowLogin(); return; }   // nobody plays until an account is chosen: "Listo" from Ajustes lands here too
         ReleaseSettings();
         var home = new HomeView();
@@ -196,6 +213,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void OnAccountsChanged()
     {
+        if (ViewHost.Content is BlockedView) return;
         if (_l.Config == null) return;
         var signedOut = _l.SignedOut;
         if (_signedOut == signedOut) return;
@@ -212,6 +230,123 @@ public partial class MainWindow : Window
         _settings = view;
         ViewHost.Content = view;
         UpdateBackdrop();
+    }
+
+    // ---- avisos --------------------------------------------------------------------------------------------------------------
+
+    private void ShowBlocked()
+    {
+        ReleaseSettings();
+        ViewHost.Content = new BlockedView(update: () => _ = UpdateFromBlockedAsync(), exit: Close);
+        UpdateBackdrop();
+        UpdateMega();
+    }
+
+    private async Task UpdateFromBlockedAsync()
+    {
+        if (_l.Update == null) await _l.CheckUpdateAsync();
+        if (_l.Update != null) ShowUpdateDialog();
+        else ShowDialog("No se pudo buscar la actualización", "Comprueba tu conexión a internet y vuelve a intentarlo. También puedes bajar el instalador desde la página de versiones del launcher.", ("Entendido", null, true));
+    }
+
+    /// <summary>What avisos.json says changed: the icons, the screen (a launcher below the minimum), and, once, what is waiting to be read.</summary>
+    private void OnNoticesChanged()
+    {
+        var blocked = _l.Notices?.Launcher.Blocked == true;
+        if (blocked && ViewHost.Content is not BlockedView) { HideNotices(); ShowBlocked(); }
+        else if (!blocked && ViewHost.Content is BlockedView) ShowHome();
+        UpdateMega();
+        if (!_popupShown && _l.Notices != null && !blocked)
+        {
+            _popupShown = true;
+            SplashLayer.WhenRevealing(ShowNoticePopup);   // the logo's opening covers the window first
+        }
+    }
+
+    private void UpdateMega()
+    {
+        MegaHost.Visibility = _l.Notices != null && ViewHost.Content is not BlockedView ? Visibility.Visible : Visibility.Collapsed;
+        var general = _l.GeneralNotices.ToList();
+        _mega.Set(general.Count(NoticeLook.Unread), NoticeLook.BadgeBrush(general), general.Count > 0);
+    }
+
+    /// <summary>On opening: a small pill with what is unread (the general ones and the selected modpack's), by gravity, for five seconds.</summary>
+    private void ShowNoticePopup()
+    {
+        var general = _l.GeneralNotices.Where(NoticeLook.Unread).ToList();
+        var local = _l.NoticesOf(_l.SelectedId).Where(NoticeLook.Unread).ToList();
+        if (general.Count + local.Count == 0 || ViewHost.Content is BlockedView || NoticesLayer.Visibility == Visibility.Visible) return;
+
+        NoticePopupBody.Children.Clear();
+        void Group(string glyph, List<NoticeInfo> list)
+        {
+            if (list.Count == 0) return;
+            if (NoticePopupBody.Children.Count > 0) NoticePopupBody.Children.Add(new Border { Width = 1, Margin = new Thickness(6, 2, 18, 2), Background = Fmt.Res("HairStrongBrush") });
+            NoticePopupBody.Children.Add(new TextBlock { Text = glyph, FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 16, Foreground = Fmt.Res("PaperBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) });
+            foreach (var severity in new[] { "critical", "important", "info" })
+            {
+                var count = list.Count(n => n.Severity == severity);
+                if (count == 0) continue;
+                NoticePopupBody.Children.Add(new System.Windows.Shapes.Ellipse { Width = 9, Height = 9, Fill = NoticeLook.BrushOf(severity), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0) });
+                NoticePopupBody.Children.Add(new TextBlock { Text = count.ToString(), FontFamily = (FontFamily)FindResource("MonoFont"), FontSize = 12.5, Foreground = Fmt.Res("PaperBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) });
+            }
+        }
+        Group(NoticeLook.Megaphone, general);
+        Group(NoticeLook.Bubble, local);
+        NoticePopup.Visibility = Visibility.Visible;
+        Motion.Rise(NoticePopup, 0, 240, -10);   // it drops in from above, where the title bar is
+
+        _popupTimer?.Stop();
+        _popupTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _popupTimer.Tick += (_, _) => HideNoticePopup();
+        _popupTimer.Start();
+    }
+
+    private void HideNoticePopup()
+    {
+        _popupTimer?.Stop();
+        if (NoticePopup.Visibility != Visibility.Visible) return;
+        Motion.Leave(NoticePopup, () => NoticePopup.Visibility = Visibility.Collapsed, 160, -8);
+    }
+
+    /// <summary>Opens the newspaper on the general notices (the megaphone) or on those of the selected modpack (the speech bubble).</summary>
+    public void ShowNotices(bool general)
+    {
+        HideNoticePopup();
+        if (ViewHost.Content is BlockedView) return;
+        NoticesPanelView.Open(general);
+        NoticesLayer.Visibility = Visibility.Visible;
+        // a panel that is not anchored to a button grows from its own centre, and the veil behind it fades in
+        Motion.Animate(NoticesLayer, OpacityProperty, 0, 1, 160);
+        Motion.Pop(NoticesPanelView, new Point(0.5, 0.5), 220, 0.96, fade: false);
+    }
+
+    private void HideNotices()
+    {
+        if (NoticesLayer.Visibility != Visibility.Visible) return;
+        Motion.Leave(NoticesLayer, () => NoticesLayer.Visibility = Visibility.Collapsed, 140);
+    }
+
+    // ---- when the game closes with an error: the failure report ------------------------------------------------------------
+
+    private void OnGameCrashed(GameExit exit) => ShowDialog(
+        "Minecraft se cerró con un error",
+        $"El juego terminó de forma inesperada (código {exit.Code}). Puedes copiar un informe con lo que hace falta para entender qué pasó. No se envía a ningún sitio y no lleva tu nombre, tu sesión ni las rutas de tu usuario.",
+        ("Ahora no", null, false), ("Copiar informe", () => _ = CopyReportAsync(), true));
+
+    /// <summary>Builds the report (versions, Java, memory, mods, the end of the game's log) and puts it on the clipboard.</summary>
+    internal async Task CopyReportAsync()
+    {
+        try
+        {
+            var text = await _l.BuildReportAsync(_l.Selected?.Id);
+            Clipboard.SetText(text);
+            ShowToast("Informe copiado. Pégalo donde quieras compartirlo.");
+        }
+        catch (Exception ex)
+        {
+            ShowDialog("No se pudo preparar el informe", ex.Message, ("Entendido", null, true));
+        }
     }
 
     // ---- the modpack's picture behind the home screen -------------------------------------------------------------
@@ -292,6 +427,7 @@ public partial class MainWindow : Window
         _dialogOpen = true;
         DialogTitle.Text = title;
         DialogMessage.Text = message;
+        DialogPanel.Width = buttons.Length >= 3 ? 620 : 480;   // three answers side by side need more room than two
         DialogButtons.Children.Clear();
         foreach (var (label, action, primary) in buttons)
         {

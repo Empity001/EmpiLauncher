@@ -43,6 +43,10 @@ internal sealed class AboutTab : SettingsTab
         f.Children.Add(FolderRow("Configuración", config.LauncherDirectory));
         Root.Children.Add(folders);
 
+        var report = Ui.Section("Informe de fallo", out var r, "Para pedir ayuda: reúne las versiones, Java, la memoria, los mods y el final del registro del juego. Se copia a tu portapapeles; no se envía a ningún sitio y no lleva tu nombre, tu sesión ni las rutas de tu usuario.");
+        r.Children.Add(Ui.Row("Copiar el informe", "Del modpack que tienes elegido.", Ui.Button("Copiar informe", () => _ = ((MainWindow)Application.Current.MainWindow).CopyReportAsync(), "GhostButton", 18)));
+        Root.Children.Add(report);
+
         var cost = Ui.Section("Consumo ahora mismo", out var c, "Lo que usan en este instante la interfaz y el motor. La interfaz devuelve memoria al sistema cuando está quieta.");
         var ui = Ui.Text("", "BodyText");
         var engine = Ui.Text("", "BodyText");

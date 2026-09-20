@@ -48,6 +48,8 @@ public partial class HomeView : UserControl
     private string _railKey = "";
     private string? _avatarFor;
     private readonly System.Windows.Threading.DispatcherTimer _status = new() { Interval = TimeSpan.FromSeconds(90) };
+    // maintenance ends by itself, a modpack opens on its date: the time is looked at again every half minute (no network: what the engine already has)
+    private readonly System.Windows.Threading.DispatcherTimer _agenda = new() { Interval = TimeSpan.FromSeconds(30) };
 
     public event Action? OpenSettings;
 
@@ -56,7 +58,7 @@ public partial class HomeView : UserControl
         InitializeComponent();
         Loaded += (_, _) =>
         {
-            _l.Changed += OnChanged; _l.GameChanged += OnGame; _l.ArtChanged += RefreshBanner;
+            _l.Changed += OnChanged; _l.GameChanged += OnGame; _l.ArtChanged += RefreshBanner; _l.NoticesChanged += OnChanged; _agenda.Start();
             // First, so what Refresh fills in below is already waiting its turn (invisible) and never flashes. While the logo's opening
             // still covers the window the parts wait hidden, and arrive the moment it uncovers them.
             if (SplashLayer.Playing)
@@ -72,7 +74,7 @@ public partial class HomeView : UserControl
         };
         Unloaded += (_, _) =>
         {
-            _l.Changed -= OnChanged; _l.GameChanged -= OnGame; _l.ArtChanged -= RefreshBanner; _status.Stop(); PackBanner.Source = null; ProgressCloud.Source = null;
+            _l.Changed -= OnChanged; _l.GameChanged -= OnGame; _l.ArtChanged -= RefreshBanner; _l.NoticesChanged -= OnChanged; _status.Stop(); _agenda.Stop(); _glass?.Stop(); PackBanner.Source = null; ProgressCloud.Source = null;
             if (_flyout != null) _flyout.IsOpen = false;
             if (ReferenceEquals(LivingField.NextAction, PlayButton)) LivingField.NextAction = null;
             LivingField.Quiet.Remove(Hero);
@@ -83,6 +85,12 @@ public partial class HomeView : UserControl
             var window = Window.GetWindow(this);
             if (window is { IsActive: true, WindowState: not WindowState.Minimized } && !_l.Game.Busy) _ = _l.RefreshStatusAsync();
         };
+        _agenda.Tick += (_, _) =>
+        {
+            var window = Window.GetWindow(this);
+            if (window is { IsActive: true, WindowState: not WindowState.Minimized } && !_l.Game.Busy) _ = _l.RefreshNoticesAsync(network: false);
+        };
+        TrashButton.Click += async (_, _) => await TrashAsync();
         SettingsButton.Click += (_, _) => OpenSettings?.Invoke();
         PlayButton.Click += async (_, _) => await _l.PrimaryActionAsync();
         OfflineButton.Click += (_, _) => ((MainWindow)Application.Current.MainWindow).ShowOfflinePrompt();
@@ -166,7 +174,10 @@ public partial class HomeView : UserControl
         // The chip stays where it is while nothing about the profiles changes: taking it out of the row and putting it back (the engine's news
         // arrive all the time) would close a flyout that is open, which hangs from it.
         var chip = pack != null && host?.Profiles is { } profiles ? ProfileChipFor(host, profiles) : null;
-        for (var i = Pills.Children.Count - 1; i >= 0; i--) if (!ReferenceEquals(Pills.Children[i], chip)) Pills.Children.RemoveAt(i);
+        var news = NewsPill();
+        var bubble = BubbleIcon();
+        for (var i = Pills.Children.Count - 1; i >= 0; i--)
+            if (!ReferenceEquals(Pills.Children[i], chip) && !ReferenceEquals(Pills.Children[i], news) && !ReferenceEquals(Pills.Children[i], bubble)) Pills.Children.RemoveAt(i);
         if (pack != null)
         {
             var pills = new List<UIElement> { Fmt.Pill(pack.MinecraftVersion), Fmt.Pill($"v{pack.Version}") };
@@ -175,11 +186,56 @@ public partial class HomeView : UserControl
             for (var i = 0; i < pills.Count; i++) Pills.Children.Insert(i, pills[i]);
             if (chip != null && !Pills.Children.Contains(chip)) Pills.Children.Add(chip);
         }
+        if (!Pills.Children.Contains(news)) Pills.Children.Add(news);
+        if (!Pills.Children.Contains(bubble)) Pills.Children.Add(bubble);
+        RefreshNoticeBits(news, bubble);
 
         RefreshFacts();
         RefreshAccount();
-        RefreshGame();
+        RefreshGame();   // it ends by looking at what stands in the way of playing (maintenance, date, retired): RefreshAccess
         OnPackChanged();
+    }
+
+    // ---- avisos of this modpack ------------------------------------------------------------------------------------------
+
+    private Button? _newsPill;
+    private NoticeIconButton? _bubbleIcon;
+
+    /// <summary>"NOVEDADES ↗": the link the author gave this modpack (or the general one), in the row of what the modpack is.</summary>
+    private Button NewsPill()
+    {
+        if (_newsPill != null) return _newsPill;
+        var pill = Fmt.Pill("NOVEDADES  ↗", Fmt.Res("PaperBrush"));
+        pill.Margin = new Thickness(0);
+        var button = new Button { Style = (Style)FindResource("BareButton"), Content = pill, Margin = new Thickness(0, 0, 8, 6), Visibility = Visibility.Collapsed, Cursor = System.Windows.Input.Cursors.Hand };
+        System.Windows.Automation.AutomationProperties.SetName(button, "Novedades de este modpack");
+        button.Click += (_, _) =>
+        {
+            if (_l.NovedadesFor(_l.Selected?.Id) is { } url && Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps)
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uri.ToString()) { UseShellExecute = true }); } catch (Exception) { }
+        };
+        return _newsPill = button;
+    }
+
+    /// <summary>The speech bubble: this modpack's notices. Only there when the modpack has some; the badge counts the unread ones.</summary>
+    private NoticeIconButton BubbleIcon()
+    {
+        if (_bubbleIcon != null) return _bubbleIcon;
+        var icon = new NoticeIconButton(NoticeLook.Bubble, "Avisos de este modpack", 30) { Margin = new Thickness(0, -1, 8, 5), Visibility = Visibility.Collapsed };
+        icon.Clicked += () => ((MainWindow)Application.Current.MainWindow).ShowNotices(general: false);
+        return _bubbleIcon = icon;
+    }
+
+    private void RefreshNoticeBits(Button news, NoticeIconButton bubble)
+    {
+        var id = _l.Selected?.Id;
+        var link = _l.NovedadesFor(id);
+        news.Visibility = link != null ? Visibility.Visible : Visibility.Collapsed;
+        var mine = _l.NoticesOf(id).ToList();
+        var appearing = mine.Count > 0 && bubble.Visibility != Visibility.Visible;
+        bubble.Visibility = mine.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        bubble.Set(mine.Count(NoticeLook.Unread), NoticeLook.BadgeBrush(mine), mine.Count > 0);
+        if (appearing) Motion.Pop(bubble, new Point(0.5, 0.5), 220, 0.8);
     }
 
     /// <summary>A modpack card and the three brushes it paints itself with (its own, so choosing another modpack can turn them over smoothly).</summary>
@@ -203,7 +259,7 @@ public partial class HomeView : UserControl
         var everyServer = _l.Distro?.Servers ?? [];
         // a modpack that is another one's profile is shown inside that one, not on its own
         var servers = everyServer.Where(s => s.ProfileOf == null).ToList();
-        var key = string.Join("|", servers.Select(s => $"{s.Id}:{s.Name}:{PlayingLabel(s, everyServer)}"));
+        var key = string.Join("|", servers.Select(s => $"{s.Id}:{s.Name}:{PlayingLabel(s, everyServer)}:{UnreadDot(s.Id) != null}"));
         if (key == _railKey)
         {
             // the same cards with another one chosen: nothing is rebuilt, the paper fill moves over
@@ -225,11 +281,23 @@ public partial class HomeView : UserControl
                 Style = (Style)FindResource("CaptionText"), TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 3, 0, 0),
                 Foreground = metaInk
             };
+            var text = new StackPanel { Children = { name, meta } };
+            object content = text;
+            if (UnreadDot(server.Id) is { } dotBrush)
+            {
+                // something to read in this modpack: a small dot of the colour of its most serious notice
+                var dot = new System.Windows.Shapes.Ellipse { Width = 8, Height = 8, Fill = dotBrush, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(8, 6, 2, 0) };
+                var row = new Grid();
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                row.Children.Add(text); Grid.SetColumn(dot, 1); row.Children.Add(dot);
+                content = row;
+            }
             var card = new Button
             {
                 Style = (Style)FindResource("PackCard"), Margin = new Thickness(0, 0, 0, 6), Tag = server.Id,
                 Background = back,
-                Content = new StackPanel { Children = { name, meta } }
+                Content = content
             };
             System.Windows.Automation.AutomationProperties.SetName(card, server.Name);
             card.Click += async (_, _) => await _l.SelectAsync(server.Id);
@@ -246,8 +314,13 @@ public partial class HomeView : UserControl
         var playingId = _l.PlayingIn(server.Id);
         var playing = everyServer.FirstOrDefault(s => s.Id == playingId) ?? server;
         var profile = server.Profiles?.List.FirstOrDefault(p => p.Id == playingId);
-        return $"{playing.MinecraftVersion}  v{playing.Version}" + (profile != null ? $"  ·  {profile.Name}" : "");
+        var access = _l.Access(playingId);
+        var stop = access.State switch { "retired" => "  ·  RETIRADO", "upcoming" => "  ·  PRÓXIMAMENTE", "maintenance" when access.Allowed != true => "  ·  MANTENIMIENTO", _ => "" };
+        return $"{playing.MinecraftVersion}  v{playing.Version}" + (profile != null ? $"  ·  {profile.Name}" : "") + stop;
     }
+
+    /// <summary>The colour of the most serious unread notice of a modpack (or of what plays in it), or null.</summary>
+    private Brush? UnreadDot(string serverId) => NoticeLook.BadgeBrush(_l.NoticesOf(serverId).Concat(_l.NoticesOf(_l.PlayingIn(serverId))).DistinctBy(n => n.Id));
 
     // ---- profiles -------------------------------------------------------------------------------------------------
 
@@ -517,5 +590,190 @@ public partial class HomeView : UserControl
             ProgressDetail.Text = string.Join("   ", parts);
             ProgressDetail.Visibility = parts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         }
+
+        RefreshAccess();
+        if (_playBlocked) PlayButton.IsHitTestVisible = false;
+    }
+
+    // ---- what stands in the way of playing --------------------------------------------------------------------------------
+    //
+    // Maintenance and "not out yet" are a seal stamped over Play; a retired modpack is Play as broken glass. The seal drops when it appears
+    // (once for that modpack and state), the glass breaks the first time this launcher sees the modpack retired, and when it stops being
+    // retired the glass grows back by itself. Nothing here runs while the game is being downloaded or played: what is running is not stopped.
+
+    private static readonly AccessInfo AllClear = new("ok", null, null, null, null, null);
+    private string _accessKey = "";
+    private bool _playBlocked;
+    private GlassButton? _glass;
+    private string? _glassFor;
+    private bool _regenerating;
+    private FrameworkElement? _stamp;
+    private string _stampKey = "";
+
+    /// <summary>Runs when the screen has finished arriving (the logo's opening and the entrance), so a seal or a break is not spent on a screen nobody sees yet.</summary>
+    private void WhenSettled(Action action)
+    {
+        void After()
+        {
+            var left = 560 - (Environment.TickCount64 - _entranceAt);
+            if (left <= 0) { action(); return; }
+            var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(left) };
+            timer.Tick += (_, _) => { timer.Stop(); action(); };
+            timer.Start();
+        }
+        if (_entrancePending) SplashLayer.WhenRevealing(() => Dispatcher.BeginInvoke(After));
+        else After();
+    }
+
+    private static Color AccentColor() => Fmt.Res("AccentBrush") is SolidColorBrush accent ? accent.Color : Colors.HotPink;
+
+    /// <summary>"hoy 18:00", "mañana 18:00", or "el 21 sep, 18:00": a moment in the future, in this PC's time zone.</summary>
+    private static string Future(string? iso)
+    {
+        if (!DateTimeOffset.TryParse(iso, out var at)) return "";
+        var local = at.ToLocalTime();
+        var days = (local.Date - DateTime.Now.Date).Days;
+        return days == 0 ? $"hoy a las {local:HH:mm}" : days == 1 ? $"mañana a las {local:HH:mm}" : $"el {local.ToString("d MMM", System.Globalization.CultureInfo.GetCultureInfo("es-ES")).ToLowerInvariant()}, {local:HH:mm}";
+    }
+
+    private void RefreshAccess()
+    {
+        var id = _l.Selected?.Id;
+        var idle = !_l.Game.Busy && !_l.Game.Running;
+        var raw = idle ? _l.Access(id) : AllClear;
+        var access = raw.State is "maintenance" or "upcoming" or "retired" ? raw : AllClear;
+        var installed = _l.Pack?.Installed == true;
+        var blocked = Launcher.BlocksPlaying(access);
+        var key = $"{id}|{access.State}|{access.Allowed}|{access.Message}|{access.Until}|{access.From}|{installed}";
+        _playBlocked = blocked;
+        if (key == _accessKey && !(access.State == "retired" && _glass == null)) return;
+        _accessKey = key;
+
+        // a glass that belongs to another modpack goes away (it will grow back when that one is chosen again and is no longer retired)
+        if (_glass != null && _glassFor != id) DropGlass();
+
+        // ---- the seal
+        _stamp = null;
+        foreach (var old in AccessLayer.Children.OfType<FrameworkElement>().Where(c => c.Tag as string == "stamp").ToList()) AccessLayer.Children.Remove(old);
+        var showSeal = blocked && access.State is "maintenance" or "upcoming";
+        PlayButton.Opacity = blocked ? 0.32 : 1;
+        if (showSeal)
+        {
+            var maintenance = access.State == "maintenance";
+            var sub = maintenance ? (access.Until != null ? "Vuelve " + Future(access.Until) : null) : (access.From != null ? "Disponible " + Future(access.From) : null);
+            var ink = Stamp.Pick(maintenance ? Stamp.Amber : Stamp.Cream, AccentColor());
+            var (frame, _) = Stamp.Make(maintenance ? "MANTENIMIENTO" : "PRÓXIMAMENTE", sub, ink);
+            // in a canvas, which does not squeeze it to the button's height: with a second line the seal is taller than the button, and reaches past it
+            var holder = new Canvas { Width = 340, Height = 52, Tag = "stamp", IsHitTestVisible = false };
+            frame.SizeChanged += (_, e) => { Canvas.SetLeft(frame, (340 - e.NewSize.Width) / 2); Canvas.SetTop(frame, (52 - e.NewSize.Height) / 2); };
+            holder.Children.Add(frame);
+            AccessLayer.Children.Add(holder);
+            _stamp = frame;
+            var stampKey = $"{id}|{access.State}";
+            if (stampKey != _stampKey)
+            {
+                frame.Opacity = 0;   // it drops when the screen is there to see it
+                WhenSettled(() => Stamp.Slam(frame, () => Stamp.Squash(PlayHost)));
+            }
+            _stampKey = stampKey;
+        }
+        else _stampKey = "";
+
+        // ---- the glass
+        if (access.State == "retired" && id != null)
+        {
+            if (_glass == null || _regenerating)
+            {
+                if (_glass == null) { _glass = new GlassButton(340, 52, AccentColor()); AccessLayer.Children.Add(_glass); }
+                _glassFor = id; _regenerating = false;
+                PlayHost.Visibility = Visibility.Hidden;
+                if (NativeSettings.Retired.Add(id)) { NativeSettings.SaveRetired(); var glass = _glass; glass.Opacity = 0; WhenSettled(() => { if (!ReferenceEquals(_glass, glass)) return; glass.Opacity = 1; glass.PlayBreak(); }); }
+                else _glass.ShowBroken();
+            }
+        }
+        else if (id != null && (_glass != null && _glassFor == id || NativeSettings.Retired.Contains(id)) && !_regenerating)
+        {
+            // it is not retired any more: the glass grows back by itself and Play is there again
+            if (_glass == null) { _glass = new GlassButton(340, 52, AccentColor()); AccessLayer.Children.Add(_glass); _glass.ShowBroken(); }
+            _glassFor = id; _regenerating = true;
+            PlayHost.Visibility = Visibility.Hidden;
+            var glass = _glass;
+            NativeSettings.Retired.Remove(id); NativeSettings.SaveRetired();
+            WhenSettled(() => glass.PlayRegenerate(() =>
+            {
+                if (!ReferenceEquals(_glass, glass)) return;
+                DropGlass();
+                Motion.Pop(PlayHost, new Point(0.5, 0.5), 200, 0.97, fade: false);
+            }));
+        }
+        else if (_glass == null) PlayHost.Visibility = Visibility.Visible;
+
+        // ---- what the author says, and the trash
+        TrashButton.Visibility = access.State == "retired" && installed ? Visibility.Visible : Visibility.Collapsed;
+        var note = NoteFor(access, installed);
+        var noteAppears = note != null && AccessNote.Visibility != Visibility.Visible;
+        AccessNote.Visibility = note != null ? Visibility.Visible : Visibility.Collapsed;
+        if (note != null) AccessNoteText.Text = note;
+        if (noteAppears) Motion.Rise(AccessNote, 60, 240, 8);
+    }
+
+    private void DropGlass()
+    {
+        if (_glass == null) return;
+        _glass.Stop();
+        AccessLayer.Children.Remove(_glass);
+        _glass = null; _glassFor = null; _regenerating = false;
+        PlayHost.Visibility = Visibility.Visible;
+    }
+
+    private static string? NoteFor(AccessInfo access, bool installed)
+    {
+        var lines = new List<string>();
+        switch (access.State)
+        {
+            case "maintenance":
+                lines.Add(!string.IsNullOrWhiteSpace(access.Message) ? access.Message! : "Este modpack está en mantenimiento.");
+                if (access.Allowed == true) lines.Add("Tu cuenta tiene permiso para jugarlo mientras tanto." + (access.Until != null ? " Vuelve para todos " + Future(access.Until) + "." : ""));
+                break;
+            case "upcoming":
+                lines.Add(!string.IsNullOrWhiteSpace(access.Message) ? access.Message! : "Este modpack todavía no está disponible.");
+                break;
+            case "retired":
+                lines.Add(!string.IsNullOrWhiteSpace(access.Message) ? access.Message! : "Este modpack se retiró: ya no se puede jugar ni actualizar.");
+                if (installed) lines.Add("Con la papelera lo quitas de tu PC; tus mundos y capturas se quedan si quieres.");
+                break;
+            default:
+                return null;
+        }
+        return string.Join("\n", lines);
+    }
+
+    /// <summary>The trash of a retired modpack: it says what would be freed and what stays (worlds and screenshots are the player's).</summary>
+    private async Task TrashAsync()
+    {
+        var pack = _l.Selected;
+        if (pack == null) return;
+        var window = (MainWindow)Application.Current.MainWindow;
+        UninstallPreview preview;
+        try { preview = await _l.UninstallPreviewAsync(pack.Id); }
+        catch (Exception ex) { window.ShowDialog("No se pudo preparar el borrado", ex.Message, ("Entendido", null, true)); return; }
+        if (!preview.Installed) { window.ShowToast("Este modpack no está instalado en tu PC."); return; }
+
+        async Task Do(bool personal)
+        {
+            try { var freed = await _l.UninstallAsync(pack.Id, personal); window.ShowToast($"Listo: se liberaron {Fmt.Bytes(freed)}."); }
+            catch (Exception ex) { window.ShowDialog("No se pudo quitar el modpack", ex.Message, ("Entendido", null, true)); }
+        }
+        var personal = preview.SavesBytes + preview.ScreenshotsBytes;
+        if (personal <= 0)
+        {
+            window.ShowDialog($"Quitar {_l.Host?.Name ?? pack.Name} de tu PC",
+                $"Se borran sus archivos del juego ({Fmt.Bytes(preview.GameBytes)}). No hay mundos ni capturas que conservar.",
+                ("Cancelar", null, false), ("Quitar del PC", () => _ = Do(false), true));
+            return;
+        }
+        window.ShowDialog($"Quitar {_l.Host?.Name ?? pack.Name} de tu PC",
+            $"Se borran sus archivos del juego ({Fmt.Bytes(preview.GameBytes)}). Tus mundos ({Fmt.Bytes(preview.SavesBytes)}) y tus capturas ({Fmt.Bytes(preview.ScreenshotsBytes)}) pueden quedarse: con «Conservar mis mundos» solo se quita el juego, y con «Quitar todo» se borra también lo tuyo.",
+            ("Cancelar", null, false), ("Quitar todo", () => _ = Do(true), false), ("Conservar mis mundos", () => _ = Do(false), true));
     }
 }

@@ -140,3 +140,26 @@ public sealed record DirResult(string Dir);
 
 /// <summary>Valid = false with Removed set means the saved session could not be renewed and the account was taken off the list.</summary>
 public sealed record ValidateResult(bool Valid, bool? None, string? Removed, AccountList? Accounts);
+
+// ---- Avisos, mantenimiento, agenda y version minima (see docs/native/PROTOCOL.md) ----
+
+public sealed record NoticeButton(string Label, string Url);
+
+/// <summary>One notice: a page of newspaper the author built (Image is a local file), for everybody (General) or for the modpacks it names. State: unread, read, later or closed.</summary>
+public sealed record NoticeInfo(string Id, string Title, string Severity, bool General, List<string> Targets, string? Summary, NoticeButton? Button, string? PublishedAt, string? ExpiresAt, string? Image, string State);
+
+/// <summary>Can a modpack be played: ok, maintenance (Allowed says whether this account still gets in), upcoming (From), retired (Until) or launcher (too old: MinVersion).</summary>
+public sealed record AccessInfo(string State, string? Message, string? Until, string? From, bool? Allowed, string? MinVersion);
+
+public sealed record ModpackNotice(AccessInfo Access, string? Novedades);
+
+public sealed record LauncherGate(string? MinVersion, bool Blocked, string? Message, string? Novedades);
+
+public sealed record NoticesView(bool Online, string? FetchedAt, string ServerNow, LauncherGate Launcher, List<NoticeInfo> Notices, Dictionary<string, ModpackNotice> Modpacks);
+
+/// <summary>What "quitar de mi PC" would free: the game files, and the worlds and screenshots that stay unless asked.</summary>
+public sealed record UninstallPreview(bool Installed, long GameBytes, long SavesBytes, long ScreenshotsBytes);
+
+public sealed record UninstallResult(long FreedBytes);
+
+public sealed record ReportResult(string Text);
