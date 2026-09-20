@@ -21,7 +21,7 @@ function findElectron(hint) {
 /**
  * @param {'login'|'logout'} mode
  * @param {{ electron?: string, userDataDir: string, clientId?: string, onStart?: (child) => void }} options
- * @returns {Promise<{type: 'result'|'loggedout'|'cancelled', query?: object}>}
+ * @returns {Promise<{type: 'result'|'loggedout'|'cancelled', query?: object, explicit?: boolean}>}
  */
 function runAuthHelper(mode, { electron, userDataDir, clientId, onStart }) {
     return new Promise((resolve, reject) => {
@@ -62,7 +62,9 @@ function runAuthHelper(mode, { electron, userDataDir, clientId, onStart }) {
                 try {
                     const message = JSON.parse(line)
                     if (message && message.type === 'started') started = true
-                    else if (message && typeof message.type === 'string') finish(message)
+                    // "explicit": the launcher's own Cancel button ended it, as opposed to the player closing the window (which, when
+                    // signing out, means they are done there).
+                    else if (message && typeof message.type === 'string') finish(message.type === 'cancelled' ? { ...message, explicit: child.empiCancelled === true } : message)
                 } catch { /* not ours */ }
             }
         })
@@ -71,7 +73,7 @@ function runAuthHelper(mode, { electron, userDataDir, clientId, onStart }) {
         // saying its window exists is Electron failing to start (a runtime with a file missing, a second helper holding the lock...):
         // reporting that as "cancelled" made adding an account or signing out look like it did nothing.
         child.on('exit', (code, signal) => {
-            if (started || child.empiCancelled) finish({ type: 'cancelled' })
+            if (started || child.empiCancelled) finish({ type: 'cancelled', explicit: child.empiCancelled === true })
             else finish(null, Object.assign(new Error(`El componente que abre la ventana de Microsoft se cerró al arrancar (${code != null ? `código ${code}` : `señal ${signal}`}).`), { helperFailed: true }))
         })
     })

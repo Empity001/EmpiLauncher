@@ -111,6 +111,20 @@ try {
     await again
     await new Promise((r) => setTimeout(r, 1500))
     check('and again nothing is left behind', helperPids().length === 0)
+
+    // The player signs out in Microsoft's window and closes it themselves (the X) before it closes on its own: that is them being done, so
+    // the account must leave the launcher too. Before, only the window closing by itself did it, and the profile stayed after a sign-out.
+    const closedByPlayer = seeded.call('account.remove', { uuid: fakeUuid })
+    await new Promise((r) => setTimeout(r, holdMs))
+    const [pid] = helperPids()
+    check('signing out opens the window once more', helperPids().length === 1, `pids ${helperPids().join(',')}`)
+    execFileSync('powershell', ['-NoProfile', '-Command', `(Get-Process -Id ${pid}).CloseMainWindow() | Out-Null`])   // what clicking the X does
+    const doneByPlayer = await closedByPlayer
+    check('closing the Microsoft window yourself finishes the sign-out', doneByPlayer.ok === true, JSON.stringify(doneByPlayer.error ?? doneByPlayer.result))
+    const afterClose = (await seeded.call('account.list')).result
+    check('and the account is gone from the launcher, with nobody left selected', !afterClose.accounts.some((a) => a.uuid === fakeUuid) && afterClose.selected === null, JSON.stringify(afterClose))
+    await new Promise((r) => setTimeout(r, 1500))
+    check('no window is left behind', helperPids().length === 0)
 } catch (err) {
     console.log('FAIL  ' + err.message)
     process.exitCode = 1

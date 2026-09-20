@@ -1,0 +1,28 @@
+<UserControl x:Class="EmpiLauncher.App.Views.LoginView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- The sign-in screen: shown whenever nobody is signed in (first start, after "Cerrar sesión", or when a session could not be renewed).
+         Enter any saved account, add another one, or delete a session. Same anchor as the modpack's presentation on the home screen. -->
+    <Grid Margin="24,0,24,24">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False" VerticalAlignment="Center" HorizontalAlignment="Left" Width="664">
+            <StackPanel x:Name="Stage" Margin="12,0,12,24">
+                <WrapPanel x:Name="Pills" Margin="0,0,0,16"/>
+                <TextBlock x:Name="TitleText" Text="INICIAR SESIÓN" Style="{StaticResource DisplayText}" FontSize="46" TextWrapping="Wrap" TextTrimming="None" LineHeight="50"/>
+                <TextBlock x:Name="Lead" Style="{StaticResource BodyText}" Foreground="{StaticResource Paper2Brush}" Margin="0,12,0,0" MaxWidth="560" HorizontalAlignment="Left"/>
+
+                <Border x:Name="AccountsModule" Style="{StaticResource Module}" Margin="0,28,0,0" Padding="20,16">
+                    <StackPanel>
+                        <TextBlock Text="CUENTAS GUARDADAS" Style="{StaticResource LabelText}"/>
+                        <TextBlock Text="Eliminar sesión quita la cuenta de este launcher; podrás volver a añadirla cuando quieras." Style="{StaticResource CaptionText}" Margin="0,6,0,10"/>
+                        <StackPanel x:Name="Accounts"/>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel x:Name="Actions" Orientation="Horizontal" Margin="0,18,0,0"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button x:Name="SettingsButton" HorizontalAlignment="Right" VerticalAlignment="Bottom" Style="{StaticResource IconButton}" Content="&#xE713;"
+                ToolTip="Ajustes" AutomationProperties.Name="Ajustes"/>
+    </Grid>
+</UserControl>

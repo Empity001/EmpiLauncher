@@ -54,7 +54,10 @@ function Save-Shot([string] $name) {
 
 function Click-Named([string] $name) {
     $cond = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::NameProperty), $name
-    $el = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cond)
+    # A button's label is also a text element with the same name: the button is what a click means, so it is looked for first.
+    $isButton = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::ControlTypeProperty), ([System.Windows.Automation.ControlType]::Button)
+    $el = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.AndCondition $cond, $isButton))
+    if ($null -eq $el) { $el = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cond) }
     if ($null -eq $el) {
         # a popup is a window of its own: look for it among everything this program has on screen
         $mine = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::ProcessIdProperty), $proc.Id

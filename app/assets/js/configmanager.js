@@ -598,6 +598,14 @@ exports.setSelectedAccount = function(uuid){
 }
 
 /**
+ * Leave no account selected, without forgetting any of them (the native launcher's "Cerrar sesión": the accounts stay saved and the
+ * sign-in screen asks which one plays). Everything that reads the selected account already copes with there being none.
+ */
+exports.clearSelectedAccount = function(){
+    config.selectedAccount = null
+}
+
+/**
  * Get an array of each mod configuration currently stored.
  * 
  * @returns {Array.<Object>} An array of each stored mod configuration.

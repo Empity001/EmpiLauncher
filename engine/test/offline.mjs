@@ -81,6 +81,26 @@ try {
 
     const removed = await engine.call('account.remove', { uuid: rename.result.accounts.find((a) => a.type === 'offline').uuid })
     check('removing it needs no sign-out window and leaves the Microsoft account playing', removed.ok && !removed.result.accounts.some((a) => a.type === 'offline') && removed.result.selected === microsoft.uuid, JSON.stringify(removed.result ?? removed.error))
+
+    // ---- "Cerrar sesión": nobody plays until an account is chosen again, and no account is deleted ----
+    const configOnDisk = () => JSON.parse(fs.readFileSync(path.join(engine.root, 'user', 'config.json'), 'utf8'))
+    const out = await engine.call('account.signout')
+    check('signing out leaves nobody in use and deletes no account', out.ok && out.result.selected === null && out.result.accounts.some((a) => a.uuid === microsoft.uuid), JSON.stringify(out.result ?? out.error))
+    check('it is saved: the account stays in config.json, the selection is empty', configOnDisk().selectedAccount == null && !!configOnDisk().authenticationDatabase[microsoft.uuid])
+    const nobody = await engine.call('auth.validate')
+    check('with nobody signed in there is nothing to renew (a clean no, not an error)', nobody.ok && nobody.result.valid === false && nobody.result.none === true, JSON.stringify(nobody.result ?? nobody.error))
+    const listedOut = await engine.call('account.list')
+    check('the list still offers the account, and nobody is selected', listedOut.ok && listedOut.result.selected === null && listedOut.result.accounts.length === 1)
+    const enter = await engine.call('account.select', { uuid: microsoft.uuid })
+    check('choosing it from there signs it in again', enter.ok && enter.result.selected === microsoft.uuid)
+
+    const player = await engine.call('offline.set', { name: 'Juanito' })
+    const playerUuid = player.result.accounts.find((a) => a.type === 'offline').uuid
+    const outOffline = await engine.call('account.signout')
+    check('signing out of the offline player keeps it saved, not in use', outOffline.ok && outOffline.result.selected === null && outOffline.result.accounts.some((a) => a.uuid === playerUuid), JSON.stringify(outOffline.result ?? outOffline.error))
+    check('and the Microsoft account it was chosen over does not take its place', outOffline.result.selected !== microsoft.uuid)
+    const gone = await engine.call('account.remove', { uuid: playerUuid })
+    check('deleting a saved account from the sign-in screen signs nobody in', gone.ok && gone.result.selected === null && gone.result.accounts.length === 1, JSON.stringify(gone.result ?? gone.error))
 } finally {
     await engine.stop()
 }

@@ -31,6 +31,14 @@ internal static class Fmt
     }
 
     public static Brush Res(string key) => (Brush)Application.Current.FindResource(key);
+
+    /// <summary>What kind of account it is, as the account lists show it: "MICROSOFT", "MOJANG" or "SIN CONEXIÓN  ID 123456789012".</summary>
+    public static string AccountKind(AccountSummary account) => account.Type switch
+    {
+        "microsoft" => "MICROSOFT",
+        "offline" => "SIN CONEXIÓN" + (account.OfflineId != null ? "  ID " + account.OfflineId : ""),
+        _ => "MOJANG"
+    } + (account.Type != "offline" && account.Username != null && account.Username != account.DisplayName ? "  " + account.Username : "");
 }
 
 public partial class HomeView : UserControl

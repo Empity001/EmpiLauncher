@@ -79,6 +79,12 @@ internal static class Ui
         return box;
     }
 
+    /// <summary>
+    /// A name for a button's accessible name. WPF treats a single underscore in it as an access-key marker and drops it, so a player called
+    /// "Alex_Test" would be read out (and found by tests) as "AlexTest"; doubling the underscore keeps it.
+    /// </summary>
+    public static string AccessName(string text) => text.Replace("_", "__");
+
     public static Button Button(string label, Action click, string style = "GhostButton", double padX = 16)
     {
         var b = new Button { Content = label, Style = S(style), Padding = new Thickness(padX, 8, padX, 8), FontSize = 12.5 };

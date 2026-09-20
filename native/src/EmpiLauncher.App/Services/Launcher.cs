@@ -350,7 +350,43 @@ public sealed class Launcher : IAsyncDisposable
         catch (Exception ex) { App.Log("auth window", ex); }
     }
 
-    /// <summary>Signs an account out (Microsoft accounts also clear the browser session in the helper window).</summary>
+    /// <summary>True while nobody is signed in: the launcher shows the sign-in screen, whatever accounts are saved.</summary>
+    public bool SignedOut => Config != null && Account == null;
+
+    /// <summary>A quick switch: from now on this saved account plays. Nothing is asked and nothing is deleted.</summary>
+    public async Task UseAccountAsync(string uuid)
+    {
+        if (AuthBusy) return;
+        try
+        {
+            await Client.CallAsync<AccountList>("account.select", new { uuid });
+            await RefreshConfigAsync();
+        }
+        catch (EngineException ex) { Failure?.Invoke(new GameFailure("auth", ex.Title ?? "No se pudo cambiar de cuenta", ex.Message)); }
+    }
+
+    /// <summary>
+    /// "Cerrar sesión": nobody is signed in any more and the window takes the player to the sign-in screen. Every account stays saved (there,
+    /// they can enter any of them, add another or delete one). It is refused while the game is starting or running, because the sign-in screen
+    /// replaces the one with the button that stops it.
+    /// </summary>
+    public async Task<bool> SignOutAsync()
+    {
+        if (Game.Busy || Game.Running) { Notice?.Invoke("Cierra Minecraft (o espera a que termine) antes de cerrar sesión."); return false; }
+        try
+        {
+            await Client.CallAsync<AccountList>("account.signout");
+            await RefreshConfigAsync();
+            return true;
+        }
+        catch (EngineException ex)
+        {
+            Failure?.Invoke(new GameFailure("auth", ex.Title ?? "No se pudo cerrar la sesión", ex.Message));
+            return false;
+        }
+    }
+
+    /// <summary>Deletes a saved account (Microsoft accounts also clear the browser session in the helper window). Only the sign-in screen offers it.</summary>
     public async Task<bool> RemoveAccountAsync(string uuid)
     {
         if (AuthBusy) return false;
@@ -358,7 +394,7 @@ public sealed class Launcher : IAsyncDisposable
         var microsoft = Config?.Accounts.Accounts.FirstOrDefault(a => a.Uuid == uuid)?.Type == "microsoft";
         try
         {
-            if (microsoft) ShowAuthWindow(true, "Cierra sesión en la ventana de Microsoft. Se cerrará sola al terminar.");
+            if (microsoft) ShowAuthWindow(true, "Elige tu cuenta en la ventana de Microsoft para cerrar su sesión. Se cierra sola al terminar; si la cierras tú, la cuenta también se quita de este launcher.");
             await Client.CallAsync<AccountList>("account.remove", new { uuid }, TimeSpan.FromMinutes(11));
             await RefreshConfigAsync();
             return true;

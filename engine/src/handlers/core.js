@@ -123,6 +123,17 @@ function register(handlers, state) {
     })
 
     handlers.set('account.list', async () => accountsView(ensureCore(state).ConfigManager))
+    /**
+     * "Cerrar sesión": nobody plays until an account is chosen again. Every account stays saved (nothing is deleted, no Microsoft window
+     * opens); the selection is what is dropped, so the launcher starts on the sign-in screen next time too.
+     */
+    handlers.set('account.signout', async () => {
+        const { ConfigManager } = ensureCore(state)
+        offline.setActive(ConfigManager.getLauncherDirectory(), false)
+        ConfigManager.clearSelectedAccount()
+        ConfigManager.save()
+        return accountsView(ConfigManager)
+    })
     handlers.set('account.select', async ({ uuid }) => {
         const { ConfigManager } = ensureCore(state)
         const dir = ConfigManager.getLauncherDirectory()

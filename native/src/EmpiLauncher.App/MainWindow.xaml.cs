@@ -41,6 +41,7 @@ public partial class MainWindow : Window
         _l.GameChanged += OnGameChanged;
         _l.ArtChanged += UpdateBackdrop;
         _l.Changed += OnUpdateChanged;
+        _l.Changed += OnAccountsChanged;
         UpdateButton.Click += (_, _) => ShowUpdateDialog();
         _l.AuthWindow += (open, text) =>
         {
@@ -167,12 +168,40 @@ public partial class MainWindow : Window
 
     private void ShowHome()
     {
+        if (_l.SignedOut) { ShowLogin(); return; }   // nobody plays until an account is chosen: "Listo" from Ajustes lands here too
         ReleaseSettings();
         var home = new HomeView();
         home.OpenSettings += () => ShowSettings();
         ViewHost.Content = home;
         UpdateBackdrop();
         ScheduleTrim();
+    }
+
+    private void ShowLogin()
+    {
+        ReleaseSettings();
+        var login = new LoginView();
+        login.OpenSettings += () => ShowSettings();
+        ViewHost.Content = login;
+        UpdateBackdrop();
+        ScheduleTrim();
+    }
+
+    private bool? _signedOut;
+
+    /// <summary>
+    /// Who is signed in decides the screen. Going from someone to nobody (Cerrar sesión, a session that could not be renewed, the first start
+    /// with no account) takes the player to the sign-in screen from wherever they are; entering an account there takes them to the home
+    /// screen. Only the change is acted on: the engine's news arrive all the time, and Ajustes opened from the sign-in screen must stay open.
+    /// </summary>
+    private void OnAccountsChanged()
+    {
+        if (_l.Config == null) return;
+        var signedOut = _l.SignedOut;
+        if (_signedOut == signedOut) return;
+        _signedOut = signedOut;
+        if (signedOut) { if (ViewHost.Content is not LoginView) ShowLogin(); }
+        else if (ViewHost.Content is LoginView) ShowHome();
     }
 
     private void ShowSettings(string tab = "account")

@@ -87,7 +87,11 @@ function register(handlers, state) {
         return accountsView(ConfigManager)
     }))
 
-    /** Signs an account out: Microsoft accounts clear the browser session in the helper window first, like the classic launcher. */
+    /**
+     * Deletes a saved account (the sign-in screen's "Eliminar sesión"): Microsoft accounts clear the browser session in the helper window
+     * first, like the classic launcher. The window is the player's to finish: signing out there and closing it themselves counts as done,
+     * so the account does not stay in the launcher after they left Microsoft. Only the launcher's own Cancel button keeps it.
+     */
     handlers.set('account.remove', async ({ uuid }) => {
         const { ConfigManager } = ensureCore(state)
         const dir = ConfigManager.getLauncherDirectory()
@@ -104,7 +108,7 @@ function register(handlers, state) {
             await withHelper('logout', async () => {
                 emit('auth.progress', { stage: 'logout' })
                 const result = await helperResult('logout', { electron: state.electron, userDataDir: sessionDir() })
-                if (result.type !== 'loggedout') throw new EngineError('cancelled', 'Cancelaste el cierre de sesión.')
+                if (result.type === 'cancelled' && result.explicit) throw new EngineError('cancelled', 'Cancelaste el cierre de sesión.')
             })
             await authManager().removeMicrosoftAccount(uuid)
         } else {
@@ -135,7 +139,10 @@ function register(handlers, state) {
         try { valid = await authManager().validateSelected() } catch (err) { state.log.warn('Unable to validate the selected account.', err) }
         if (valid) return { valid: true, accounts: accountsView(ConfigManager) }
 
+        // Removing it makes the classic ConfigManager pick another saved account; nobody asked for that one to play, so none is selected and
+        // the sign-in screen offers them all.
         ConfigManager.removeAuthAccount(selected.uuid)
+        ConfigManager.clearSelectedAccount()
         ConfigManager.save()
         return { valid: false, removed: selected.displayName, accounts: accountsView(ConfigManager) }
     })

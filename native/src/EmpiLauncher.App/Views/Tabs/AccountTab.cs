@@ -1,22 +1,18 @@
 using System.Windows;
 using System.Windows.Controls;
 using EmpiLauncher.App.Services;
-using EmpiLauncher.Ipc;
 
 namespace EmpiLauncher.App.Views.Tabs;
 
+/// <summary>
+/// Ajustes > Cuenta: quick switches between the accounts already in use, and "Cerrar sesión". Adding an account, playing without one and
+/// deleting a session live on the sign-in screen (LoginView), which "Cerrar sesión" leads to.
+/// </summary>
 internal sealed class AccountTab : SettingsTab
 {
     private readonly Launcher _l = Launcher.Instance;
     public override string Id => "account";
     public override string Title => "Cuenta";
-
-    private static string KindLabel(AccountSummary account) => account.Type switch
-    {
-        "microsoft" => "MICROSOFT",
-        "offline" => "SIN CONEXIÓN" + (account.OfflineId != null ? "  ID " + account.OfflineId : ""),
-        _ => "MOJANG"
-    };
 
     public override async Task LoadAsync()
     {
@@ -24,9 +20,10 @@ internal sealed class AccountTab : SettingsTab
         Root.Children.Clear();
 
         var accounts = _l.Config?.Accounts.Accounts ?? [];
-        var card = Ui.Section("Cuentas de Minecraft", out var body, "La cuenta seleccionada es la que se usa al jugar.");
+        var card = Ui.Section("Cuentas de Minecraft", out var body,
+            accounts.Count == 0 ? null : _l.SignedOut ? "Ahora no hay ninguna sesión iniciada. Elige con cuál jugar." : "La cuenta seleccionada es la que se usa al jugar. Cambia de una a otra cuando quieras.");
         if (accounts.Count == 0)
-            body.Children.Add(Ui.Text("Todavía no hay ninguna cuenta guardada.", "BodyText", Ui.Res("Paper2Brush")));
+            body.Children.Add(Ui.Text("Todavía no hay ninguna cuenta guardada. Añade una desde la pantalla de inicio de sesión.", "BodyText", Ui.Res("Paper2Brush")));
 
         foreach (var account in accounts)
         {
@@ -39,72 +36,51 @@ internal sealed class AccountTab : SettingsTab
 
             var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             text.Children.Add(Ui.Text(account.DisplayName, "BodyText", null, 15));
-            text.Children.Add(Ui.Text(KindLabel(account) + (!offline && account.Username != null && account.Username != account.DisplayName ? "  " + account.Username : ""), "CaptionText"));
+            text.Children.Add(Ui.Text(Fmt.AccountKind(account), "CaptionText"));
             row.Children.Add(text);
 
             var actions = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            if (selected)
-            {
-                var pill = Fmt.Pill("SELECCIONADA", Ui.Res("AccentInkBrush"), Ui.Res("AccentBrush"));
-                pill.Margin = new Thickness(0, 0, 10, 0);
-                actions.Children.Add(pill);
-            }
-            else
-            {
-                var use = Ui.Button("Usar esta cuenta", async () =>
-                {
-                    await _l.Client.CallAsync("account.select", new { uuid });
-                    await LoadAsync();
-                });
-                use.Margin = new Thickness(0, 0, 8, 0);
-                actions.Children.Add(use);
-            }
             var name = account.DisplayName;
             if (offline)
             {
+                // the offline player's own settings, not a session: they stay next to it
                 var skin = Ui.Button(account.Skin != null ? "Cambiar skin" : "Skin…", () => ((MainWindow)Application.Current.MainWindow).ShowSkinPrompt(LoadAsync));
                 skin.Margin = new Thickness(0, 0, 8, 0);
                 actions.Children.Add(skin);
                 var rename = Ui.Button("Cambiar nombre", () => ((MainWindow)Application.Current.MainWindow).ShowOfflinePrompt(name, LoadAsync));
                 rename.Margin = new Thickness(0, 0, 8, 0);
                 actions.Children.Add(rename);
-                actions.Children.Add(Ui.Button("Quitar", () => ConfirmRemove(uuid, name, true), "DangerButton", 14));
             }
-            else actions.Children.Add(Ui.Button("Cerrar sesión", () => ConfirmRemove(uuid, name, false), "DangerButton", 14));
+            if (selected)
+            {
+                actions.Children.Add(Fmt.Pill("SELECCIONADA", Ui.Res("AccentInkBrush"), Ui.Res("AccentBrush")));
+            }
+            else
+            {
+                var use = Ui.Button("Usar esta cuenta", async () =>
+                {
+                    await _l.UseAccountAsync(uuid);
+                    await LoadAsync();
+                });
+                System.Windows.Automation.AutomationProperties.SetName(use, Ui.AccessName($"Usar la cuenta {name}"));
+                actions.Children.Add(use);
+            }
             Grid.SetColumn(actions, 1);
             row.Children.Add(actions);
             body.Children.Add(new Border { Style = (Style)Application.Current.FindResource("Tile"), Child = row, Margin = new Thickness(0, 0, 0, 8) });
         }
 
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
-        var add = Ui.Button("Añadir cuenta Microsoft", async () => { if (await _l.LoginAsync()) await LoadAsync(); }, "PrimaryButton", 20);
-        buttons.Children.Add(add);
-        if (!accounts.Any(a => a.Type == "offline"))
+        if (!_l.SignedOut && accounts.Count > 0)
         {
-            var play = Ui.Button("Jugar sin conexión", () => ((MainWindow)Application.Current.MainWindow).ShowOfflinePrompt(done: LoadAsync), "GhostButton", 20);
-            play.Margin = new Thickness(10, 0, 0, 0);
-            buttons.Children.Add(play);
+            var signOut = Ui.Button("Cerrar sesión", async () => await _l.SignOutAsync(), "DangerButton", 20);
+            signOut.Margin = new Thickness(0, 6, 0, 0);
+            signOut.HorizontalAlignment = HorizontalAlignment.Left;
+            body.Children.Add(signOut);
         }
-        body.Children.Add(buttons);
         Root.Children.Add(card);
 
         var note = Ui.Section(null, out var noteBody);
-        noteBody.Children.Add(Ui.Text("Al iniciar o cerrar sesión se abre la ventana de Microsoft y se cierra sola al terminar. No queda ningún navegador abierto en segundo plano.", "CaptionText"));
-        var offlineNote = Ui.Text("Jugar sin conexión no usa ninguna cuenta: solo el nombre que elijas, con un identificador que siempre es el mismo para ese nombre. Sirve para un jugador y para servidores que no verifican la cuenta. La skin, si quieres una, se elige de NameMC con el botón Skin.", "CaptionText");
-        offlineNote.Margin = new Thickness(0, 10, 0, 0);
-        noteBody.Children.Add(offlineNote);
+        noteBody.Children.Add(Ui.Text("Cerrar sesión no borra nada: te lleva a la pantalla de inicio de sesión, donde puedes entrar con cualquiera de tus cuentas, añadir otra (Microsoft o sin conexión) o eliminar una sesión guardada.", "CaptionText"));
         Root.Children.Add(note);
-    }
-
-    private void ConfirmRemove(string uuid, string name, bool offline)
-    {
-        var window = (MainWindow)Application.Current.MainWindow;
-        window.ShowDialog(
-            offline ? "¿Quitar el jugador sin conexión?" : "¿Cerrar sesión?",
-            offline
-                ? $"Se quitará {name} de este launcher. Si lo vuelves a crear con el mismo nombre tendrá el mismo identificador y conservarás tus datos de un jugador."
-                : $"Se quitará la cuenta {name} de este launcher. Podrás volver a añadirla cuando quieras.",
-            ("Cancelar", null, false),
-            (offline ? "Quitar" : "Cerrar sesión", async () => { if (await _l.RemoveAccountAsync(uuid)) await LoadAsync(); }, true));
     }
 }
