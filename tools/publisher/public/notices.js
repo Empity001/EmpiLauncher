@@ -218,7 +218,7 @@ const nuFromLocal = (local) => (local ? new Date(local).toISOString() : null)
 async function nuNewNotice() {
     if (nu.dirty && !confirm('Tienes cambios sin guardar en este aviso. ¿Descartarlos?')) return
     try {
-        const made = await api('/api/notices', { method: 'POST', body: { title: 'Aviso nuevo', severity: 'info', targets: ['*'], editor: { blocks: nuTemplates.portada().map((b) => ({ ...nuBlockDefaults(b.type), ...b, id: nuNewId() })) } } })
+        const made = await api('/api/notices', { method: 'POST', body: { title: 'Aviso nuevo', severity: 'info', targets: ['*'], published: true, editor: { blocks: nuTemplates.portada().map((b) => ({ ...nuBlockDefaults(b.type), ...b, id: nuNewId() })) } } })
         nu.data = await api('/api/notices')
         nuSelectNotice(made.id)
     } catch (err) { toast(err.message, true) }
@@ -336,8 +336,10 @@ function nuPaintBar() {
     if (!bar || !nu.data) return
     const pending = nu.data.published.pending || nu.accessDirty
     const at = nu.data.published.at
+    const drafts = nu.data.notices.filter((n) => !n.published).length
     bar.replaceChildren(
         h('span', { class: 'muted nx-status' }, nu.dirty || nu.accessDirty ? 'Hay cambios sin guardar' : pending ? 'Hay cambios sin publicar' : at ? `Publicado ${ago(at)}` : 'Nada publicado todavía'),
+        drafts > 0 && h('span', { class: 'chip warn', title: 'Un borrador no se publica. Ábrelo y marca «Publicarlo con Publicar avisos».' }, drafts === 1 ? '1 aviso en borrador' : `${drafts} avisos en borrador`),
         h('button', { class: 'btn paper', disabled: nu.saving || !!state.running, onclick: nuPublish }, withIcon('upload', 'Publicar avisos'))
     )
 }
@@ -346,7 +348,8 @@ async function nuPublish() {
     if (nu.dirty || nu.accessDirty) {
         if (!confirm('Tienes cambios sin guardar. Se publica solo lo que está guardado. ¿Continuar?')) return
     }
-    runJob('Publicar avisos', '/api/jobs/publish-notices', {}, () => { toast('Avisos publicados.'); loadNotices() })
+    const drafts = nu.data.notices.filter((n) => !n.published).length
+    runJob('Publicar avisos', '/api/jobs/publish-notices', {}, () => { toast(drafts ? `Avisos publicados. ${drafts === 1 ? 'Un aviso sigue' : `${drafts} avisos siguen`} como borrador y no se ve.` : 'Avisos publicados.'); loadNotices() })
 }
 
 // ---- view 1: the notices
@@ -570,7 +573,7 @@ function nuDataCard() {
             h('small', { class: 'muted' }, 'Un aviso de un modpack no sale en sus perfiles: márcalos tú.')),
         nuField('Caduca (déjalo vacío para que no caduque)', h('input', { type: 'datetime-local', value: d.expiresLocal || '', onchange: (e) => { d.expiresLocal = e.target.value; touch() } })),
         h('div', { class: 'nx-two' }, nuField('Botón (opcional)', h('input', { placeholder: 'Ver en Discord', value: d.button?.label || '', maxlength: 40, oninput: (e) => { d.button = { ...(d.button || {}), label: e.target.value }; touch() } })), nuField('Enlace (https)', h('input', { placeholder: 'https://discord.gg/...', value: d.button?.url || '', oninput: (e) => { d.button = { ...(d.button || {}), url: e.target.value }; touch() } }))),
-        h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: d.published === true, onchange: (e) => { d.published = e.target.checked; touch() } }), 'Incluir en las publicaciones (si no, queda como borrador)'),
+        h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: d.published === true, onchange: (e) => { d.published = e.target.checked; touch() } }), 'Publicarlo con «Publicar avisos» (si lo quitas, queda como borrador y nadie lo ve)'),
         h('div', { class: 'nx-actions' }, h('button', { class: 'btn paper', disabled: nu.saving, onclick: nuSave }, withIcon('check', nu.saving ? 'Guardando…' : 'Guardar')), h('button', { class: 'btn danger', onclick: nuDelete }, 'Borrar aviso')))
     return card
 }
