@@ -27,6 +27,7 @@
         <nav class="tabs" id="mainTabs" aria-label="Secciones">
             <button class="tab active" data-tab="packs" aria-current="page">Modpacks</button>
             <button class="tab" data-tab="launcher">Launcher</button>
+            <button class="tab" data-tab="notices">Avisos</button>
         </nav>
         <div class="health" id="health" role="status"></div>
         <button class="icon-btn" id="lifeBtn" aria-pressed="true" aria-label="Movimiento del fondo" title="Movimiento" data-icon="wave"></button>
@@ -100,6 +101,10 @@
         <section id="tab-launcher" class="single" hidden>
             <div id="launcherContent"></div>
         </section>
+        <!-- ============================== AVISOS ============================== -->
+        <section id="tab-notices" class="single wide" hidden>
+            <div id="noticesContent"></div>
+        </section>
     </main>
 
     <footer class="pipeline" id="pipeline" aria-label="Pasos para publicar"></footer>
@@ -161,6 +166,7 @@
     <script src="/life.js"></script>
     <script src="/picker.js"></script>
     <script src="/profiles.js"></script>
+    <script src="/notices.js"></script>
     <script src="/app.js"></script>
 </body>
 </html>

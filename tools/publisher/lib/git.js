@@ -92,4 +92,20 @@ async function unpushedCount(cwd) {
     }
 }
 
-module.exports = { changes, ensureByteExact, stage, stagedChanges, isRepo, clone, pull, add, addAll, commit, push, unpushedCount }
+/** What a commit of only these paths would contain (needs `add` first). */
+async function stagedChangesIn(cwd, paths) {
+    const out = await capture('git', ['diff', '--cached', '--no-renames', '--name-status', '--', ...paths], { cwd })
+    return out.split('\n').filter((line) => line.trim()).map((line) => {
+        const [code, ...rest] = line.split('\t')
+        return { code: code.trim(), file: rest.join('\t') }
+    })
+}
+
+/** Commits only these paths, leaving anything else that is staged exactly as it is. */
+async function commitOnly(cwd, message, paths, log) {
+    const args = ['commit', '-m', message, '--only', '--', ...paths]
+    withLog(log, 'git', ['commit', '-m', message, '--only', '--', ...paths])
+    await run('git', args, { cwd }, log)
+}
+
+module.exports = { stagedChangesIn, commitOnly, changes, ensureByteExact, stage, stagedChanges, isRepo, clone, pull, add, addAll, commit, push, unpushedCount }

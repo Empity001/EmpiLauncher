@@ -62,4 +62,4 @@ function saveCache(cache) {
     writeJson(CACHE_PATH, cache)
 }
 
-module.exports = { load, save, loadState, saveState, loadCache, saveCache, readJson, writeJson, DEFAULTS }
+module.exports = { HOME, load, save, loadState, saveState, loadCache, saveCache, readJson, writeJson, DEFAULTS }

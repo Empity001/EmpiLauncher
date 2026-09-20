@@ -14,6 +14,7 @@ const protection = require('./lib/protection')
 const profiles = require('./lib/profiles')
 const appearance = require('./lib/appearance')
 const gh = require('./lib/gh')
+const notices = require('./lib/notices')
 const { capture, runInJob, killTree } = require('./lib/exec')
 
 const PORT = Number(process.env.PUBLISHER_PORT) || 4848
@@ -228,6 +229,20 @@ route('POST', '/api/jobs/send-packs', async ({ req }) => {
 })
 
 route('GET', '/api/launcher', () => launcher.info(config.load()))
+
+// ---- avisos: notices, maintenance, schedule and the minimum launcher version (lib/notices.js)
+route('GET', '/api/notices', () => notices.describe(config.load()))
+route('POST', '/api/notices', async ({ req }) => notices.saveNotice(config.load(), null, await readJson(req)))
+route('POST', '/api/notices/access', async ({ req }) => notices.saveAccess(await readJson(req)))
+route('GET', '/api/notices/uuid', ({ query }) => notices.lookupUuid(query.get('name')))
+route('POST', '/api/notices/:id', async ({ req, params }) => notices.saveNotice(config.load(), params.id, await readJson(req)))
+route('DELETE', '/api/notices/:id', ({ params }) => notices.deleteNotice(params.id))
+route('POST', '/api/notices/:id/image', ({ req, params }) => notices.saveImage(params.id, req))
+route('POST', '/api/notices/:id/asset', ({ req, params }) => notices.saveAsset(params.id, req))
+route('POST', '/api/jobs/publish-notices', async ({ req }) => {
+    const body = await readJson(req)
+    return { jobId: startJob('Publicar avisos', (log, step) => notices.publish(config.load(), body, log, step)).id }
+})
 route('POST', '/api/jobs/compile-launcher', async ({ req }) => {
     const body = await readJson(req)
     return { jobId: startJob('Compilar el launcher', (log, step) => launcher.compile(config.load(), body, log, step)).id }
@@ -303,6 +318,15 @@ const server = http.createServer(async (req, res) => {
         if (req.method === 'GET' && visualMatch) {
             const found = appearance.find(config.load(), decodeURIComponent(visualMatch[1]), url.searchParams.get('kind'))
             return found ? serveFile(res, found.file, found.mime) : sendJson(res, 404, { error: 'Sin imagen' })
+        }
+
+        const noticeFile = url.pathname.match(/^\/api\/notices\/([^/]+)\/(image|asset\/[^/]+)$/)
+        if (req.method === 'GET' && noticeFile) {
+            try {
+                const id = decodeURIComponent(noticeFile[1])
+                const found = noticeFile[2] === 'image' ? notices.imageOf(id) : notices.assetOf(id, decodeURIComponent(noticeFile[2].slice(6)))
+                return serveFile(res, found.file, found.type)
+            } catch (err) { return sendJson(res, 404, { error: err.message }) }
         }
 
         for (const candidate of routes) {

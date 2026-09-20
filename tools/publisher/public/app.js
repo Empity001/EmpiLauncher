@@ -1274,6 +1274,8 @@ function markPipeline(key) {
 function renderPipeline() {
     const busy = !!state.running
     const footer = $('#pipeline')
+    footer.hidden = state.tab === 'notices'   // Avisos has its own publish button
+    if (state.tab === 'notices') return
 
     if (state.tab === 'packs') {
         const { compiled, stale } = state.packsStatus
@@ -1609,9 +1611,11 @@ $('#mainTabs').addEventListener('click', (event) => {
     }
     $('#tab-packs').hidden = state.tab !== 'packs'
     $('#tab-launcher').hidden = state.tab !== 'launcher'
+    $('#tab-notices').hidden = state.tab !== 'notices'
+    if (state.tab === 'notices') noticesEnter()
     renderPipeline()
     Life?.ink($('#mainTabs'), 'main', '.tab[aria-current]', 0)
-    Life?.enter(state.tab === 'launcher' ? $('#launcherContent') : $('#packContent'), ':scope > *', 70)
+    Life?.enter(state.tab === 'launcher' ? $('#launcherContent') : state.tab === 'notices' ? $('#noticesContent') : $('#packContent'), ':scope > *', 70)
     Life?.refresh()
 })
 
