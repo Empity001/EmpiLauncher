@@ -55,7 +55,7 @@ function nuSetFont(ctx, b) {
 const PAD = 12
 
 /** Draws one piece; returns true when its text does not fit in its box. */
-function nuDrawBlock(ctx, b, images) {
+function nuDrawBlock(ctx, b, images, forExport = false) {
     const color = PALETTE[b.color] || PALETTE.paper
     let overflow = false
     ctx.save()
@@ -76,7 +76,7 @@ function nuDrawBlock(ctx, b, images) {
             ctx.drawImage(img, b.x + (b.w - dw) / 2, b.y + (b.h - dh) / 2, dw, dh)
             ctx.restore()
             ctx.strokeRect(b.x + 1, b.y + 1, b.w - 2, b.h - 2)
-        } else {
+        } else if (!forExport) {
             ctx.fillStyle = '#141416'; ctx.fillRect(b.x, b.y, b.w, b.h)
             ctx.setLineDash([10, 8]); ctx.strokeRect(b.x + 1, b.y + 1, b.w - 2, b.h - 2); ctx.setLineDash([])
             ctx.fillStyle = PALETTE.dim; ctx.font = `400 22px ${FONTS.mono}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
@@ -101,8 +101,8 @@ function nuDrawBlock(ctx, b, images) {
         if (lines.length > perColumn * columns) overflow = true
         ctx.fillStyle = color; ctx.textBaseline = 'top'
         ctx.textAlign = b.align === 'center' ? 'center' : 'left'
-        lines.slice(0, perColumn * columns).forEach((line, i) => {
-            const col = Math.floor(i / perColumn), row = i % perColumn
+        lines.forEach((line, i) => {
+            const col = Math.min(columns - 1, Math.floor(i / perColumn)), row = i - col * perColumn
             const x0 = b.x + PAD + col * (colW + 24)
             ctx.fillText(line, b.align === 'center' ? x0 + colW / 2 : x0, b.y + PAD + row * lh)
         })
@@ -112,7 +112,7 @@ function nuDrawBlock(ctx, b, images) {
 }
 
 /** The whole page. `images` maps an asset name to a loaded Image. Returns the ids of the pieces whose text does not fit. */
-function nuDrawPage(ctx, editor, images) {
+function nuDrawPage(ctx, editor, images, forExport = false) {
     ctx.save()
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.fillStyle = PALETTE.ink; ctx.fillRect(0, 0, PAGE.w, PAGE.h)
@@ -121,7 +121,7 @@ function nuDrawPage(ctx, editor, images) {
     ctx.strokeStyle = 'rgba(241,239,232,.22)'; ctx.lineWidth = 2; ctx.strokeRect(9, 9, PAGE.w - 18, PAGE.h - 18)
     ctx.restore()
     const over = new Set()
-    for (const b of editor.blocks) if (nuDrawBlock(ctx, b, images)) over.add(b.id)
+    for (const b of editor.blocks) if (nuDrawBlock(ctx, b, images, forExport)) over.add(b.id)
     return over
 }
 
@@ -229,7 +229,7 @@ async function nuRenderBlob(editor) {
     await nuLoadAssets(editor)
     const canvas = document.createElement('canvas')
     canvas.width = PAGE.w; canvas.height = PAGE.h
-    nuDrawPage(canvas.getContext('2d'), editor, nu.images)
+    nuDrawPage(canvas.getContext('2d'), editor, nu.images, true)
     return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), 'image/webp', 0.88))
 }
 
