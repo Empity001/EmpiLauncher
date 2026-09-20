@@ -45,14 +45,39 @@ async function isRepo(cwd) {
     }
 }
 
-async function clone(url, destination, log) {
-    withLog(log, 'git', ['clone', url, destination])
-    await run('git', ['clone', url, destination], {}, log)
+// What git prints when the connection to GitHub could not be made or was cut (exit 128): worth trying again, unlike a rejected push or a bad path.
+const NETWORK_ERROR = /unable to access|Could not resolve host|Failed to connect|Connection (?:timed out|reset|refused)|Operation timed out|timed out|early EOF|RPC failed|Empty reply from server|SSL_ERROR|schannel|hung up unexpectedly|Recv failure|Send failure|TLS connection/i
+
+/**
+ * Runs a git command that talks to GitHub. A dropped or refused connection is tried again (after 3 s, then 8 s); after that the error says
+ * what happened in words instead of just "codigo 128". Anything else (a rejected push, a wrong path) fails at once, as before.
+ */
+async function online(cwd, args, log, { delays = [3000, 8000], sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) } = {}) {
+    withLog(log, 'git', args)
+    for (let attempt = 0; ; attempt++) {
+        const seen = []
+        try {
+            await run('git', args, { cwd }, (line) => { seen.push(line); log(line) })
+            return
+        } catch (err) {
+            const said = seen.join('\n')
+            if (/Cancelado/.test(err.message) || !NETWORK_ERROR.test(said)) throw err
+            if (attempt >= delays.length) {
+                const last = seen.filter((line) => NETWORK_ERROR.test(line)).pop() || ''
+                throw new Error(`No pude conectar con GitHub después de ${attempt + 1} intentos (${last.replace(/^fatal:\s*/, '').trim()}). Revisa tu internet y vuelve a pulsar el botón: lo que ya está guardado se conserva y solo falta subirlo.`)
+            }
+            log(`Sin conexión con GitHub (intento ${attempt + 1} de ${delays.length + 1}). Reintento en ${delays[attempt] / 1000} s...`)
+            await sleep(delays[attempt])
+        }
+    }
 }
 
-async function pull(cwd, log) {
-    withLog(log, 'git', ['pull', '--ff-only'])
-    await run('git', ['pull', '--ff-only'], { cwd }, log)
+async function clone(url, destination, log, options) {
+    await online(undefined, ['clone', url, destination], log, options)
+}
+
+async function pull(cwd, log, options) {
+    await online(cwd, ['pull', '--ff-only'], log, options)
 }
 
 async function add(cwd, paths, log) {
@@ -72,10 +97,8 @@ async function commit(cwd, message, log) {
 }
 
 /** `-u origin HEAD` also works on a branch that has no upstream yet (a plain `git push` stops there with code 128). */
-async function push(cwd, log) {
-    const args = ['push', '-u', 'origin', 'HEAD']
-    withLog(log, 'git', args)
-    await run('git', args, { cwd }, log)
+async function push(cwd, log, options) {
+    await online(cwd, ['push', '-u', 'origin', 'HEAD'], log, options)
 }
 
 /** True when the local branch has commits the remote doesn't (for "nothing to send" checks after a failed push). */
@@ -122,4 +145,4 @@ async function commitOnly(cwd, message, paths, log) {
     await run('git', args, { cwd }, log)
 }
 
-module.exports = { knownPaths, stagedChangesIn, commitOnly, changes, ensureByteExact, stage, stagedChanges, isRepo, clone, pull, add, addAll, commit, push, unpushedCount }
+module.exports = { online, knownPaths, stagedChangesIn, commitOnly, changes, ensureByteExact, stage, stagedChanges, isRepo, clone, pull, add, addAll, commit, push, unpushedCount }
