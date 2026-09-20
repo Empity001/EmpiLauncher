@@ -176,6 +176,16 @@ function saveAccess(body) {
         launcher.minVersion = String(body.launcher.minVersion).trim()
     }
     if (body.launcher && body.launcher.novedades) { if (!launcherRules.link(body.launcher.novedades)) throw new Error('El enlace de novedades general tiene que empezar por https://'); launcher.novedades = String(body.launcher.novedades).trim() }
+    // where "Enviar a soporte" goes: checked with the very rules the launcher applies, so what is saved here is what it will accept
+    const support = body.launcher && body.launcher.support
+    if (support && (support.service || support.key || support.email)) {
+        const wanted = { service: String(support.service || '').trim(), key: String(support.key || '').trim(), email: String(support.email || '').trim() }
+        const kept = launcherRules.sanitize({ version: 1, launcher: { support: wanted }, notices: [], modpacks: {} }).launcher.support
+        if ((wanted.service || wanted.key) && !(kept && kept.service)) throw new Error('El servicio de soporte tiene que ser appsscript o formspree (Google Apps Script o Formspree), con su clave (solo letras, números y guiones).')
+        if (wanted.email && !(kept && kept.email)) throw new Error('El correo de soporte no parece un correo.')
+        if (!kept) throw new Error('Para poder enviar informes hace falta el servicio y su clave; con solo un correo, el jugador guarda el informe y lo manda él.')
+        launcher.support = kept
+    }
     state.modpacks = modpacks
     state.launcher = launcher
     writeState(state)
@@ -240,6 +250,7 @@ function problems(doc) {
     }
     for (const id of Object.keys(doc.modpacks)) if (!seen.modpacks[id]) out.push(`Los ajustes de ${id} no los aceptaría el launcher.`)
     if (doc.launcher.minVersion && !seen.launcher.minVersion) out.push('La versión mínima no es válida.')
+    if (doc.launcher.support && !seen.launcher.support) out.push('Los datos de soporte no los aceptaría el launcher.')
     return out
 }
 

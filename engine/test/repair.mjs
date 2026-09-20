@@ -8,8 +8,9 @@ const seconds = Number(process.argv[process.argv.indexOf('--seconds') + 1]) || 1
 const engine = await startEngine({ label: 'repair' })
 try {
     await engine.call('distro.load')
-    const started = await engine.call('game.start', { mode: 'update' })
-    check('update is accepted', started.ok && started.result.started === true, JSON.stringify(started.result ?? started.error))
+    // "Verificar y reparar" on a modpack that is not installed has nothing to verify: it installs (an update), so the rest of this test is the same
+    const started = await engine.call('game.start', { mode: 'verify' })
+    check('verify on a modpack that is not installed becomes an update, and is accepted', started.ok && started.result.started === true && started.result.mode === 'update', JSON.stringify(started.result ?? started.error))
 
     const verifying = await engine.waitFor((e) => e.event === 'game.progress' && e.data.stage === 'verify', 30000)
     check('verify stage reported', verifying != null)

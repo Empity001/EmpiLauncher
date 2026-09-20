@@ -43,8 +43,9 @@ internal sealed class AboutTab : SettingsTab
         f.Children.Add(FolderRow("Configuración", config.LauncherDirectory));
         Root.Children.Add(folders);
 
-        var report = Ui.Section("Informe de fallo", out var r, "Para pedir ayuda: reúne las versiones, Java, la memoria, los mods y el final del registro del juego. Se copia a tu portapapeles; no se envía a ningún sitio y no lleva tu nombre, tu sesión ni las rutas de tu usuario.");
-        r.Children.Add(Ui.Row("Copiar el informe", "Del modpack que tienes elegido.", Ui.Button("Copiar informe", () => _ = ((MainWindow)Application.Current.MainWindow).CopyReportAsync(), "GhostButton", 18)));
+        var report = Ui.Section("Informe de fallo y reparación", out var r, "Para pedir ayuda: un informe con las versiones, tu equipo, el modpack, los mods y el final del registro del juego. Lo ves entero antes de hacer nada; puedes copiarlo, guardarlo como .txt o mandarlo a soporte (solo si tú lo pides). Nunca lleva tu sesión, tus claves, tu correo ni tu usuario de Windows.");
+        r.Children.Add(Ui.Row("Ver el informe", "Del modpack que tienes elegido.", Ui.Button("Ver informe", () => ((MainWindow)Application.Current.MainWindow).ShowReport(), "GhostButton", 18)));
+        r.Children.Add(Ui.Row("Verificar y reparar", "Comprueba todos los archivos del modpack elegido y vuelve a bajar los que falten o estén dañados. No toca tus mundos ni tus ajustes.", Ui.Button("Verificar y reparar", () => ((MainWindow)Application.Current.MainWindow).AskRepair(), "GhostButton", 18)));
         Root.Children.Add(report);
 
         var cost = Ui.Section("Consumo ahora mismo", out var c, "Lo que usan en este instante la interfaz y el motor. La interfaz devuelve memoria al sistema cuando está quieta.");

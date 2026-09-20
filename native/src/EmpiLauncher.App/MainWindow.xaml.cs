@@ -53,8 +53,15 @@ public partial class MainWindow : Window
         MegaHost.Content = _mega;
         NoticePopup.MouseLeftButtonUp += (_, _) => { HideNoticePopup(); ShowNotices(general: _l.GeneralNotices.Any(NoticeLook.Unread) || !_l.NoticesOf(_l.SelectedId).Any(NoticeLook.Unread)); };
         NoticesPanelView.CloseRequested += HideNotices;
+        ReportPanelView.CloseRequested += HideReport;
+        _l.GameDone += OnGameDone;
         NoticesLayer.MouseLeftButtonDown += (_, e) => { if (ReferenceEquals(e.OriginalSource, NoticesLayer)) HideNotices(); };
-        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape && NoticesLayer.Visibility == Visibility.Visible) { HideNotices(); e.Handled = true; } };
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key != Key.Escape) return;
+            if (ReportLayer.Visibility == Visibility.Visible) { HideReport(); e.Handled = true; }
+            else if (NoticesLayer.Visibility == Visibility.Visible) { HideNotices(); e.Handled = true; }
+        };
         // while the window is in front, EmpiPacks is asked for news every five minutes (a few KB, and nothing when it is hidden)
         _noticeTimer.Tick += async (_, _) => { if (IsActive && WindowState != WindowState.Minimized && _l.Connected && !_l.Game.Busy) await _l.RefreshNoticesAsync(); };
         UpdateButton.Click += (_, _) => ShowUpdateDialog();
@@ -91,6 +98,7 @@ public partial class MainWindow : Window
             await _l.StartAsync();
             _idle.Start();
             _noticeTimer.Start();
+            if (Environment.GetEnvironmentVariable("EMPI_TEST_CRASH") == "1") _ = Task.Delay(2500).ContinueWith(_ => Dispatcher.Invoke(() => _l.RaiseCrashForTest()));   // tests: the dialog a real crash brings
         }
         catch (Exception ex)
         {
@@ -338,23 +346,39 @@ public partial class MainWindow : Window
 
     private void OnGameCrashed(GameExit exit) => ShowDialog(
         "Minecraft se cerró con un error",
-        $"El juego terminó de forma inesperada (código {exit.Code}). Puedes copiar un informe con lo que hace falta para entender qué pasó. No se envía a ningún sitio y no lleva tu nombre, tu sesión ni las rutas de tu usuario.",
-        ("Ahora no", null, false), ("Copiar informe", () => _ = CopyReportAsync(), true));
+        $"El juego terminó de forma inesperada (código {exit.Code}). Puedes ver un informe con lo que hace falta para entender qué pasó, guardarlo o mandarlo a soporte para que lo revisen (solo si tú lo pides). Si crees que falta algún archivo del modpack, también puedes verificarlo y repararlo.",
+        ("Ahora no", null, false), ("Verificar y reparar", () => AskRepair(), false), ("Ver informe", () => ShowReport(), true));
 
-    /// <summary>Builds the report (versions, Java, memory, mods, the end of the game's log) and puts it on the clipboard.</summary>
-    internal async Task CopyReportAsync()
+    /// <summary>The report in front of the player, to copy, save as a .txt or send to support. Nothing is sent until they press that button.</summary>
+    public void ShowReport()
     {
-        try
-        {
-            var text = await _l.BuildReportAsync(_l.Selected?.Id);
-            Clipboard.SetText(text);
-            ShowToast("Informe copiado. Pégalo donde quieras compartirlo.");
-        }
-        catch (Exception ex)
-        {
-            ShowDialog("No se pudo preparar el informe", ex.Message, ("Entendido", null, true));
-        }
+        HideNoticePopup();
+        if (ViewHost.Content is BlockedView) return;
+        _ = ReportPanelView.OpenAsync();
+        ReportLayer.Visibility = Visibility.Visible;
+        Motion.Animate(ReportLayer, OpacityProperty, 0, 1, 160);
+        Motion.Pop(ReportPanelView, new Point(0.5, 0.5), 220, 0.96, fade: false);
     }
+
+    private void HideReport()
+    {
+        if (ReportLayer.Visibility != Visibility.Visible) return;
+        Motion.Leave(ReportLayer, () => ReportLayer.Visibility = Visibility.Collapsed, 140);
+    }
+
+    /// <summary>"Verificar y reparar": what it does, in a sentence, before it does it (it can take a while and download).</summary>
+    public void AskRepair()
+    {
+        if (_l.Game.Busy || _l.Game.Running) { ShowToast("Espera a que termine lo que se está haciendo."); return; }
+        var name = _l.Host?.Name ?? _l.Selected?.Name ?? "este modpack";
+        ShowDialog($"Verificar y reparar {name}",
+            "Se comprueba cada archivo del modpack y solo se vuelven a bajar los que falten o estén dañados. Tus mundos, capturas y ajustes no se tocan. Puede tardar unos minutos y necesita internet.",
+            ("Cancelar", null, false), ("Verificar y reparar", () => _ = _l.RepairAsync(), true));
+    }
+
+    private void OnGameDone(GameDone done) => ShowToast(done.Repaired is > 0
+        ? $"Listo: se repararon {done.Repaired} archivo(s) del modpack."
+        : "Todo en orden: los archivos del modpack están completos y sin cambios.");
 
     // ---- the modpack's picture behind the home screen -------------------------------------------------------------
 

@@ -45,8 +45,19 @@ La pestaña **Avisos** controla lo que ven los jugadores, **sin compilar ni envi
   busca su UUID), **agenda** (*desde* = «próximamente», *hasta* = «retirado»: botón de cristal roto y papelera) y **enlace de novedades**.
 - **Launcher**: **versión mínima** (por debajo, el launcher entero pide actualizar y no deja jugar) y enlace de novedades general.
 
+- **Aviso programado**: «Se ve desde» en el aviso; hasta esa hora del servidor no lo ve nadie. Lo respetan los launchers 3.5.2 o posteriores; los anteriores lo muestran de inmediato.
+- **Comprobar enlaces** (barra de Avisos): mira que los botones de los avisos y los enlaces de novedades abren (una invitación de Discord se le pregunta a Discord, porque su página dice que sí aunque haya caducado). **Publicar avisos** avisa antes si alguno no abre.
+- **Deshacer última publicación**: los jugadores vuelven a ver los avisos como antes de la última vez, con un commit nuevo (se puede deshacer otra vez para rehacer). Tus borradores no se tocan y quedan «sin publicar».
+- **Soporte** (Avisos > Launcher): adónde llega «Enviar a soporte para revisión». Lo más simple y gratis: un script de tu Google que reenvía el informe a tu Gmail (el Publisher trae el script y los pasos). Tu correo queda dentro del script, no en avisos.json.
+
 Lo que escribes se guarda en `~/.empilauncher-publisher-avisos/` (borradores e imágenes; nada de eso sube hasta «Publicar avisos»). Antes de publicar, el Publisher valida el
 documento con la misma función que usa el launcher, y si nada cambió no crea un commit vacío.
+
+## Verificar publicación
+
+El botón de arriba comprueba que lo que publicaste está donde los jugadores lo leen: que no queden cambios guardados sin subir, que `distribution.json` y `avisos.json` de GitHub Pages son los que subiste (y que el launcher acepta el segundo), que abre cada página de aviso, que cada archivo de los modpacks está con el tamaño que dice el índice, que el instalador del launcher abre, y los enlaces de los avisos. No cambia nada; dice ✔ / ! (esperar o no se pudo saber) / ✘ (mal). Si un push fue hace poco, un Pages que aún muestra lo anterior es «!» (tarda hasta 10 minutos), no error.
+
+Al pulsar «Enviar» o «Compilar», el Publisher vuelve a añadir cada archivo tal cual está en disco (`git add --renormalize`): los archivos de texto subidos con la conversión de saltos de línea de Git activa quedan en GitHub distintos de como los hasheó Nebula, y la verificación los detecta.
 
 ## Requisitos
 

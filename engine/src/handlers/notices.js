@@ -128,6 +128,9 @@ function register(handlers, state) {
         } catch { /* no archive folder yet */ }
     }
 
+    const supportOf = () => { load(); return mem.doc && mem.doc.launcher.support ? mem.doc.launcher.support : null }
+    const supportView = () => { const s = supportOf(); return s ? { canSend: !!(s.service && s.key), email: s.email || null } : { canSend: false, email: null } }
+
     /** "Now", by the server's clock. Frozen at the last successful read whenever the last try failed. */
     const nowMs = () => (mem.serverAt == null ? Date.now() : mem.live && mem.online ? mem.serverAt + (performance.now() - mem.perfAt) : mem.serverAt)
     const appVersion = () => { try { return require('electron').app.getVersion() } catch { return null } }
@@ -216,7 +219,11 @@ function register(handlers, state) {
         const gate = accessFor('')
         return {
             online: mem.online, fetchedAt: mem.fetchedAt, serverNow: new Date(now).toISOString(),
-            launcher: { minVersion: mem.doc ? mem.doc.launcher.minVersion || null : null, blocked: gate.state === 'launcher', message: gate.state === 'launcher' ? gate.message : null, novedades: mem.doc ? mem.doc.launcher.novedades || null : null },
+            launcher: {
+                minVersion: mem.doc ? mem.doc.launcher.minVersion || null : null, blocked: gate.state === 'launcher', message: gate.state === 'launcher' ? gate.message : null, novedades: mem.doc ? mem.doc.launcher.novedades || null : null,
+                // where a failure report can go: whether it can be SENT from here, and the address to write to (the key never leaves the engine)
+                support: supportView()
+            },
             notices, archive, modpacks
         }
     }
@@ -236,7 +243,7 @@ function register(handlers, state) {
     })
 
     // The rest of the engine asks this before it starts anything (game.start): a sentence when playing is not allowed, null when it is.
-    state.notices = { gateFor: (serverId) => { load(); return N.blockingMessage(accessFor(serverId)) }, access: (serverId) => { load(); return accessFor(serverId) } }
+    state.notices = { support: supportOf, gateFor: (serverId) => { load(); return N.blockingMessage(accessFor(serverId)) }, access: (serverId) => { load(); return accessFor(serverId) } }
 }
 
 module.exports = { register }

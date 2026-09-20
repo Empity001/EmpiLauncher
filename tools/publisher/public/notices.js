@@ -660,6 +660,23 @@ async function nuSaveAccess() {
 
 // ---- view 3: the launcher
 
+const NU_SUPPORT_SCRIPT = [
+    'function doPost(e) {',
+    '  try {',
+    '    var data = JSON.parse(e.postData.contents);',
+    '    MailApp.sendEmail({',
+    "      to: 'TU_CORREO@gmail.com',",
+    "      subject: String(data.subject || 'Informe de Empi Launcher').slice(0, 200),",
+    "      body: String(data.message || '').slice(0, 100000),",
+    "      name: 'Empi Launcher'",
+    '    });',
+    '    return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);',
+    '  } catch (err) {',
+    '    return ContentService.createTextOutput(JSON.stringify({ success: false, message: String(err) })).setMimeType(ContentService.MimeType.JSON);',
+    '  }',
+    '}'
+].join('\n')
+
 function nuLauncherView() {
     const l = nu.access.launcher
     const touch = () => { nu.accessDirty = true; nuPaintBar() }
@@ -668,6 +685,21 @@ function nuLauncherView() {
         nuField('Versión mínima del launcher', h('input', { placeholder: '3.5.0', value: l.minVersion || '', oninput: (e) => { l.minVersion = e.target.value.trim(); touch() } })),
         h('p', { class: 'muted' }, 'Quien tenga una versión anterior no puede jugar hasta actualizar. Solo lo entienden los launchers 3.5.0 o posteriores: los anteriores no lo leen, así que ponlo cuando casi todos ya tengan la 3.5.0. Si publicas una versión con un fallo grave, sube esto a la siguiente.'),
         nuField('Enlace de novedades general (https)', h('input', { placeholder: 'https://discord.com/channels/...', value: l.novedades || '', oninput: (e) => { l.novedades = e.target.value.trim(); touch() } })),
+        h('div', { class: 'module-head' }, h('h3', {}, 'Soporte: «Enviar a soporte para revisión»')),
+        h('p', { class: 'muted' }, 'Cuando a un jugador se le cierra Minecraft con un error, el launcher le enseña el informe (con su nombre de jugador, su versión y su equipo; nunca su sesión ni su correo) y, si él lo pulsa, te lo manda a tu correo. Lo más simple y gratis es un script de tu cuenta de Google que reenvía el informe a tu Gmail: tu correo queda dentro del script y no se publica en ningún sitio.'),
+        h('ol', { class: 'muted nx-steps' },
+            h('li', {}, 'Entra a script.google.com con tu cuenta de Google y pulsa «Nuevo proyecto».'),
+            h('li', {}, 'Borra lo que haya, pega el script de abajo y cambia TU_CORREO@gmail.com por tu correo.'),
+            h('li', {}, '«Implementar» > «Nueva implementación» > tipo «Aplicación web» > ejecutar como «Yo» > acceso «Cualquier usuario» > «Implementar». Google te pedirá permiso para enviar correos: acéptalo.'),
+            h('li', {}, 'Copia el ID de la implementación (la parte larga de la dirección que está entre /s/ y /exec) y pégalo aquí abajo. Guarda los ajustes y pulsa «Publicar avisos».')),
+        h('div', { class: 'nx-code-wrap' },
+            h('pre', { class: 'nx-code' }, NU_SUPPORT_SCRIPT),
+            h('button', { class: 'btn small', onclick: async () => { try { await navigator.clipboard.writeText(NU_SUPPORT_SCRIPT); toast('Script copiado.') } catch { toast('No se pudo copiar: selecciónalo y cópialo a mano.', true) } } }, 'Copiar script')),
+        h('div', { class: 'nx-two' },
+            nuField('Servicio', h('select', { onchange: (e) => { l.support = { ...(l.support || {}), service: e.target.value }; touch() } },
+                h('option', { value: '', selected: !l.support?.service }, '(ninguno)'), h('option', { value: 'appsscript', selected: l.support?.service === 'appsscript' }, 'Google Apps Script (gratis, recomendado)'), h('option', { value: 'formspree', selected: l.support?.service === 'formspree' }, 'Formspree (sin probar)'))),
+            nuField('ID de la implementación (Apps Script) o id del formulario (Formspree)', h('input', { placeholder: 'AKfycb...', value: l.support?.key || '', oninput: (e) => { l.support = { ...(l.support || {}), key: e.target.value.trim() }; touch() } }))),
+        nuField('Tu correo, solo si quieres que el jugador lo vea (es público) cuando no se pueda enviar', h('input', { type: 'email', placeholder: '(déjalo vacío si usas el script)', value: l.support?.email || '', oninput: (e) => { l.support = { ...(l.support || {}), email: e.target.value.trim() }; touch() } })),
         h('div', { class: 'nx-actions' }, h('button', { class: 'btn paper', disabled: !nu.accessDirty, onclick: nuSaveAccess }, withIcon('check', 'Guardar ajustes'))))
 }
 

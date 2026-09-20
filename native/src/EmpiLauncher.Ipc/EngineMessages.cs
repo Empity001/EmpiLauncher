@@ -153,7 +153,10 @@ public sealed record AccessInfo(string State, string? Message, string? Until, st
 
 public sealed record ModpackNotice(AccessInfo Access, string? Novedades);
 
-public sealed record LauncherGate(string? MinVersion, bool Blocked, string? Message, string? Novedades);
+/// <summary>Where a failure report can go, as avisos.json says: CanSend = "Enviar a soporte" works from here (the key stays in the engine); Email = where to write when it cannot.</summary>
+public sealed record SupportInfo(bool CanSend, string? Email);
+
+public sealed record LauncherGate(string? MinVersion, bool Blocked, string? Message, string? Novedades, SupportInfo? Support);
 
 /// <summary>A closed notice, kept in "ya leídos": its words and its page squeezed small (Image is a local file, null when it never had one).</summary>
 public sealed record ArchivedNotice(string Id, string Title, string Severity, bool General, List<string> Targets, string? Summary, NoticeButton? Button, string? PublishedAt, string? ClosedAt, string? Image);
@@ -165,4 +168,7 @@ public sealed record UninstallPreview(bool Installed, long GameBytes, long Saves
 
 public sealed record UninstallResult(long FreedBytes);
 
-public sealed record ReportResult(string Text);
+public sealed record ReportResult(string Text, string? Code);
+
+/// <summary>An update, a restore or a "verificar y reparar" finished: Repaired is how many files had to be fetched again.</summary>
+public sealed record GameDone(string Mode, bool Changed, int? Repaired);

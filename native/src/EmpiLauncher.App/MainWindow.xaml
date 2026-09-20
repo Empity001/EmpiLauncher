@@ -63,6 +63,11 @@
             <views:NoticesPanel x:Name="NoticesPanelView" HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="28,64,28,28"/>
         </Grid>
 
+        <!-- the failure report: read it, copy it, save it, or send it to support -->
+        <Grid x:Name="ReportLayer" Grid.RowSpan="2" Visibility="Collapsed" Background="#B3060607">
+            <views:ReportPanel x:Name="ReportPanelView" HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="28,64,28,28"/>
+        </Grid>
+
         <!-- toast: short messages that do not need an answer -->
         <Border x:Name="Toast" Grid.Row="1" Visibility="Collapsed" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,110" MaxWidth="620"
                 Style="{StaticResource Module}" Background="#F218181C" Padding="18,12">

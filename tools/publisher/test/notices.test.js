@@ -131,3 +131,18 @@ test('a scheduled notice keeps its start, must start before it expires, and reac
     assert.deepStrictEqual(notices.problems(doc), [], 'the launcher accepts a scheduled notice as it is')
     notices.deleteNotice(made.id)
 })
+
+test('the support service is checked like the launcher checks it, and it reaches avisos.json', () => {
+    assert.throws(() => notices.saveAccess({ launcher: { support: { service: 'https://malo.example', key: 'abc12345' } } }), /appsscript o formspree/)
+    assert.throws(() => notices.saveAccess({ launcher: { support: { service: 'appsscript', key: 'abc12345', email: 'no es correo' } } }), /no parece un correo/)
+    assert.throws(() => notices.saveAccess({ launcher: { support: { key: 'abc12345' } } }), /appsscript o formspree/)
+    const onlyMail = notices.saveAccess({ launcher: { support: { email: 'solo@correo.com' } } })
+    assert.deepStrictEqual(onlyMail.launcher.support, { email: 'solo@correo.com' }, 'an address alone is allowed: the player is told where to write')
+    const full = notices.saveAccess({ launcher: { support: { service: 'appsscript', key: 'abc12345-XYZ', email: 'soporte@correo.com' } } })
+    assert.deepStrictEqual(full.launcher.support, { service: 'appsscript', key: 'abc12345-XYZ', email: 'soporte@correo.com' })
+    const { doc } = notices.buildDoc(notices.readState(), () => '')
+    assert.deepStrictEqual(doc.launcher.support, full.launcher.support)
+    assert.deepStrictEqual(notices.problems(doc), [], 'the launcher accepts the file with it')
+    const cleared = notices.saveAccess({ launcher: { support: { service: '', key: '', email: '' } } })
+    assert.ok(!('support' in cleared.launcher), 'emptying the fields removes it')
+})

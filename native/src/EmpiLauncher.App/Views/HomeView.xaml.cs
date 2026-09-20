@@ -91,6 +91,7 @@ public partial class HomeView : UserControl
             if (window is { IsActive: true, WindowState: not WindowState.Minimized } && !_l.Game.Busy) _ = _l.RefreshNoticesAsync(network: false);
         };
         TrashButton.Click += async (_, _) => await TrashAsync();
+        RepairButton.Click += (_, _) => ((MainWindow)Application.Current.MainWindow).AskRepair();
         SettingsButton.Click += (_, _) => OpenSettings?.Invoke();
         PlayButton.Click += async (_, _) => await _l.PrimaryActionAsync();
         OfflineButton.Click += (_, _) => ((MainWindow)Application.Current.MainWindow).ShowOfflinePrompt();
@@ -529,6 +530,7 @@ public partial class HomeView : UserControl
         var label = game.Phase switch
         {
             "launching" => $"INICIANDO  {game.Percent}%",
+            "updating" when game.Mode == "verify" => $"VERIFICANDO  {game.Percent}%",
             "updating" => $"ACTUALIZANDO  {game.Percent}%",
             "restoring" => $"RESTAURANDO  {game.Percent}%",
             "stopping" => "DETENIENDO",
@@ -591,6 +593,7 @@ public partial class HomeView : UserControl
             ProgressDetail.Visibility = parts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
+        RepairButton.Visibility = _l.Pack?.Installed == true && !game.Busy && !game.Running && !_playBlockedByRetirement ? Visibility.Visible : Visibility.Collapsed;
         RefreshAccess();
         if (_playBlocked) PlayButton.IsHitTestVisible = false;
     }
@@ -603,6 +606,7 @@ public partial class HomeView : UserControl
 
     private static readonly AccessInfo AllClear = new("ok", null, null, null, null, null);
     private string _accessKey = "";
+    private bool _playBlockedByRetirement => _l.Access(_l.Selected?.Id).State == "retired";   // a retired modpack cannot be repaired: it cannot be played either
     private bool _playBlocked;
     private GlassButton? _glass;
     private string? _glassFor;

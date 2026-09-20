@@ -1,9 +1,11 @@
 /**
- * The local failure report: what a person would need to look at a failed launch (versions, Java, memory, mods, the last lines of the game's
- * log and its crash report), as text to copy. It is never sent anywhere: the player decides who gets it.
+ * The failure report: what a person would need to look at a failed launch (versions, Java, memory, mods, the last lines of the game's
+ * log and its crash report), as text. It goes nowhere by itself: the player copies it, saves it as a file, or presses "Enviar a soporte".
  *
- * Before it leaves the engine everything that could identify the player or open their session is taken out: access tokens, the
- * player's name and ids in the launch arguments, e-mails, and the user name inside every path.
+ * Two kinds. The plain one (for copying) takes out everything that could identify the player or open their session: access tokens, the
+ * player's name and ids in the launch arguments, e-mails, and the user name inside every path. The one for SUPPORT (support: {...}) is
+ * meant for the author, who has to know who wrote and on what machine: it adds the player's name and id, a code to quote, and more about
+ * the PC. It still never carries a token, a session, an e-mail or the Windows user name (those are taken out in both).
  */
 const fs = require('fs')
 const os = require('os')
@@ -56,26 +58,40 @@ function newestFile(dir, filter) {
  * @param {object|null} input.exit             how the last game ended: { code, signal, stopped, at }
  * @param {string|null} input.accountType      'microsoft' | 'offline' | 'mojang' (never a name)
  * @param {string[]} [input.hide]              strings to take out (the player's name)
+ * @param {object} [input.support]             makes it the report for support: { code, player: { name, uuid, type }, installed: {version}, language, performance, engineMb }
  */
 function build(input) {
     const lines = []
     const add = (text = '') => lines.push(text)
     const s = input.server && input.server.rawServer ? input.server.rawServer : input.server || {}
 
-    add('INFORME DE EMPI LAUNCHER')
+    const support = input.support || null
+    add(support ? 'INFORME PARA SOPORTE DE EMPI LAUNCHER' : 'INFORME DE EMPI LAUNCHER')
     add(`Generado: ${new Date().toISOString()}`)
-    add('Este informe no se envía a ningún sitio: lo copias tú y lo compartes con quien quieras. Los datos personales están ocultos.')
+    if (support) add(`Código del informe: ${support.code}`)
+    add(support
+        ? 'Lo envía el propio jugador desde el launcher, con su permiso, para que se revise. No lleva su sesión, sus claves, su correo ni el nombre de usuario de Windows.'
+        : 'Este informe no se envía a ningún sitio: lo copias tú y lo compartes con quien quieras. Los datos personales están ocultos.')
     add()
     add('== Sistema ==')
     add(`Launcher: ${input.appVersion || 'desconocido'}`)
-    add(`Windows: ${os.release()} (${os.arch()})`)
+    add(`Windows: ${os.version ? os.version() + ' ' : ''}${os.release()} (${os.arch()})`)
     add(`Memoria del equipo: ${(os.totalmem() / 1024 ** 3).toFixed(1)} GB (libre ${(os.freemem() / 1024 ** 3).toFixed(1)} GB)`)
     add(`Procesador: ${os.cpus()[0] ? os.cpus()[0].model.trim() : 'desconocido'} (${os.cpus().length} núcleos)`)
     add(`Tipo de cuenta: ${input.accountType || 'ninguna'}`)
+    if (support) {
+        add(`Equipo encendido desde hace: ${(os.uptime() / 3600).toFixed(1)} horas`)
+        add(`Zona horaria: ${(() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone } catch { return '?' } })()}`)
+        add(`Idioma del launcher: ${support.language || '?'}   Modo de rendimiento: ${support.performance || '?'}`)
+        const free = (() => { try { const s = fs.statfsSync(input.instanceDir); return (s.bavail * s.bsize / 1024 ** 3).toFixed(1) } catch { return null } })()
+        if (free != null) add(`Espacio libre en el disco del juego: ${free} GB`)
+        if (support.engineMb) add(`Memoria del motor del launcher: ${support.engineMb} MB`)
+    }
     add()
     add('== Modpack ==')
     add(`Id: ${input.id || 'ninguno'}`)
     add(`Nombre: ${s.name || '?'}  versión ${s.version || '?'}  Minecraft ${s.minecraftVersion || '?'}`)
+    if (support && support.installed) add(`Instalado en este equipo: versión ${support.installed.version || 'desconocida'}${support.installed.version && s.version && support.installed.version !== s.version ? '  (distinta de la publicada)' : ''}`)
     const loader = (s.modules || []).find((m) => /ForgeHosted|Forge|Fabric|NeoForge/i.test(m.type || ''))
     if (loader) add(`Loader: ${loader.type} ${loader.id || ''}`.trim())
     add(`Java: ${input.settings.java || 'automático'}`)
@@ -104,7 +120,19 @@ function build(input) {
     add('== Últimas líneas del registro del juego ==')
     add(log == null ? '(el juego no ha escrito registro todavía)' : log)
 
-    return redact(lines.join('\n'), { extra: input.hide || [] })
+    if (!support) return redact(lines.join('\n'), { extra: input.hide || [] })
+    // for support the player is named: the identity block is written AFTER the hiding, so it survives it, and the log keeps their name too
+    const who = support.player || {}
+    const identity = [
+        '== Jugador ==',
+        `Nombre: ${who.name || 'desconocido'}`,
+        `Cuenta: ${who.type === 'microsoft' ? 'Microsoft' : who.type === 'offline' ? 'sin conexión' : who.type || 'ninguna'}`,
+        `Identificador (UUID): ${who.uuid || 'ninguno'}`,
+        ''
+    ].join('\n')
+    const body = redact(lines.join('\n'))
+    const at = body.indexOf('== Sistema ==')
+    return at < 0 ? `${identity}\n${body}` : `${body.slice(0, at)}${identity}\n${body.slice(at)}`
 }
 
 module.exports = { build, redact }

@@ -11,7 +11,7 @@
  *   game.progress  { stage, text?, percent?, received?, total?, bytesPerSecond?, pendingFiles? }   fields that changed
  *   game.failure   { code, title, message }
  *   game.needJava  { serverId, suggestedMajor, distribution }
- *   game.done      { mode, changed }                       an update or restore finished
+ *   game.done      { mode, changed, repaired }             an update, restore or verify finished (repaired: how many files had to be fetched again)
  *   game.exit      { code, signal, stopped }
  *   pack.status    { ...pack status }                      what the launch button should offer
  *   distro.refreshed { ...distribution }                   the index was re-read during a launch
@@ -250,7 +250,9 @@ function register(handlers, state) {
 
     // ---- the pipeline (dlAsync) ---------------------------------------------------------------------------------------
 
-    async function pipeline({ login = true, restoring = false, protectedDifferences = null, cleanProtected = false }) {
+    // verifyOnly: "Verificar y reparar": every file is checked against the index and only the ones that are wrong or missing are fetched again.
+    // Nothing is cleaned or removed first (that is what update and restore do), so it is light, and the player's own files are never touched.
+    async function pipeline({ login = true, restoring = false, protectedDifferences = null, cleanProtected = false, verifyOnly = false }) {
         const { ConfigManager, DistroAPI } = core()
         const PackIntegrity = require(path.join(state.appJs, 'packintegrity'))
         let snapshot = null
@@ -382,7 +384,7 @@ function register(handlers, state) {
         if (!login) {
             clearTransfer()
             setPhase('idle')
-            emit('game.done', { mode: restoring ? 'restore' : 'update', changed: invalidFileCount > 0 })
+            emit('game.done', { mode: verifyOnly ? 'verify' : restoring ? 'restore' : 'update', changed: invalidFileCount > 0, repaired: invalidFileCount })
             await refreshPackStatus(serv).catch(() => {})
             return true
         }
@@ -575,7 +577,7 @@ function register(handlers, state) {
     })
 
     /**
-     * mode: 'auto' (what the pack needs, like the classic button), 'play', 'update' or 'restore'.
+     * mode: 'auto' (what the pack needs, like the classic button), 'play', 'update', 'restore' or 'verify' (check every file, fetch only the bad ones).
      * Returns as soon as the operation is accepted; everything after that is events.
      */
     handlers.set('game.start', async ({ mode = 'auto' } = {}) => {
@@ -590,7 +592,9 @@ function register(handlers, state) {
         game.pendingJava = null
 
         const status = await pack().status(server)
-        const chosen = mode === 'auto' ? status.action : mode
+        let chosen = mode === 'auto' ? status.action : mode
+        // "verify" only makes sense for an installed pack that is up to date; otherwise what it needs (install, update, restore) is what runs
+        if (chosen === 'verify' && (!status.installed || status.action !== 'play')) chosen = status.installed ? status.action : 'update'
         const run = (fn) => Promise.resolve().then(fn).catch((err) => {
             log().error('Unhandled error during launch/update process.', err)
             fail('unhandled', 'Error al iniciar', 'Revisa el registro del launcher para más detalles.')
@@ -600,6 +604,11 @@ function register(handlers, state) {
             setPhase('restoring', 'restore')
             run(() => pipeline({ login: false, restoring: true, cleanProtected: true, protectedDifferences: [...status.differences] }))
             return { started: true, mode: 'restore' }
+        }
+        if (chosen === 'verify') {
+            setPhase('updating', 'verify')
+            run(() => pipeline({ login: false, verifyOnly: true }))
+            return { started: true, mode: 'verify' }
         }
         if (chosen === 'update') {
             setPhase('updating', 'update')

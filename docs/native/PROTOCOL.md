@@ -54,7 +54,7 @@ Códigos de error comunes: `unknown_method`, `bad_json`, `busy`, `no_server`, `n
 ### Jugar
 | Método | Parámetros | Resultado |
 |---|---|---|
-| `game.start` | `{mode: auto\|play\|update\|restore}` | `{started, mode}` o `{started:false, reason:"modified", differences}`. Vuelve en cuanto acepta; lo demás son eventos |
+| `game.start` | `{mode: auto\|play\|update\|restore\|verify}` | `{started, mode}` o `{started:false, reason:"modified", differences}`. Vuelve en cuanto acepta; lo demás son eventos. `verify` («Verificar y reparar»): comprueba cada archivo contra el índice y vuelve a bajar solo los que faltan o están mal, **sin borrar nada antes** (ni tocar mundos, capturas o ajustes); en un modpack sin instalar, o que necesita actualizar o restaurar, hace eso (`mode` en la respuesta dice lo que corrió) |
 | `game.stop` | | `{stopped}` |
 | `game.status` | | `{phase, mode, serverId, pid, pendingJava}` (para retomar tras reconectar) |
 | `java.install` | | `{started}`: descarga e instala el JDK que pidió `game.needJava` y sigue con el arranque |
@@ -137,13 +137,15 @@ Los launchers anteriores a la 3.5.0 (la primera que trae avisos; la 3.4.0 ya pub
 
 ```json
 { "version": 1, "generatedAt": "…",
-  "launcher": { "minVersion": "3.5.0", "novedades": "https://…" },
+  "launcher": { "minVersion": "3.5.0", "novedades": "https://…", "support": { "service": "appsscript|formspree", "key": "<id>", "email": "…" } },
   "notices": [{ "id": "…", "title": "…", "severity": "info|important|critical", "targets": ["*" | "<id de modpack>"],
-                "page": "avisos/<id>-<hash>.webp", "pageHash": "…", "summary": "…", "publishedAt": "…", "expiresAt": "…",
+                "page": "avisos/<id>-<hash>.webp", "pageHash": "…", "summary": "…", "publishedAt": "…", "startsAt": "…", "expiresAt": "…",
                 "button": { "label": "…", "url": "https://…" } }],
   "modpacks": { "<id>": { "maintenance": { "active": true, "message": "…", "until": "…", "allow": ["<uuid de 32 hex>"] },
                           "schedule": { "from": "…", "until": "…" }, "novedades": "https://…" } } }
 ```
+
+`startsAt` programa un aviso: no se muestra antes de esa hora (la del servidor, como todo lo demás) y cuenta como publicado desde entonces; los launchers anteriores a la 3.5.2 ignoran el campo y lo muestran de inmediato. `launcher.support` dice adónde puede ir un informe de fallo (ver `report.send`): solo esos dos servicios, con una clave de esa forma; `avisos.json` no puede mandar el informe a ninguna otra dirección.
 
 Cada aviso es **una página de periódico** que el autor armó pieza por pieza en el Publisher y que se exporta a una imagen; el launcher la muestra tal cual
 (nunca interpreta HTML). El motor baja la imagen una sola vez (por `pageHash`) a `notices-cache`.
@@ -153,7 +155,8 @@ Cada aviso es **una página de periódico** que el autor armó pieza por pieza e
 | `notices.get` | | La última lectura, sin red: `{online, fetchedAt, serverNow, launcher:{minVersion, blocked, message, novedades}, notices[], modpacks:{<id>:{access, novedades}}}`. Cada aviso: `{id, title, severity, general, targets, summary, button, publishedAt, expiresAt, image, state}` (`image` es un archivo local; `state`: `unread read later closed`) |
 | `notices.refresh` | | Igual, pero antes pregunta a EmpiPacks. Sin red no falla: se queda la última lectura y **lo que estaba bloqueado sigue bloqueado** hasta la próxima lectura con internet |
 | `notices.mark` | `{id, state}` | La vista con el estado nuevo. Un aviso editado (otro `pageHash` o título) vuelve a estar sin leer. «Recordar más tarde» (`later`) cuenta como sin leer y vuelve en el próximo arranque. **Cerrar (`closed`) lo pasa a «ya leídos»**: su página se guarda en `notices-archive/` como un WebP a 675 px de ancho y calidad 40 (unos 15-26 KB, un tercio del original; el texto se sigue leyendo), y la página original se borra. Aparece en `archive: [{id, title, severity, general, targets, summary, button, publishedAt, closedAt, image}]`, la más reciente primero, hasta 500 (las más viejas se van; es un tope contra abusos, no algo que se alcance). **No hay forma de quitar uno**: es la constancia de que el aviso le llegó al jugador («no me apareció», «no lo leí»). Sigue ahí aunque el autor quite el aviso de `avisos.json`; si el autor lo **edita**, es un aviso nuevo y la copia vieja se borra. Un aviso cerrado no se vuelve a descargar |
-| `report.build` | `{serverId?}` | `{text}`: el informe de fallo (versiones, Java, memoria, mods y el final del registro). **Se queda en el equipo**: no se envía a ningún sitio, y `redact()` quita tokens, JWT, nombre y UUID del jugador, correos, el nombre de usuario de las rutas y cadenas largas opacas |
+| `report.send` | `{text, code, note?}` | `{sent, code}`: «Enviar a soporte para revisión». Solo lo llama la interfaz cuando el jugador pulsa el botón, con el texto exacto que vio (más su nota). Va al servicio que dice `launcher.support` de `avisos.json` (`appsscript`: un script de Google del autor que lo manda a su Gmail, gratis y sin publicar el correo; o `formspree`); nunca a otra dirección. Errores: `no_support` (sin configurar), `too_soon` (uno cada 30 s), `bad_report`, `send_failed` (con el motivo en palabras). La vista de avisos trae `launcher.support = {canSend, email}` (la clave nunca sale del motor) |
+| `report.build` | `{serverId?, forSupport?}` | `{text, code}`: el informe de fallo (versiones, Java, memoria, mods y el final del registro). Con `forSupport` es el informe para el autor: pone el nombre del jugador, su cuenta y su UUID, más datos del equipo (Windows, procesador, disco, zona horaria, versión instalada frente a la publicada) y un código (`EMPI-XXXXXX`) que el jugador puede citar; sigue sin llevar tokens, sesión, correos ni el usuario de Windows. **Construirlo no envía nada**; `redact()` quita tokens, JWT, nombre y UUID del jugador, correos, el nombre de usuario de las rutas y cadenas largas opacas |
 | `pack.uninstall.preview` | `{id}` | `{installed, gameBytes, savesBytes, screenshotsBytes}`: lo que liberaría «quitar de mi PC» |
 | `pack.uninstall` | `{id, includePersonal?}` | `{freedBytes}`. Borra los archivos del juego; `saves` y `screenshots` se quedan salvo `includePersonal:true`. Error `busy` con Minecraft en uso. Con solo mundos y capturas en la carpeta, `pack.status` ya no cuenta el modpack como instalado |
 
@@ -172,7 +175,7 @@ la última barrera.
 | `game.progress` | Solo los campos que cambian; `null` borra uno: `{stage, text, percent, received, total, bytesPerSecond, pendingFiles}`. Etapas: `refresh protect clean verify download restore-personal prepare launch launched java-scan java-download java-extract java-installed stop` |
 | `game.failure` | `{code, title, message}`. Códigos: `distribution no_account protect clean verify download restore-personal metadata launch launchwrapper java blocked unhandled` |
 | `game.needJava` | `{serverId, suggestedMajor, distribution}` |
-| `game.done` | `{mode: update\|restore, changed}` |
+| `game.done` | `{mode: update\|restore\|verify, changed, repaired}` (`repaired`: cuántos archivos hubo que bajar otra vez; con `verify` y `0`, todo estaba en orden) |
 | `game.exit` | `{code, signal, stopped}`. Con `code` distinto de 0 y sin que el jugador lo detuviera, la interfaz ofrece el informe de fallo (`report.build`) |
 | `game.notice` | `{level, text}` |
 | `pack.status` | igual que el método |

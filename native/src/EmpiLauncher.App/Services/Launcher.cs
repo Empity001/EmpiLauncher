@@ -538,6 +538,14 @@ public sealed class Launcher : IAsyncDisposable
                 Distro = data.Deserialize<DistroResult>(Json.Options);
                 Changed?.Invoke();
                 break;
+            case "game.done":
+                if (data.Deserialize<GameDone>(Json.Options) is { } done)
+                {
+                    // only the check the player asked for says anything about its result: an update or a restore already shows its own progress
+                    if (done.Mode == "verify" || _repairAsked) GameDone?.Invoke(done);
+                    _repairAsked = false;
+                }
+                break;
             case "game.exit":
                 if (data.Deserialize<GameExit>(Json.Options) is { Stopped: false, Code: not (null or 0) } exit) GameCrashed?.Invoke(exit);
                 break;
@@ -616,9 +624,45 @@ public sealed class Launcher : IAsyncDisposable
         return result.FreedBytes;
     }
 
-    /// <summary>The failure report as text to copy. Nothing in it identifies the player, and it is never sent anywhere.</summary>
-    public async Task<string> BuildReportAsync(string? serverId = null) =>
-        (await Client.CallAsync<ReportResult>("report.build", new { serverId }, TimeSpan.FromSeconds(30))).Text;
+    /// <summary>
+    /// The failure report as text. With forSupport it names the player and carries a code to quote (for the author, who must know who wrote); it never carries
+    /// a session, a key, an e-mail or the Windows user name. Nothing is sent by building it.
+    /// </summary>
+    public Task<ReportResult> BuildReportAsync(string? serverId = null, bool forSupport = false) =>
+        Client.CallAsync<ReportResult>("report.build", new { serverId, forSupport }, TimeSpan.FromSeconds(30));
+
+    /// <summary>"Enviar a soporte para revisión": only when the player asks, and exactly the text they were shown (plus their note).</summary>
+    public async Task SendReportAsync(string text, string? code, string? note) =>
+        await Client.CallAsync("report.send", new { text, code, note }, TimeSpan.FromSeconds(45));
+
+    /// <summary>Raised when an update, a restore or a check-and-repair finishes.</summary>
+    public event Action<GameDone>? GameDone;
+    private bool _repairAsked;
+
+    /// <summary>
+    /// "Verificar y reparar": every file of the modpack is checked and only the bad or missing ones are fetched again; worlds, screenshots and
+    /// settings are not touched. A modpack that needs an update or a restore gets that instead, which also fixes what is wrong.
+    /// </summary>
+    public async Task RepairAsync()
+    {
+        if (Game.Busy || Game.Running) return;
+        var mode = Pack?.Action switch { "update" => "update", "restore" => "restore", _ => "verify" };
+        try
+        {
+            _repairAsked = true;
+            await Client.CallAsync<GameStartResult>("game.start", new { mode });
+        }
+        catch (EngineException ex) when (ex.Code == "blocked")
+        {
+            _repairAsked = false;
+            await RefreshNoticesAsync();
+            Failure?.Invoke(new GameFailure("blocked", "No se puede ahora", ex.Message));
+        }
+        catch (EngineException ex) { _repairAsked = false; Notice?.Invoke(ex.Message); }
+    }
+
+    /// <summary>For tests (EMPI_TEST_CRASH=1): the same thing that happens when the game ends with an error, without needing a real crash.</summary>
+    internal void RaiseCrashForTest() => GameCrashed?.Invoke(new GameExit(1, null, false));
 
     public void TrimMemory() => _host?.Trim();
 
