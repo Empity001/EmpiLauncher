@@ -101,14 +101,19 @@ public partial class MainWindow : Window
         _ = CheckUpdatesLoopAsync();
     }
 
-    /// <summary>First check a little after start (so it never competes with start-up), then every six hours while the launcher is open.</summary>
+    /// <summary>
+    /// The first check is the moment the engine is up: it is one small file from GitHub, so the "NUEVA VERSIÓN" pill is there as soon as the launcher opens
+    /// (it waits for the logo to uncover the window, see OnUpdateChanged) and nobody has to go looking in Ajustes. Then every six hours while it is open.
+    /// When GitHub cannot be reached (no network yet at start-up) it asks again after 15 s, 1 min and 5 min instead of waiting six hours.
+    /// </summary>
     private async Task CheckUpdatesLoopAsync()
     {
-        await Task.Delay(TimeSpan.FromSeconds(20));
+        int[] retries = [15, 60, 300];
+        var failed = 0;
         while (_l.Connected)
         {
-            await _l.CheckUpdateAsync();
-            await Task.Delay(TimeSpan.FromHours(6));
+            if (await _l.CheckUpdateAsync()) { failed = 0; await Task.Delay(TimeSpan.FromHours(6)); }
+            else await Task.Delay(failed < retries.Length ? TimeSpan.FromSeconds(retries[failed++]) : TimeSpan.FromHours(6));
         }
     }
 
@@ -116,6 +121,8 @@ public partial class MainWindow : Window
     {
         var update = _l.Update;
         var appearing = update != null && UpdateButton.Visibility != Visibility.Visible;
+        // the answer can arrive while the logo still covers the window: the pill waits for it to lift, so its arrival is seen
+        if (appearing && SplashLayer.Playing) { SplashLayer.WhenRevealing(OnUpdateChanged); return; }
         UpdateButton.Visibility = update == null ? Visibility.Collapsed : Visibility.Visible;
         if (update != null) UpdateButton.Content = $"NUEVA VERSIÓN {update.Version}";
         if (appearing) Motion.Pop(UpdateButton, new Point(0, 0.5), 240, 0.9);   // news: it arrives, it does not just appear

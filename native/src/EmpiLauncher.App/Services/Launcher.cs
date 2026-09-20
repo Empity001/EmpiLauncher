@@ -230,15 +230,17 @@ public sealed class Launcher : IAsyncDisposable
     public UpdateInfo? Update { get; private set; }
 
     /// <summary>Asks whether a newer native launcher is published. Quiet on failure: no network just means no news.</summary>
-    public async Task CheckUpdateAsync()
+    /// <summary>Asks GitHub whether there is a newer version. True when GitHub answered (whether or not there is one); false when it could not be reached.</summary>
+    public async Task<bool> CheckUpdateAsync()
     {
         try
         {
             var info = await Client.CallAsync<UpdateInfo>("update.check", timeout: TimeSpan.FromSeconds(30));
             Update = info.Available ? info : null;
             Changed?.Invoke();
+            return info.Reason != "offline";
         }
-        catch (Exception) { }
+        catch (Exception) { return false; }
     }
 
     /// <summary>Received and total bytes of the installer being downloaded (total 0 when unknown).</summary>
