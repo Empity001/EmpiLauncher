@@ -53,10 +53,10 @@ test('a notice needs a short title, an https button, and a page that is a real i
 })
 
 test('maintenance, schedule and the minimum version are checked when saved', () => {
-    assert.throws(() => notices.saveAccess({ launcher: { minVersion: 'tres punto cuatro' } }), /3\.4\.0/)
+    assert.throws(() => notices.saveAccess({ launcher: { minVersion: 'tres punto cinco' } }), /3\.5\.0/)
     assert.throws(() => notices.saveAccess({ modpacks: { P: { novedades: 'ftp://x' } } }), /https/)
     const out = notices.saveAccess({
-        launcher: { minVersion: '3.4.0', novedades: 'https://discord.gg/l' },
+        launcher: { minVersion: '3.5.0', novedades: 'https://discord.gg/l' },
         modpacks: {
             P: { maintenance: { active: true, message: 'Volvemos pronto', until: '2030-01-01T20:00:00Z', allow: [{ name: 'Empi_Ty', uuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' }, { name: 'x', uuid: 'malo' }] }, novedades: 'https://discord.gg/p' },
             Q: { maintenance: { active: false }, schedule: { from: '2030-02-01T00:00:00Z' } },
