@@ -47,7 +47,7 @@ internal sealed class NoticesPanel : UserControl
     /// <summary>Notices put off in this run: viewing one again in this same run must not count as reading it.</summary>
     private static readonly HashSet<string> LaterThisRun = [];
 
-    private string _scope = "general";   // "general" or a modpack id
+    private string _scope = "general";   // "general", "archive" (ya leídos) or a modpack id
     private string? _selected;
     private readonly TextBlock _count;
     private readonly StackPanel _tabs = new() { Orientation = Orientation.Horizontal, Margin = new Thickness(22, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
@@ -115,14 +115,23 @@ internal sealed class NoticesPanel : UserControl
         root.Children.Add(_footer);
 
         Content = new Border { Style = (Style)FindResource("Module"), Background = new SolidColorBrush(Color.FromRgb(0x11, 0x11, 0x14)), Padding = new Thickness(24, 20, 24, 20), Child = root };
-        MaxWidth = 940; MaxHeight = 700;
+        MinWidth = 800; MaxWidth = 940; MaxHeight = 700;   // the window is never narrower than 940: the panel keeps its width whichever tab is open
         Loaded += (_, _) => _l.NoticesChanged += Refresh;
         Unloaded += (_, _) => _l.NoticesChanged -= Refresh;
     }
 
     // ---- what is shown --------------------------------------------------------------------------------------------------
 
-    private List<NoticeInfo> Visible() => (_scope == "general" ? _l.GeneralNotices : _l.NoticesOf(_scope)).ToList();
+    private bool InArchive => _scope == "archive";
+
+    private List<NoticeInfo> Visible() => InArchive ? Archived() : (_scope == "general" ? _l.GeneralNotices : _l.NoticesOf(_scope)).ToList();
+
+    /// <summary>The closed ones, dressed as notices so they are listed and shown like any other (the date is the day it was closed).</summary>
+    private List<NoticeInfo> Archived() => _l.Archived.Select(a => new NoticeInfo(a.Id, a.Title, a.Severity, a.General, a.Targets, a.Summary, a.Button, a.ClosedAt, null, a.Image, "closed")).ToList();
+
+    /// <summary>Where a closed notice was seen: general, or the modpack it named.</summary>
+    private string ScopeName(NoticeInfo notice) =>
+        notice.General ? "General" : notice.Targets.Select(t => _l.Distro?.Servers.FirstOrDefault(s => s.Id == t)?.Name).FirstOrDefault(name => name != null) ?? "Modpack";
     private string LocalName() => _l.Distro?.Servers.FirstOrDefault(s => s.Id == _l.SelectedId)?.Name ?? "Modpack";
 
     /// <summary>Opens on the general notices (the megaphone) or on those of the modpack that is selected (the bubble).</summary>
@@ -140,7 +149,9 @@ internal sealed class NoticesPanel : UserControl
     {
         var general = _l.GeneralNotices.ToList();
         var local = _l.NoticesOf(_l.SelectedId).ToList();
-        if (_scope != "general" && _scope != _l.SelectedId) _scope = "general";
+        var archived = _l.Archived.Count();
+        if (InArchive && archived == 0) _scope = "general";   // nothing left in "ya leídos": back to the notices
+        if (_scope != "general" && !InArchive && _scope != _l.SelectedId) _scope = "general";
 
         var unread = general.Count(NoticeLook.Unread) + local.Count(NoticeLook.Unread);
         _count.Text = unread == 0 ? "todo leído" : unread == 1 ? "1 sin leer" : $"{unread} sin leer";
@@ -155,6 +166,7 @@ internal sealed class NoticesPanel : UserControl
         }
         Tab("general", "General", general.Count, general.Count(NoticeLook.Unread));
         if (_l.SelectedId != null && local.Count > 0) Tab(_l.SelectedId, LocalName(), local.Count, local.Count(NoticeLook.Unread));
+        if (archived > 0) Tab("archive", "Ya leídos", archived, 0);
 
         var list = Visible();
         if (_selected == null || !list.Any(n => n.Id == _selected)) _selected = list.FirstOrDefault(NoticeLook.Unread)?.Id ?? list.FirstOrDefault()?.Id;
@@ -170,6 +182,10 @@ internal sealed class NoticesPanel : UserControl
         }
         _pageFrame.Visibility = Visibility.Visible;
         _footer.Visibility = Visibility.Visible;
+        // a closed notice cannot be put off or closed again: it can be read, and taken out of here
+        _later.Visibility = InArchive ? Visibility.Collapsed : Visibility.Visible;
+        _close.Content = InArchive ? "Quitar de aquí" : "Cerrar aviso";
+        _close.Style = (Style)FindResource(InArchive ? "GhostButton" : "PaperButton");
         foreach (var notice in list) _strip.Children.Add(Item(notice, notice.Id == _selected));
         Show(list.First(n => n.Id == _selected));
     }
@@ -181,7 +197,7 @@ internal sealed class NoticesPanel : UserControl
         var dot = new Ellipse { Width = 10, Height = 10, Stroke = selected && notice.Severity == "info" ? Fmt.Res("BgBrush") : brush, StrokeThickness = 1.5, Margin = new Thickness(0, 5, 11, 0), VerticalAlignment = VerticalAlignment.Top, Fill = NoticeLook.Unread(notice) ? brush : Brushes.Transparent };
         var glyph = new TextBlock { Text = notice.General ? NoticeLook.Megaphone : NoticeLook.Bubble, FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 12, Foreground = selected ? Fmt.Res("PaperInkBrush") : Fmt.Res("Paper3Brush"), Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center };
         var title = new TextBlock { Text = notice.Title, Style = (Style)FindResource("BodyText"), FontWeight = FontWeights.SemiBold, FontSize = 14, Foreground = ink, TextWrapping = TextWrapping.Wrap, MaxHeight = 40, TextTrimming = TextTrimming.CharacterEllipsis };
-        var meta = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 0), Children = { glyph, new TextBlock { Text = $"{(notice.General ? "General" : LocalName())}  {NoticeLook.When(notice.PublishedAt)}", Style = (Style)FindResource("CaptionText"), Foreground = selected ? Fmt.Res("PaperInkBrush") : Fmt.Res("Paper3Brush"), TextWrapping = TextWrapping.NoWrap } } };
+        var meta = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 0), Children = { glyph, new TextBlock { Text = InArchive ? $"{ScopeName(notice)}  cerrado {NoticeLook.When(notice.PublishedAt)}" : $"{(notice.General ? "General" : LocalName())}  {NoticeLook.When(notice.PublishedAt)}", Style = (Style)FindResource("CaptionText"), Foreground = selected ? Fmt.Res("PaperInkBrush") : Fmt.Res("Paper3Brush"), TextWrapping = TextWrapping.NoWrap } } };
         var row = new Grid { Children = { dot } };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -190,7 +206,7 @@ internal sealed class NoticesPanel : UserControl
         row.Children.Add(text);
         var card = new Border { CornerRadius = new CornerRadius(14), Padding = new Thickness(12, 10, 12, 10), Margin = new Thickness(0, 0, 8, 6), Background = selected ? Fmt.Res("PaperBrush") : Brushes.Transparent, Child = row };
         var button = new Button { Style = (Style)FindResource("BareButton"), Content = card, HorizontalContentAlignment = HorizontalAlignment.Stretch };
-        System.Windows.Automation.AutomationProperties.SetName(button, Ui.AccessName($"{notice.Title}, {(NoticeLook.Unread(notice) ? "sin leer" : "leído")}"));
+        System.Windows.Automation.AutomationProperties.SetName(button, Ui.AccessName($"{notice.Title}, {(InArchive ? "cerrado" : NoticeLook.Unread(notice) ? "sin leer" : "leído")}"));
         button.Click += (_, _) => Choose(notice.Id);
         return button;
     }
@@ -199,6 +215,7 @@ internal sealed class NoticesPanel : UserControl
     private void Choose(string id)
     {
         _selected = id;
+        if (InArchive) { Refresh(); return; }   // reading a closed one changes nothing
         var notice = _l.ActiveNotices.FirstOrDefault(n => n.Id == id);
         if (notice == null) return;
         if (notice.State == "unread" || (notice.State == "later" && !LaterThisRun.Contains(id))) _ = _l.MarkNoticeAsync(id, "read");
@@ -221,7 +238,7 @@ internal sealed class NoticesPanel : UserControl
 
     private void OpenLink()
     {
-        var notice = _l.ActiveNotices.FirstOrDefault(n => n.Id == _selected);
+        var notice = Visible().FirstOrDefault(n => n.Id == _selected);
         if (notice?.Button == null || !Uri.TryCreate(notice.Button.Url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps) return;
         try { Process.Start(new ProcessStartInfo(uri.ToString()) { UseShellExecute = true }); } catch (Exception) { _l.RaiseNotice("No se pudo abrir el enlace."); }
     }
@@ -238,8 +255,20 @@ internal sealed class NoticesPanel : UserControl
     private void Dismiss()
     {
         if (_selected == null) return;
+        if (InArchive) { Forget(); return; }
         _ = _l.MarkNoticeAsync(_selected, "closed");
         Advance();
+    }
+
+    /// <summary>In "ya leídos": removes this one for good and shows the next (or goes back to the notices when it was the last).</summary>
+    private void Forget()
+    {
+        var id = _selected;
+        if (id == null) return;
+        var list = Visible();
+        var at = list.FindIndex(n => n.Id == id);
+        _selected = list.Where((n, i) => i != at).Select(n => n.Id).FirstOrDefault();
+        _ = _l.ForgetNoticeAsync(id);
     }
 
     /// <summary>After putting one off or closing it: the next one of this scope, or out when there is none.</summary>

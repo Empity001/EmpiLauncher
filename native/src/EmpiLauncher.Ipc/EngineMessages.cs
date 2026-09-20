@@ -155,7 +155,10 @@ public sealed record ModpackNotice(AccessInfo Access, string? Novedades);
 
 public sealed record LauncherGate(string? MinVersion, bool Blocked, string? Message, string? Novedades);
 
-public sealed record NoticesView(bool Online, string? FetchedAt, string ServerNow, LauncherGate Launcher, List<NoticeInfo> Notices, Dictionary<string, ModpackNotice> Modpacks);
+/// <summary>A closed notice, kept in "ya leídos": its words and its page squeezed small (Image is a local file, null when it never had one).</summary>
+public sealed record ArchivedNotice(string Id, string Title, string Severity, bool General, List<string> Targets, string? Summary, NoticeButton? Button, string? PublishedAt, string? ClosedAt, string? Image);
+
+public sealed record NoticesView(bool Online, string? FetchedAt, string ServerNow, LauncherGate Launcher, List<NoticeInfo> Notices, List<ArchivedNotice>? Archive, Dictionary<string, ModpackNotice> Modpacks);
 
 /// <summary>What "quitar de mi PC" would free: the game files, and the worlds and screenshots that stay unless asked.</summary>
 public sealed record UninstallPreview(bool Installed, long GameBytes, long SavesBytes, long ScreenshotsBytes);

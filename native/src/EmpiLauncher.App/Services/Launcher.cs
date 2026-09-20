@@ -581,6 +581,16 @@ public sealed class Launcher : IAsyncDisposable
         catch (Exception) { }
     }
 
+    /// <summary>What was closed ("ya leídos"), newest first. It outlives the notice: the author taking it away does not take it from here.</summary>
+    public IEnumerable<ArchivedNotice> Archived => Notices?.Archive ?? [];
+
+    /// <summary>Takes one out of "ya leídos" for good (its picture too).</summary>
+    public async Task ForgetNoticeAsync(string id)
+    {
+        try { Notices = await Client.CallAsync<NoticesView>("notices.forget", new { id }); _noticesTick = Environment.TickCount64; NoticesChanged?.Invoke(); }
+        catch (Exception) { }
+    }
+
     private static readonly AccessInfo AllClear = new("ok", null, null, null, null, null);
 
     /// <summary>What stops this modpack from being played or updated (maintenance, not out yet, retired), or the launcher itself being too old.</summary>

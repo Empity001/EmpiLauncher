@@ -59,7 +59,8 @@ const at = (iso) => Date.parse(iso)
 // ---- part 2 ---------------------------------------------------------------------------------------------------------------------------
 const module = { id: 'x.pack:pack:1@jar', name: 'pack', type: 'FabricMod', artifact: { size: 1, MD5: 'd41d8cd98f00b204e9800998ecf8427e', url: 'http://127.0.0.1/pack.jar' } }
 const distribution = { version: '1.0.0', servers: [{ id: PACK, name: 'Pack', description: '', version: '1.0.0', address: 'localhost:25565', minecraftVersion: '1.21.11', mainServer: true, autoconnect: false, whitelist: false, javaOptions: { supported: '>=21 <22', suggestedMajor: 21, distribution: 'TEMURIN' }, modules: [module] }] }
-const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==', 'base64')
+// a real page-sized picture: the archive squeezes it with sharp, which refuses anything that is not an image
+const PNG = await require('sharp')({ create: { width: 900, height: 1200, channels: 3, background: '#101012' } }).png().toBuffer()
 
 let served = { doc: null, date: 'Mon, 01 Jun 2026 12:00:00 GMT', requests: 0, missing: false }
 const web = http.createServer((request, response) => {
@@ -123,6 +124,36 @@ try {
     served.doc.notices[0].pageHash = 'h2'
     const edited = await engine.call('notices.refresh')
     check('an edited notice is unread again', edited.result.notices.find((n) => n.id === 'n1').state === 'unread')
+
+    // closing a notice moves it to "ya leidos": a small page, the full-size one deleted, and it can be read again
+    const full = edited.result.notices.find((n) => n.id === 'n1').image
+    check('the page of an unread notice is on disk at full size', !!full && fs.existsSync(full))
+    const shut = await engine.call('notices.mark', { id: 'n1', state: 'closed' })
+    const kept = shut.result.archive.find((a) => a.id === 'n1')
+    check('a closed notice is in the archive with its title, its button and a page', !!kept && kept.title === 'Reinicio a las 20:00' && kept.button.url === 'https://discord.gg/x' && /\.webp$/.test(kept.image || '') && fs.existsSync(kept.image), JSON.stringify(shut.result.archive))
+    const squeezed = await require('sharp')(fs.readFileSync(kept.image)).metadata()   // from memory: a picture held open would stop the engine deleting it
+    check('the archived page is a real WebP, smaller than the page it came from', fs.readFileSync(kept.image).subarray(8, 12).toString() === 'WEBP' && squeezed.width === 675 && squeezed.height === 900, JSON.stringify({ format: squeezed.format, w: squeezed.width, h: squeezed.height }))
+    check('the full-size page is deleted and the view no longer points at it', !fs.existsSync(full) && shut.result.notices.find((n) => n.id === 'n1').image === null && shut.result.notices.find((n) => n.id === 'n1').state === 'closed')
+    const again = await engine.call('notices.refresh')
+    check('a closed notice is not downloaded again, and stays closed', fs.readdirSync(path.dirname(full)).every((name) => !name.startsWith('n1-')) && again.result.notices.find((n) => n.id === 'n1').state === 'closed' && again.result.archive.filter((a) => a.id === 'n1').length === 1)
+
+    check('a notice that never had a page is archived with its words and no picture', shut.result.archive.find((a) => a.id === 'n2')?.image === null && shut.result.archive.find((a) => a.id === 'n2').title === 'Nueva versión')
+
+    // it stays readable even when the author takes it away
+    const n1 = served.doc.notices[0]
+    served.doc.notices = served.doc.notices.filter((n) => n.id !== 'n1')
+    const gone = await engine.call('notices.refresh')
+    check('the author removing a closed notice does not remove it from "ya leidos"', !gone.result.notices.some((n) => n.id === 'n1') && fs.existsSync(gone.result.archive.find((a) => a.id === 'n1')?.image || ''))
+    // ...but an edited notice is a new one: the old copy goes
+    served.doc.notices.unshift({ ...n1, pageHash: 'h3' })
+    const renewed = await engine.call('notices.refresh')
+    check('an edited notice is unread again and its old archived copy is gone', renewed.result.notices.find((n) => n.id === 'n1').state === 'unread' && !renewed.result.archive.some((a) => a.id === 'n1') && !fs.existsSync(kept.image))
+    // forgetting
+    await engine.call('notices.mark', { id: 'n1', state: 'closed' })
+    const filed = (await engine.call('notices.get')).result.archive.find((a) => a.id === 'n1')
+    const forgotten = await engine.call('notices.forget', { id: 'n1' })
+    check('forgetting an archived notice removes it and its file', forgotten.ok && !forgotten.result.archive.some((a) => a.id === 'n1') && !fs.existsSync(filed.image))
+    check('forgetting one that is not there is not an error', (await engine.call('notices.forget', { id: 'nope' })).ok === true)
 
     // the allow list: this account is on it
     served.doc.modpacks[PACK].maintenance.allow = [ACCOUNT]
