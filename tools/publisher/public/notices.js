@@ -636,8 +636,8 @@ function nuLauncherView() {
     const touch = () => { nu.accessDirty = true; nuPaintBar() }
     return h('section', { class: 'module nx-launcher' },
         h('div', { class: 'module-head' }, h('h2', {}, 'Launcher')),
-        nuField('Versión mínima del launcher', h('input', { placeholder: '3.4.0', value: l.minVersion || '', oninput: (e) => { l.minVersion = e.target.value.trim(); touch() } })),
-        h('p', { class: 'muted' }, 'Quien tenga una versión anterior no puede jugar hasta actualizar. Solo lo entienden los launchers 3.4.0 o posteriores: los anteriores no lo leen. Si publicas una versión con un fallo grave, sube esto a la siguiente.'),
+        nuField('Versión mínima del launcher', h('input', { placeholder: '3.5.0', value: l.minVersion || '', oninput: (e) => { l.minVersion = e.target.value.trim(); touch() } })),
+        h('p', { class: 'muted' }, 'Quien tenga una versión anterior no puede jugar hasta actualizar. Solo lo entienden los launchers 3.5.0 o posteriores: los anteriores no lo leen, así que ponlo cuando casi todos ya tengan la 3.5.0. Si publicas una versión con un fallo grave, sube esto a la siguiente.'),
         nuField('Enlace de novedades general (https)', h('input', { placeholder: 'https://discord.com/channels/...', value: l.novedades || '', oninput: (e) => { l.novedades = e.target.value.trim(); touch() } })),
         h('div', { class: 'nx-actions' }, h('button', { class: 'btn paper', disabled: !nu.accessDirty, onclick: nuSaveAccess }, withIcon('check', 'Guardar ajustes'))))
 }

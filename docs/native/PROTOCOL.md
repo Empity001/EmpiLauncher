@@ -133,11 +133,11 @@ los dos campos y muestran todos los modpacks como siempre.
 Todo sale de un solo archivo, `avisos.json`, que vive junto a `distribution.json` en EmpiPacks y se publica **por su cuenta** (el botón «Publicar avisos» del
 Publisher no toca ningún modpack ni el launcher). El motor lo pide con una petición condicional (ETag) y **valida todo**: solo pasan textos, fechas, enlaces
 `https` y la ruta de una imagen dentro de `avisos/`; lo demás se descarta, así que un `avisos.json` torcido no puede ejecutar nada ni salirse de su carpeta.
-Los launchers anteriores a la 3.4.0 no lo leen.
+Los launchers anteriores a la 3.5.0 (la primera que trae avisos; la 3.4.0 ya publicada no sabe de él) no lo leen.
 
 ```json
 { "version": 1, "generatedAt": "…",
-  "launcher": { "minVersion": "3.4.0", "novedades": "https://…" },
+  "launcher": { "minVersion": "3.5.0", "novedades": "https://…" },
   "notices": [{ "id": "…", "title": "…", "severity": "info|important|critical", "targets": ["*" | "<id de modpack>"],
                 "page": "avisos/<id>-<hash>.webp", "pageHash": "…", "summary": "…", "publishedAt": "…", "expiresAt": "…",
                 "button": { "label": "…", "url": "https://…" } }],

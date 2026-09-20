@@ -36,7 +36,7 @@ no queda nada consumiendo recursos en segundo plano.
 ## Avisos: publicar sin tocar modpacks ni launcher
 
 La pestaña **Avisos** controla lo que ven los jugadores, **sin compilar ni enviar nada más**: tiene su propio botón **Publicar avisos**, que solo sube
-`avisos.json` y su carpeta `avisos/` (un `git commit --only`, así que un modpack compilado y aún sin enviar no se cuela). Lo lee el launcher 3.4.0 en adelante.
+`avisos.json` y su carpeta `avisos/` (un `git commit --only`, así que un modpack compilado y aún sin enviar no se cuela). Lo lee el launcher 3.5.0 en adelante (la 3.4.0 ya publicada no sabe de avisos).
 
 - **Avisos**: cada uno es *una página de periódico* que armas pieza por pieza en un lienzo (titulares, texto en una o dos columnas, imágenes, cajas, etiquetas y líneas) y que se exporta a una imagen WebP
   (~40–95 KB); el launcher la muestra tal cual. Eliges gravedad (información / importante / crítico), **dónde se ve** (todos los modpacks, o los que marques: el perfil «Lite»

@@ -170,7 +170,7 @@ function saveAccess(body) {
     }
     const launcher = {}
     if (body.launcher && body.launcher.minVersion) {
-        if (!/^\d+\.\d+\.\d+$/.test(String(body.launcher.minVersion).trim())) throw new Error('La versión mínima tiene que ser como 3.4.0')
+        if (!/^\d+\.\d+\.\d+$/.test(String(body.launcher.minVersion).trim())) throw new Error('La versión mínima tiene que ser como 3.5.0')
         launcher.minVersion = String(body.launcher.minVersion).trim()
     }
     if (body.launcher && body.launcher.novedades) { if (!launcherRules.link(body.launcher.novedades)) throw new Error('El enlace de novedades general tiene que empezar por https://'); launcher.novedades = String(body.launcher.novedades).trim() }
