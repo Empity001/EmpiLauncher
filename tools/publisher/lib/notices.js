@@ -271,7 +271,8 @@ async function publish(config, options, log, step) {
 
     step('Guardando los cambios')
     // only these paths: a modpack that was compiled but not sent yet stays exactly as it is
-    const paths = ['avisos.json', 'avisos']
+    // avisos/ only when it exists or git already has it: with no page at all there is no folder, and git refuses a path it does not know (exit 128)
+    const paths = await git.knownPaths(repo, ['avisos.json', 'avisos'])
     await git.add(repo, paths, log)
     const staged = await git.stagedChangesIn(repo, paths)
     if (staged.length === 0 && (await git.unpushedCount(repo)) === 0) {

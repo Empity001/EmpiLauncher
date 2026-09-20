@@ -1,3 +1,5 @@
+const fs = require('fs')
+const path = require('path')
 const { run, capture } = require('./exec')
 
 function withLog(log, command, args) {
@@ -92,6 +94,18 @@ async function unpushedCount(cwd) {
     }
 }
 
+/**
+ * Of these paths, the ones git can be asked about: they exist in the working tree or are already tracked (a folder that was deleted still
+ * has to be staged as deleted). git add / commit stop with "pathspec ... did not match any files" (exit 128) for one that is neither.
+ */
+async function knownPaths(cwd, paths) {
+    const known = []
+    for (const p of paths) {
+        if (fs.existsSync(path.join(cwd, p)) || (await capture('git', ['ls-files', '--', p], { cwd })).trim()) known.push(p)
+    }
+    return known
+}
+
 /** What a commit of only these paths would contain (needs `add` first). */
 async function stagedChangesIn(cwd, paths) {
     const out = await capture('git', ['diff', '--cached', '--no-renames', '--name-status', '--', ...paths], { cwd })
@@ -108,4 +122,4 @@ async function commitOnly(cwd, message, paths, log) {
     await run('git', args, { cwd }, log)
 }
 
-module.exports = { stagedChangesIn, commitOnly, changes, ensureByteExact, stage, stagedChanges, isRepo, clone, pull, add, addAll, commit, push, unpushedCount }
+module.exports = { knownPaths, stagedChangesIn, commitOnly, changes, ensureByteExact, stage, stagedChanges, isRepo, clone, pull, add, addAll, commit, push, unpushedCount }
