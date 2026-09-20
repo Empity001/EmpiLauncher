@@ -515,6 +515,7 @@ function register(handlers, state) {
         state.keepAlive.delete('game')
         clearTransfer()
         setPhase('idle')
+        state.lastExit = { ...(exit || { code: null, signal: null, stopped: source.includes('stop') }), serverId: game.serverId, at: Date.now() }
         emit('game.exit', exit || { code: null, signal: null, stopped: source.includes('stop') })
         // Same grace period as the classic launcher before it re-reads the pack, so files the game just wrote are settled.
         setTimeout(() => refreshPackStatus().catch((err) => log().warn('Unable to restore launch state.', err)), 900)
