@@ -13,6 +13,7 @@ const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
 const git = require('./git')
+const links = require('./links')
 const nebula = require('./nebula')
 const { HOME, loadState, saveState } = require('./config')
 
@@ -76,8 +77,9 @@ function saveNotice(config, id, body) {
 
     Object.assign(notice, {
         title, severity, targets: cleanTargets(body.targets, known), summary: text(body.summary, 400),
-        expiresAt: iso(body.expiresAt), button, editor, published: body.published === true, updatedAt: new Date().toISOString()
+        startsAt: iso(body.startsAt), expiresAt: iso(body.expiresAt), button, editor, published: body.published === true, updatedAt: new Date().toISOString()
     })
+    if (notice.startsAt && notice.expiresAt && Date.parse(notice.startsAt) >= Date.parse(notice.expiresAt)) throw new Error('El aviso tiene que empezar a verse antes de caducar.')
     if (notice.published && !notice.firstPublishedAt) notice.firstPublishedAt = new Date().toISOString()
     writeState(state)
     return { ...notice, hasImage: !!findImage(notice.id) }
@@ -207,7 +209,7 @@ function buildDoc(state, pageFor) {
         files.push({ from: source, page })
         notices.push({
             id: n.id, title: n.title, severity: n.severity, targets: n.targets, page, pageHash: n.pageHash, summary: n.summary,
-            publishedAt: n.firstPublishedAt || n.createdAt, expiresAt: n.expiresAt || null, ...(n.button ? { button: n.button } : {})
+            publishedAt: n.firstPublishedAt || n.createdAt, ...(n.startsAt ? { startsAt: n.startsAt } : {}), expiresAt: n.expiresAt || null, ...(n.button ? { button: n.button } : {})
         })
     }
     const modpacks = {}
@@ -233,6 +235,7 @@ function problems(doc) {
         else {
             if (n.page && !kept.page) out.push(`La página del aviso "${n.title}" tiene un nombre que el launcher no acepta.`)
             if (n.button && !kept.button) out.push(`El botón del aviso "${n.title}" no es válido (tiene que ser https).`)
+            if (n.startsAt && !kept.startsAt) out.push(`La fecha de inicio del aviso "${n.title}" no es válida.`)
         }
     }
     for (const id of Object.keys(doc.modpacks)) if (!seen.modpacks[id]) out.push(`Los ajustes de ${id} no los aceptaría el launcher.`)
@@ -240,15 +243,72 @@ function problems(doc) {
     return out
 }
 
-async function publish(config, options, log, step) {
+/** Every link that would go out (the buttons of published notices, the news links), with where each one is. */
+function linksToCheck() {
+    const state = readState()
+    const out = []
+    for (const n of state.notices.filter((entry) => entry.published)) if (n.button && n.button.url) out.push({ where: `Botón del aviso "${n.title}"`, url: n.button.url })
+    for (const [id, entry] of Object.entries(state.modpacks || {})) if (entry.novedades) out.push({ where: `Novedades de ${id}`, url: entry.novedades })
+    if (state.launcher && state.launcher.novedades) out.push({ where: 'Novedades generales', url: state.launcher.novedades })
+    return out
+}
+
+/** "Comprobar enlaces": which of them open. Nothing is published or changed. */
+async function checkLinks(options) {
+    const results = await links.checkLinks(linksToCheck(), options)
+    return { results, broken: results.filter((r) => r.ok === false).length, unknown: results.filter((r) => r.ok === null).length }
+}
+
+/** The local EmpiPacks checkout, cloned when it does not exist yet and brought up to date (a failure to reach GitHub is not fatal here). */
+async function syncRepo(config, log) {
     const repo = config.empiPacksRepoPath
-    step('Actualizando el repositorio local')
     if (!fs.existsSync(repo) || !(await git.isRepo(repo))) {
         log(`Todavía no existe ${repo}, clonando EmpiPacks...`)
         await git.clone(config.empiPacksRepoUrl, repo, log)
     }
     await git.ensureByteExact(repo)
     try { await git.pull(repo, log) } catch (err) { log(`Aviso: no pude traer lo último de GitHub (${err.message}). Sigo con lo que hay.`) }
+    return repo
+}
+
+/**
+ * "Deshacer la última publicación de avisos": what players see goes back to how it was before the last time avisos.json changed (a new
+ * commit that restores that state: nothing is rewritten in git's history, so it can itself be undone). The drafts on this PC are not
+ * touched; they stay marked as unpublished, so "Publicar avisos" puts them out again once they are right.
+ */
+async function undoLast(config, log, step) {
+    step('Actualizando el repositorio local')
+    const repo = await syncRepo(config, log)
+
+    step('Buscando la publicación anterior')
+    const [last, previous] = await git.commitsTouching(repo, ['avisos.json', 'avisos'], 2)
+    if (!last) throw new Error('Todavía no se ha publicado ningún aviso: no hay nada que deshacer.')
+    log(`Lo último que se publicó: ${await git.describeCommit(repo, last)}`)
+    log(previous ? `Se vuelve a como estaba en: ${await git.describeCommit(repo, previous)}` : 'No hay nada anterior: los avisos quedarán vacíos.')
+
+    step('Volviendo a esa versión')
+    const wanted = previous ? await git.filesAt(repo, previous, ['avisos.json', 'avisos']) : []
+    fs.rmSync(path.join(repo, 'avisos'), { recursive: true, force: true })
+    if (wanted.length) await git.restoreFrom(repo, previous, wanted, log)
+    if (!wanted.includes('avisos.json')) fs.writeFileSync(path.join(repo, 'avisos.json'), JSON.stringify({ version: 1, generatedAt: new Date().toISOString(), launcher: {}, notices: [], modpacks: {} }, null, 2) + '\n', 'utf8')
+
+    step('Guardando los cambios')
+    const paths = await git.knownPaths(repo, ['avisos.json', 'avisos'])
+    await git.add(repo, paths, log)
+    if ((await git.stagedChangesIn(repo, paths)).length === 0) throw new Error('Los avisos ya están como en la publicación anterior: no hay nada que deshacer.')
+    await git.commitOnly(repo, 'Deshacer la última publicación de avisos', paths, log)
+
+    step('Publicando en GitHub')
+    await git.push(repo, log)
+    // what this PC has is no longer what players see: the tab says there are changes to publish
+    saveState({ avisosPublished: { at: new Date().toISOString(), hash: 'deshecho' } })
+    log('Deshecho. Los jugadores lo verán en 1-2 minutos. Tus borradores siguen aquí: revisa lo que quieras y vuelve a pulsar «Publicar avisos».')
+    return { undone: true }
+}
+
+async function publish(config, options, log, step) {
+    step('Actualizando el repositorio local')
+    const repo = await syncRepo(config, log)
 
     step('Preparando los avisos')
     const state = readState()
@@ -289,4 +349,4 @@ async function publish(config, options, log, step) {
     return { published: true }
 }
 
-module.exports = { describe, saveNotice, deleteNotice, saveImage, imageOf, saveAsset, assetOf, saveAccess, lookupUuid, buildDoc, problems, publish, readState }
+module.exports = { checkLinks, linksToCheck, undoLast, describe, saveNotice, deleteNotice, saveImage, imageOf, saveAsset, assetOf, saveAccess, lookupUuid, buildDoc, problems, publish, readState }

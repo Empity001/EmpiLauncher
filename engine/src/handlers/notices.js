@@ -205,7 +205,7 @@ function register(handlers, state) {
             const image = isClosed(n) ? null : imageFile(n)
             return {
                 id: n.id, title: n.title, severity: n.severity, general: N.isGeneral(n), targets: n.targets, summary: n.summary,
-                button: n.button || null, publishedAt: n.publishedAt, expiresAt: n.expiresAt,
+                button: n.button || null, publishedAt: N.shownAt(n), expiresAt: n.expiresAt,
                 image: image && fs.existsSync(image) ? image : null,
                 state: mark && mark.rev === revOf(n) ? mark.state : 'unread'
             }

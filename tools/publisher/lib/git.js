@@ -22,9 +22,15 @@ async function ensureByteExact(cwd) {
     await capture('git', ['config', 'core.safecrlf', 'false'], { cwd })
 }
 
-/** Stages everything quietly (the plain command prints one warning per text file on Windows). */
+/**
+ * Stages everything quietly (the plain command prints one warning per text file on Windows).
+ * The second command adds every tracked file again exactly as it is on disk: files committed while Git's line-ending conversion was still on
+ * are stored on GitHub with other line breaks than the ones Nebula hashed, so players' downloads fail their checksum. Git does not notice
+ * on its own (the file on disk has not changed), which is why "Verificar publicación" found them; this repairs them at the next send.
+ */
 async function stage(cwd) {
     await capture('git', ['add', '-A'], { cwd })
+    await capture('git', ['add', '--renormalize', '--', '.'], { cwd })
 }
 
 /** What a commit right now would contain, as [{ code: 'A'|'M'|'D', file }]. Needs `stage` first. */
@@ -129,6 +135,39 @@ async function knownPaths(cwd, paths) {
     return known
 }
 
+/** The commits (newest first) that touched these paths. */
+async function commitsTouching(cwd, paths, limit = 2) {
+    const out = await capture('git', ['log', `-n${limit}`, '--format=%H', '--', ...paths], { cwd })
+    return out.split('\n').map((line) => line.trim()).filter((line) => /^[0-9a-f]{40}$/.test(line))
+}
+
+/** The files under these paths as they were at `rev`. */
+async function filesAt(cwd, rev, paths) {
+    const out = await capture('git', ['ls-tree', '-r', '--name-only', rev, '--', ...paths], { cwd })
+    return out.split('\n').map((line) => line.trim()).filter(Boolean)
+}
+
+/** Puts these files back as they were at `rev` (working tree and index). */
+async function restoreFrom(cwd, rev, files, log) {
+    withLog(log, 'git', ['checkout', rev.slice(0, 7), '--', `(${files.length} archivos)`])
+    await run('git', ['checkout', rev, '--', ...files], { cwd }, log)
+}
+
+/** "2026-09-20 18:04 · Actualizar avisos": which commit, for a person to read. */
+async function describeCommit(cwd, rev) {
+    return capture('git', ['log', '-1', '--format=%cd · %s', '--date=format:%Y-%m-%d %H:%M', rev], { cwd })
+}
+
+/** Commits of the remote branch last seen (after a fetch): the date of the newest, in seconds. */
+async function lastPushAt(cwd) {
+    try { return Number(await capture('git', ['log', '-1', '--format=%ct', '@{u}'], { cwd })) || 0 } catch { return 0 }
+}
+
+/** A file as the remote branch has it (what was really pushed), or null. */
+async function pushedFile(cwd, file) {
+    try { return await capture('git', ['show', `@{u}:${file}`], { cwd }) } catch { return null }
+}
+
 /** What a commit of only these paths would contain (needs `add` first). */
 async function stagedChangesIn(cwd, paths) {
     const out = await capture('git', ['diff', '--cached', '--no-renames', '--name-status', '--', ...paths], { cwd })
@@ -145,4 +184,4 @@ async function commitOnly(cwd, message, paths, log) {
     await run('git', args, { cwd }, log)
 }
 
-module.exports = { online, knownPaths, stagedChangesIn, commitOnly, changes, ensureByteExact, stage, stagedChanges, isRepo, clone, pull, add, addAll, commit, push, unpushedCount }
+module.exports = { commitsTouching, filesAt, restoreFrom, describeCommit, lastPushAt, pushedFile, online, knownPaths, stagedChangesIn, commitOnly, changes, ensureByteExact, stage, stagedChanges, isRepo, clone, pull, add, addAll, commit, push, unpushedCount }

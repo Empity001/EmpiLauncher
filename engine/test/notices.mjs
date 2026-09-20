@@ -43,6 +43,11 @@ const at = (iso) => Date.parse(iso)
     check('a modpack with nothing to say is not listed', !('Empty' in doc.modpacks) && 'Later' in doc.modpacks)
 
     check('expired notices go, the newest comes first', lib.activeNotices(doc, at('2026-09-23T00:00:00Z')).map((n) => n.id).join() === 'a1,a4,a5' && lib.activeNotices(doc, at('2026-09-21T12:00:00Z'))[0].id === 'a2')
+    // a scheduled notice: not before its moment, and it counts as published from then
+    const scheduled = lib.sanitize({ version: 1, notices: [{ id: 's1', title: 'Evento', startsAt: '2026-09-25T18:00:00Z', publishedAt: '2026-09-20T10:00:00Z' }, { id: 's2', title: 'Ya', publishedAt: '2026-09-21T10:00:00Z' }] })
+    check('a scheduled notice is kept with its start', scheduled.notices.find((n) => n.id === 's1').startsAt === '2026-09-25T18:00:00.000Z' && scheduled.notices.find((n) => n.id === 's2').startsAt === null)
+    check('a scheduled notice is hidden before its moment and shown after it', lib.activeNotices(scheduled, at('2026-09-24T00:00:00Z')).map((n) => n.id).join() === 's2' && lib.activeNotices(scheduled, at('2026-09-25T18:00:01Z')).map((n) => n.id).join() === 's1,s2')
+    check('and it is dated from its start, not from when it was published', lib.shownAt(scheduled.notices[0]) === '2026-09-25T18:00:00.000Z')
     check('a notice for "*" is general, one that names a modpack belongs to it', lib.isGeneral(doc.notices[1]) && !lib.isGeneral(doc.notices[0]) && lib.targetsModpack(doc.notices[0], PACK))
 
     const ctx = (over = {}) => ({ nowMs: at('2026-09-21T12:00:00Z'), uuid: ACCOUNT, type: 'microsoft', appVersion: '3.5.0', ...over })
@@ -156,6 +161,17 @@ try {
     check('there is no way to remove a closed notice, and it is still there with its page', tried.ok === false && !!after && fs.existsSync(after.image) && after.image === filed.image, JSON.stringify(tried))
     // ...and it survives another read
     check('and it survives the next reading of avisos.json', (await engine.call('notices.refresh')).result.archive.some((a) => a.id === 'n1'))
+
+    // a scheduled notice follows the SERVER's clock: hidden at 12:00, there at 14:00, with nothing changed on this PC
+    served.doc.notices.push({ id: 's1', title: 'Evento del sábado', severity: 'info', targets: ['*'], startsAt: '2026-06-01T13:00:00Z', publishedAt: '2026-05-30T10:00:00Z' })
+    const before13 = await engine.call('notices.refresh')
+    check('a scheduled notice is not shown before its start', !before13.result.notices.some((n) => n.id === 's1'))
+    served.date = 'Mon, 01 Jun 2026 14:00:00 GMT'
+    const after13 = await engine.call('notices.refresh')
+    check('and appears once the server\'s clock passes it, dated from its start', after13.result.notices.find((n) => n.id === 's1')?.publishedAt === '2026-06-01T13:00:00.000Z')
+    served.doc.notices = served.doc.notices.filter((n) => n.id !== 's1')
+    served.date = 'Mon, 01 Jun 2026 12:00:00 GMT'
+    await engine.call('notices.refresh')
 
     // the allow list: this account is on it
     served.doc.modpacks[PACK].maintenance.allow = [ACCOUNT]

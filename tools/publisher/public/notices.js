@@ -202,7 +202,7 @@ function nuSelectNotice(id, paint = true) {
     const found = nu.data && nu.data.notices.find((n) => n.id === id)
     nu.draft = found ? structuredClone(found) : null
     if (nu.draft && !nu.draft.editor) nu.draft.editor = { blocks: [] }
-    if (nu.draft) nu.draft.expiresLocal = nuToLocal(nu.draft.expiresAt)
+    if (nu.draft) { nu.draft.expiresLocal = nuToLocal(nu.draft.expiresAt); nu.draft.startsLocal = nuToLocal(nu.draft.startsAt) }
     nu.selected = null; nu.dirty = false; nu.history = []; nu.future = []
     if (paint) nuPaint()
 }
@@ -240,7 +240,7 @@ async function nuSave() {
     nu.saving = true; nuPaintBar()
     try {
         const summary = d.editor.blocks.filter((b) => ['title', 'subtitle', 'text'].includes(b.type)).map((b) => b.text).join(' ').replace(/\s+/g, ' ').slice(0, 400)
-        await api(`/api/notices/${encodeURIComponent(d.id)}`, { method: 'POST', body: { title: d.title, severity: d.severity, targets: d.targets, summary, expiresAt: nuFromLocal(d.expiresLocal), button: d.button && d.button.label && d.button.url ? d.button : null, editor: d.editor, published: d.published === true } })
+        await api(`/api/notices/${encodeURIComponent(d.id)}`, { method: 'POST', body: { title: d.title, severity: d.severity, targets: d.targets, summary, startsAt: nuFromLocal(d.startsLocal), expiresAt: nuFromLocal(d.expiresLocal), button: d.button && d.button.label && d.button.url ? d.button : null, editor: d.editor, published: d.published === true } })
         const blob = await nuRenderBlob(d.editor)
         await api(`/api/notices/${encodeURIComponent(d.id)}/image`, { method: 'POST', raw: blob })
         nu.dirty = false
@@ -340,14 +340,41 @@ function nuPaintBar() {
     bar.replaceChildren(
         h('span', { class: 'muted nx-status' }, nu.dirty || nu.accessDirty ? 'Hay cambios sin guardar' : pending ? 'Hay cambios sin publicar' : at ? `Publicado ${ago(at)}` : 'Nada publicado todavía'),
         drafts > 0 && h('span', { class: 'chip warn', title: 'Un borrador no se publica. Ábrelo y marca «Publicarlo con Publicar avisos».' }, drafts === 1 ? '1 aviso en borrador' : `${drafts} avisos en borrador`),
+        h('button', { class: 'btn small', disabled: nu.saving || !!state.running, title: 'Comprueba que los enlaces de los botones abren, sin publicar nada', onclick: nuCheckLinks }, 'Comprobar enlaces'),
+        h('button', { class: 'btn small', disabled: nu.saving || !!state.running, title: 'Los jugadores vuelven a ver los avisos como antes de la última publicación', onclick: nuUndo }, 'Deshacer última publicación'),
         h('button', { class: 'btn paper', disabled: nu.saving || !!state.running, onclick: nuPublish }, withIcon('upload', 'Publicar avisos'))
     )
+}
+
+/** The links that would go out, with what each one does: a list for a person to read. */
+function nuLinkReport(out) {
+    const line = (r) => `• ${r.where}: ${r.ok === true ? 'abre' : r.ok === null ? `no pude confirmarlo (${r.note})` : r.note}`
+    return out.results.filter((r) => r.ok !== true).map(line).join('\n')
+}
+
+async function nuCheckLinks() {
+    try {
+        const out = await api('/api/notices/check-links', { method: 'POST', body: {} })
+        if (!out.results.length) { toast('No hay enlaces publicados que comprobar.'); return }
+        if (!out.broken && !out.unknown) { toast(`Los ${out.results.length} enlaces abren.`); return }
+        alert(`${out.results.length - out.broken - out.unknown} de ${out.results.length} enlaces abren.\n\n${nuLinkReport(out)}`)
+    } catch (err) { toast(err.message, true) }
+}
+
+async function nuUndo() {
+    if (!confirm('Los jugadores volverán a ver los avisos, los mantenimientos y la versión mínima como estaban ANTES de la última publicación.\n\nTus borradores no se tocan: se quedan aquí, marcados como sin publicar.\n\n¿Deshacer la última publicación?')) return
+    runJob('Deshacer la última publicación de avisos', '/api/jobs/undo-notices', {}, () => { toast('Deshecho. Los jugadores lo verán en 1-2 minutos.'); loadNotices() })
 }
 
 async function nuPublish() {
     if (nu.dirty || nu.accessDirty) {
         if (!confirm('Tienes cambios sin guardar. Se publica solo lo que está guardado. ¿Continuar?')) return
     }
+    // a button that leads nowhere is found out by the players: look first
+    try {
+        const links = await api('/api/notices/check-links', { method: 'POST', body: {} })
+        if (links.broken && !confirm(`Estos enlaces no abren:\n\n${nuLinkReport({ results: links.results.filter((r) => r.ok === false) })}\n\n¿Publicar de todos modos?`)) return
+    } catch { /* the check is a courtesy: without it publishing goes on */ }
     const drafts = nu.data.notices.filter((n) => !n.published).length
     runJob('Publicar avisos', '/api/jobs/publish-notices', {}, () => { toast(drafts ? `Avisos publicados. ${drafts === 1 ? 'Un aviso sigue' : `${drafts} avisos siguen`} como borrador y no se ve.` : 'Avisos publicados.'); loadNotices() })
 }
@@ -359,7 +386,7 @@ function nuNoticesView() {
         const where = n.targets.includes('*') ? 'General' : n.targets.length === 1 ? (nu.data.packs.find((p) => p.id === n.targets[0])?.name || n.targets[0]) : `${n.targets.length} modpacks`
         return h('button', { class: `nx-item${n.id === nu.id ? ' on' : ''}`, onclick: () => { if (n.id === nu.id) return; if (nu.dirty && !confirm('Tienes cambios sin guardar en este aviso. ¿Descartarlos?')) return; nuSelectNotice(n.id) } },
             h('span', { class: `nx-dot ${n.severity}`, title: SEVERITY_NAMES[n.severity] }),
-            h('span', { class: 'nx-item-text' }, h('b', {}, n.title), h('small', { class: 'muted' }, `${where} · ${n.published ? 'Publicado' : 'Borrador'}${n.expiresAt ? ` · caduca ${new Date(n.expiresAt).toLocaleDateString()}` : ''}`)))
+            h('span', { class: 'nx-item-text' }, h('b', {}, n.title), h('small', { class: 'muted' }, `${where} · ${n.published ? (n.startsAt && Date.parse(n.startsAt) > Date.now() ? `Programado: se ve el ${new Date(n.startsAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}` : 'Publicado') : 'Borrador'}${n.expiresAt ? ` · caduca ${new Date(n.expiresAt).toLocaleDateString()}` : ''}`)))
     })
     const side = h('section', { class: 'module nx-side' },
         h('div', { class: 'module-head' }, h('h2', {}, 'Avisos'), h('span', { class: 'chip tnum' }, String(nu.data.notices.length)), h('button', { class: 'btn paper small', onclick: nuNewNotice }, withIcon('plus', 'Nuevo'))),
@@ -571,6 +598,8 @@ function nuDataCard() {
         h('div', { class: 'field' }, h('span', { class: 'label' }, 'Gravedad'), h('div', { class: 'segmented' }, Object.entries(SEVERITY_NAMES).map(([value, label]) => h('button', { type: 'button', class: d.severity === value ? 'active' : '', onclick: () => { d.severity = value; touch(); nuPaintDataCard() } }, label)))),
         h('div', { class: 'field' }, h('span', { class: 'label' }, 'Dónde se ve'), h('div', { class: 'chips' }, h('button', { type: 'button', class: `chip-btn${d.targets.includes('*') ? ' on' : ''}`, onclick: () => toggleTarget('*') }, 'General (megáfono)'), nu.data.packs.map(packChip)),
             h('small', { class: 'muted' }, 'Un aviso de un modpack no sale en sus perfiles: márcalos tú.')),
+        nuField('Se ve desde (déjalo vacío para que se vea en cuanto publiques)', h('input', { type: 'datetime-local', value: d.startsLocal || '', onchange: (e) => { d.startsLocal = e.target.value; touch() } })),
+        d.startsLocal ? h('small', { class: 'muted' }, 'Aviso programado: lo respetan los launchers 3.5.2 o posteriores. Los anteriores lo muestran en cuanto lo publicas.') : null,
         nuField('Caduca (déjalo vacío para que no caduque)', h('input', { type: 'datetime-local', value: d.expiresLocal || '', onchange: (e) => { d.expiresLocal = e.target.value; touch() } })),
         h('div', { class: 'nx-two' }, nuField('Botón (opcional)', h('input', { placeholder: 'Ver en Discord', value: d.button?.label || '', maxlength: 40, oninput: (e) => { d.button = { ...(d.button || {}), label: e.target.value }; touch() } })), nuField('Enlace (https)', h('input', { placeholder: 'https://discord.gg/...', value: d.button?.url || '', oninput: (e) => { d.button = { ...(d.button || {}), url: e.target.value }; touch() } }))),
         h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: d.published === true, onchange: (e) => { d.published = e.target.checked; touch() } }), 'Publicarlo con «Publicar avisos» (si lo quitas, queda como borrador y nadie lo ve)'),

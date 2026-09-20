@@ -120,3 +120,14 @@ test('a notice marked to publish but with no saved page stops the publishing wit
     notices.deleteNotice(made.id)
     assert.ok(!notices.readState().notices.some((n) => n.id === made.id))
 })
+
+test('a scheduled notice keeps its start, must start before it expires, and reaches avisos.json', async () => {
+    assert.throws(() => notices.saveNotice(config, null, { title: 'x', startsAt: '2030-01-02T00:00:00Z', expiresAt: '2030-01-01T00:00:00Z' }), /empezar a verse antes de caducar/)
+    const made = notices.saveNotice(config, null, { title: 'Torneo del sábado', published: true, startsAt: '2030-01-01T18:00:00Z', expiresAt: '2030-01-02T18:00:00Z' })
+    assert.strictEqual(made.startsAt, '2030-01-01T18:00:00.000Z')
+    await notices.saveImage(made.id, stream(WEBP))
+    const { doc } = notices.buildDoc(notices.readState(), (n, ext) => `avisos/${n.id}-${n.pageHash}.${ext}`)
+    assert.strictEqual(doc.notices.find((n) => n.id === made.id).startsAt, '2030-01-01T18:00:00.000Z')
+    assert.deepStrictEqual(notices.problems(doc), [], 'the launcher accepts a scheduled notice as it is')
+    notices.deleteNotice(made.id)
+})

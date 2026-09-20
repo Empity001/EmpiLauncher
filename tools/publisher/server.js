@@ -15,6 +15,7 @@ const profiles = require('./lib/profiles')
 const appearance = require('./lib/appearance')
 const gh = require('./lib/gh')
 const notices = require('./lib/notices')
+const verify = require('./lib/verify')
 const { capture, runInJob, killTree } = require('./lib/exec')
 
 const PORT = Number(process.env.PUBLISHER_PORT) || 4848
@@ -235,6 +236,7 @@ route('GET', '/api/notices', () => notices.describe(config.load()))
 route('POST', '/api/notices', async ({ req }) => notices.saveNotice(config.load(), null, await readJson(req)))
 route('POST', '/api/notices/access', async ({ req }) => notices.saveAccess(await readJson(req)))
 route('GET', '/api/notices/uuid', ({ query }) => notices.lookupUuid(query.get('name')))
+route('POST', '/api/notices/check-links', async () => notices.checkLinks())
 route('POST', '/api/notices/:id', async ({ req, params }) => notices.saveNotice(config.load(), params.id, await readJson(req)))
 route('DELETE', '/api/notices/:id', ({ params }) => notices.deleteNotice(params.id))
 route('POST', '/api/notices/:id/image', ({ req, params }) => notices.saveImage(params.id, req))
@@ -243,6 +245,8 @@ route('POST', '/api/jobs/publish-notices', async ({ req }) => {
     const body = await readJson(req)
     return { jobId: startJob('Publicar avisos', (log, step) => notices.publish(config.load(), body, log, step)).id }
 })
+route('POST', '/api/jobs/undo-notices', () => ({ jobId: startJob('Deshacer la última publicación de avisos', (log, step) => notices.undoLast(config.load(), log, step)).id }))
+route('POST', '/api/jobs/verify', () => ({ jobId: startJob('Verificar publicación', (log, step) => verify.verify(config.load(), log, step)).id }))
 route('POST', '/api/jobs/compile-launcher', async ({ req }) => {
     const body = await readJson(req)
     return { jobId: startJob('Compilar el launcher', (log, step) => launcher.compile(config.load(), body, log, step)).id }

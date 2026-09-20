@@ -284,6 +284,11 @@ async function runJob(title, endpoint, body, onSuccess) {
     }
 }
 
+$('#verifyBtn').addEventListener('click', () => {
+    if (state.running) { toast('Ya hay una tarea en curso: espera a que termine.', true); return }
+    runJob('Verificar publicación', '/api/jobs/verify', {}, () => toast('Todo lo publicado está donde debe.'))
+})
+
 $('#activityClose').addEventListener('click', () => { $('#activity').hidden = true })
 $('#activityCancel').addEventListener('click', async () => {
     if (!state.running) return
