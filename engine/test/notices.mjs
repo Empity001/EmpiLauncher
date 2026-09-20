@@ -148,12 +148,14 @@ try {
     served.doc.notices.unshift({ ...n1, pageHash: 'h3' })
     const renewed = await engine.call('notices.refresh')
     check('an edited notice is unread again and its old archived copy is gone', renewed.result.notices.find((n) => n.id === 'n1').state === 'unread' && !renewed.result.archive.some((a) => a.id === 'n1') && !fs.existsSync(kept.image))
-    // forgetting
+    // what was closed cannot be removed: it is the proof that the notice reached the player
     await engine.call('notices.mark', { id: 'n1', state: 'closed' })
     const filed = (await engine.call('notices.get')).result.archive.find((a) => a.id === 'n1')
-    const forgotten = await engine.call('notices.forget', { id: 'n1' })
-    check('forgetting an archived notice removes it and its file', forgotten.ok && !forgotten.result.archive.some((a) => a.id === 'n1') && !fs.existsSync(filed.image))
-    check('forgetting one that is not there is not an error', (await engine.call('notices.forget', { id: 'nope' })).ok === true)
+    const tried = await engine.call('notices.forget', { id: 'n1' })
+    const after = (await engine.call('notices.get')).result.archive.find((a) => a.id === 'n1')
+    check('there is no way to remove a closed notice, and it is still there with its page', tried.ok === false && !!after && fs.existsSync(after.image) && after.image === filed.image, JSON.stringify(tried))
+    // ...and it survives another read
+    check('and it survives the next reading of avisos.json', (await engine.call('notices.refresh')).result.archive.some((a) => a.id === 'n1'))
 
     // the allow list: this account is on it
     served.doc.modpacks[PACK].maintenance.allow = [ACCOUNT]

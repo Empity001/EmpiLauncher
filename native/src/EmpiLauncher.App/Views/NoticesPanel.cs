@@ -38,7 +38,8 @@ internal static class NoticeLook
 
 /// <summary>
 /// The notices, as a newspaper: the page of the notice that is open, big, and the others in a strip beside it. Every notice can be closed
-/// (gone for good) or put off ("recordar más tarde": it comes back the next time the launcher opens). Opening a page marks it read.
+/// (it moves to "Ya leídos" and stays there for good: nothing removes it, it is the proof that it arrived) or put off ("recordar más tarde": it comes
+/// back the next time the launcher opens). Opening a page marks it read.
 /// The pages are pictures the author built in the Publisher and the launcher shows them as they are.
 /// </summary>
 internal sealed class NoticesPanel : UserControl
@@ -115,7 +116,7 @@ internal sealed class NoticesPanel : UserControl
         root.Children.Add(_footer);
 
         Content = new Border { Style = (Style)FindResource("Module"), Background = new SolidColorBrush(Color.FromRgb(0x11, 0x11, 0x14)), Padding = new Thickness(24, 20, 24, 20), Child = root };
-        MinWidth = 800; MaxWidth = 940; MaxHeight = 700;   // the window is never narrower than 940: the panel keeps its width whichever tab is open
+        MinWidth = 650; MaxWidth = 940; MaxHeight = 700;   // the panel keeps its width whichever tab is open (units are DIPs, not pixels)
         Loaded += (_, _) => _l.NoticesChanged += Refresh;
         Unloaded += (_, _) => _l.NoticesChanged -= Refresh;
     }
@@ -182,10 +183,8 @@ internal sealed class NoticesPanel : UserControl
         }
         _pageFrame.Visibility = Visibility.Visible;
         _footer.Visibility = Visibility.Visible;
-        // a closed notice cannot be put off or closed again: it can be read, and taken out of here
-        _later.Visibility = InArchive ? Visibility.Collapsed : Visibility.Visible;
-        _close.Content = InArchive ? "Quitar de aquí" : "Cerrar aviso";
-        _close.Style = (Style)FindResource(InArchive ? "GhostButton" : "PaperButton");
+        // a closed notice cannot be put off, closed again or removed: it stays as the proof that it arrived, and it can be read again
+        _later.Visibility = _close.Visibility = InArchive ? Visibility.Collapsed : Visibility.Visible;
         foreach (var notice in list) _strip.Children.Add(Item(notice, notice.Id == _selected));
         Show(list.First(n => n.Id == _selected));
     }
@@ -231,6 +230,7 @@ internal sealed class NoticesPanel : UserControl
         System.Windows.Automation.AutomationProperties.SetName(_page, Ui.AccessName(notice.Summary is { Length: > 0 } ? $"{notice.Title}. {notice.Summary}" : notice.Title));
         _link.Visibility = notice.Button != null ? Visibility.Visible : Visibility.Collapsed;
         _link.Content = notice.Button != null ? $"{notice.Button.Label}  ↗" : "";
+        _footer.Visibility = InArchive && notice.Button == null ? Visibility.Hidden : Visibility.Visible;   // a closed notice with no link has nothing down here; its space stays, so the page keeps its size
         if (changed) Motion.Rise(_pageFrame, 0, 180, 6);   // the next page arrives; nothing moves when only the marks changed
     }
 
@@ -255,20 +255,8 @@ internal sealed class NoticesPanel : UserControl
     private void Dismiss()
     {
         if (_selected == null) return;
-        if (InArchive) { Forget(); return; }
         _ = _l.MarkNoticeAsync(_selected, "closed");
         Advance();
-    }
-
-    /// <summary>In "ya leídos": removes this one for good and shows the next (or goes back to the notices when it was the last).</summary>
-    private void Forget()
-    {
-        var id = _selected;
-        if (id == null) return;
-        var list = Visible();
-        var at = list.FindIndex(n => n.Id == id);
-        _selected = list.Where((n, i) => i != at).Select(n => n.Id).FirstOrDefault();
-        _ = _l.ForgetNoticeAsync(id);
     }
 
     /// <summary>After putting one off or closing it: the next one of this scope, or out when there is none.</summary>

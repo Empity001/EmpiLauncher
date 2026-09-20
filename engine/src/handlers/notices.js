@@ -4,12 +4,12 @@
  *   notices.refresh  asks EmpiPacks for avisos.json (a short, conditional request) and returns the view; without a network it returns what was last read
  *   notices.get      the view from what is remembered, no network
  *   notices.mark     {id, state: 'read'|'later'|'closed'|'unread'}   what the player did with a notice; remembered on this PC
- *   notices.forget   {id}   takes a closed notice out of "ya leídos" for good (its file too)
  *
  * A closed notice is not thrown away: it moves to the archive ("ya leídos"), with its page squeezed into a small WebP (75 % of the width,
  * quality 40: about a third of the size, the text still reads) and the full-size page deleted. It stays even if the author later removes
- * the notice from avisos.json, up to ARCHIVE_MAX of them (the oldest go first); if the author EDITS it, it is a new notice again and
- * the old copy goes. The archive is in the view as `archive`.
+ * the notice from avisos.json. Nothing removes it: it is the player's proof that the notice reached them ("no me apareció", "no lo leí"),
+ * so there is no method for it and the window has no button. The only ways out are an EDITED notice (a new one again: the old copy goes) and
+ * ARCHIVE_MAX of them (a limit against a runaway, far above what anyone reaches: the oldest go first). The archive is in the view as `archive`.
  *
  * The view: { online, fetchedAt, serverNow, launcher: {minVersion, blocked, message, novedades}, notices: [...], archive: [...], modpacks: { <id>: {access, novedades} } }
  *
@@ -28,7 +28,7 @@ const offline = require('../lib/offline')
 const FILE = 'native-notices.json'
 const IMAGES = 'notices-cache'
 const ARCHIVE = 'notices-archive'
-const ARCHIVE_MAX = 100
+const ARCHIVE_MAX = 500
 const ARCHIVE_WIDTH = 675, ARCHIVE_QUALITY = 40
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024
 
@@ -232,12 +232,6 @@ function register(handlers, state) {
         for (const known of Object.keys(mem.marks)) if (!mem.doc.notices.some((n) => n.id === known)) delete mem.marks[known]   // forget the ones that are gone
         if (value === 'closed') await archiveNotice(notice)
         save()
-        return view()
-    })
-    handlers.set('notices.forget', async ({ id } = {}) => {
-        load()
-        const entry = mem.archive.find((a) => a.id === id)
-        if (entry) { dropArchiveFile(entry); mem.archive = mem.archive.filter((a) => a !== entry); save() }
         return view()
     })
 
