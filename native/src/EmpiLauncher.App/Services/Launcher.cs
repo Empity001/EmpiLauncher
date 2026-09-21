@@ -194,6 +194,14 @@ public sealed class Launcher : IAsyncDisposable
         catch (Exception) { }   // no art is a normal state: the plain interface still works
     }
 
+    /// <summary>Animated banner and background on or off. Off: they stay still and the engine makes no frames; on: the art is asked for again.</summary>
+    public async Task SetAnimatedArtAsync(bool on)
+    {
+        Prefs = await Client.CallAsync<UiPrefs>("ui.set", new { key = "animatedArt", value = on });
+        PrefsChanged?.Invoke();
+        await LoadArtAsync();
+    }
+
     /// <summary>Shows a dot colour right away (while it is being dragged in the picker) without saving it; SetDotColorAsync saves.</summary>
     public void PreviewDotColor(string hex)
     {
@@ -548,6 +556,10 @@ public sealed class Launcher : IAsyncDisposable
                 break;
             case "game.exit":
                 if (data.Deserialize<GameExit>(Json.Options) is { Stopped: false, Code: not (null or 0) } exit) GameCrashed?.Invoke(exit);
+                break;
+            case "art.ready":
+                // an animation that was being made is done: ask for the art again (it comes back with the frames)
+                if (data.TryGetProperty("serverId", out var artFor) && artFor.GetString() == HostId) _ = LoadArtAsync();
                 break;
             case "config.changed":
                 _ = RefreshConfigAsync();

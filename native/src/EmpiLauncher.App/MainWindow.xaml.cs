@@ -44,6 +44,7 @@ public partial class MainWindow : Window
         _l.Notice += ShowToast;
         _l.GameChanged += OnGameChanged;
         _l.ArtChanged += UpdateBackdrop;
+        _l.PrefsChanged += SyncBackdropAnimation;
         _l.Changed += OnUpdateChanged;
         _l.Changed += OnAccountsChanged;
         _l.NoticesChanged += OnNoticesChanged;
@@ -383,14 +384,31 @@ public partial class MainWindow : Window
     // ---- the modpack's picture behind the home screen -------------------------------------------------------------
 
     private string? _backdropPath;
+    private FramePlayer? _backdropPlayer;
+
+    /// <summary>An animated background plays behind the home screen while it can be seen; otherwise its still picture stays.</summary>
+    private void SyncBackdropAnimation()
+    {
+        var anim = ViewHost.Content is HomeView ? _l.Art?.BackgroundAnim : null;
+        if (anim == null || anim.Frames.Count < 2 || !FramePlayer.Wanted || Backdrop.Visibility != Visibility.Visible)
+        {
+            if (_backdropPlayer != null) { _backdropPlayer.Dispose(); _backdropPlayer = null; _backdropPath = null; UpdateBackdrop(); }   // back to the still one
+            return;
+        }
+        if (_backdropPlayer != null && _backdropPlayer.Matches(anim)) { _backdropPlayer.Evaluate(); return; }
+        _backdropPlayer?.Dispose();
+        _backdropPlayer = new FramePlayer(Backdrop, anim, Math.Min(anim.Width, 960), () => FramePlayer.Wanted);
+        _backdropPlayer.Start();
+    }
     private int _backdropGeneration;
 
     /// <summary>Shows the selected modpack's background on the home screen only, decoded at 1280 px, and lets it go everywhere else.</summary>
     private async void UpdateBackdrop()
     {
         var wanted = ViewHost.Content is HomeView ? _l.Art?.Background : null;
-        if (wanted == _backdropPath && (wanted == null || Backdrop.Source != null)) return;
+        if (wanted == _backdropPath && (wanted == null || Backdrop.Source != null)) { SyncBackdropAnimation(); return; }
         _backdropPath = wanted;
+        _backdropPlayer?.Dispose(); _backdropPlayer = null;
         var generation = ++_backdropGeneration;
         if (wanted == null)
         {
@@ -403,6 +421,7 @@ public partial class MainWindow : Window
         Backdrop.Source = image;
         Backdrop.Visibility = BackdropScrim.Visibility = image == null ? Visibility.Collapsed : Visibility.Visible;
         if (image != null) Motion.Animate(Backdrop, OpacityProperty, 0, 1, 280);   // the picture arrives when it has been decoded: it fades in instead of popping in
+        SyncBackdropAnimation();
     }
 
     /// <summary>Whatever the player just did touched memory: give it back after a quiet moment (mouse moves postpone it).</summary>

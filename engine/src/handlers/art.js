@@ -3,7 +3,12 @@
  *
  * The sources are not small: the main modpack's background is a 278 MB animated WebP that WPF cannot read at all. So the engine
  * (which already carries sharp, like the classic launcher) produces a first-frame preview once, caches it, and the UI only ever
- * sees a 1280 px JPEG or a 900 px PNG. Animation is a separate, optional layer on top of this and is not done here.
+ * sees a 1280 px JPEG or a 900 px PNG.
+ *
+ * Animation is a second layer on top of that (lib/anim.js): a GIF, animated WebP or APNG banner or background is also turned, ONCE and in a
+ * child process, into a short list of small frames with their times and loops; art.get returns it as bannerAnim / backgroundAnim once it
+ * exists, and the event art.ready says when a job that was running has finished. Until then (and for anything too big: the 278 MB WebP) the
+ * still preview is what is shown. The preference animatedArt (native-ui.json, on by default) turns all of it off: nothing is made or returned.
  *
  *   - installed modpack: the file on disk is the source;
  *   - not installed: a small remote image (up to 8 MB) is fetched once; a big one (the 278 MB WebP) is never downloaded just to look at;
@@ -11,8 +16,10 @@
  *     container and decoded on its own.
  */
 const fs = require('fs')
+const os = require('os')
 const path = require('path')
 const crypto = require('crypto')
+const { spawn } = require('child_process')
 const { ensureCore } = require('./core')
 const { describeServer } = require('./distro')
 const { EngineError } = require('../ipc/server')
@@ -20,6 +27,13 @@ const { EngineError } = require('../ipc/server')
 const MAX_REMOTE = 8 * 1024 * 1024
 const BIG_LOCAL = 24 * 1024 * 1024
 const LIMITS = { banner: { width: 900, format: 'png' }, background: { width: 1280, format: 'jpeg' } }
+// animation: the size a frame is shown at (a little more than its screen size), how many frames and how close together at most
+const ANIM = {
+    banner: { format: 'png', maxWidth: 560, quality: 90, maxFrames: 120, minDelay: 40 },
+    background: { format: 'jpeg', maxWidth: 960, quality: 68, maxFrames: 90, minDelay: 100 }
+}
+const MAX_ANIM_REMOTE = 16 * 1024 * 1024
+const MAX_ANIM_LOCAL = 64 * 1024 * 1024
 
 const hash = (...parts) => crypto.createHash('sha1').update(parts.join('|')).digest('hex').slice(0, 12)
 
@@ -119,7 +133,7 @@ function register(handlers, state) {
             await pipeline.toFile(out + '.tmp')
             fs.renameSync(out + '.tmp', out)
             // old previews of this modpack and kind are stale now
-            for (const name of fs.readdirSync(dir)) if (name.startsWith(`${serverId}-${kind}-`) && path.join(dir, name) !== out) fs.rmSync(path.join(dir, name), { force: true })
+            for (const name of fs.readdirSync(dir)) if (name.startsWith(`${serverId}-${kind}-`) && /\.(png|jpg)$/.test(name) && path.join(dir, name) !== out) fs.rmSync(path.join(dir, name), { force: true })
             return out
         } catch (err) {
             state.log.warn(`Unable to make the ${kind} preview for ${serverId}.`, err)
@@ -129,17 +143,111 @@ function register(handlers, state) {
         }
     }
 
-    /** { banner, background }: absolute paths of small still images, or null where the modpack has none (or it is too big to fetch). */
+    // ---- animation ------------------------------------------------------------------------------------------------------------------
+
+    const artDir = () => path.join(ensureCore(state).ConfigManager.getLauncherDirectory(), 'art-cache')
+    const animatedArtOn = () => {
+        try { return JSON.parse(fs.readFileSync(path.join(ensureCore(state).ConfigManager.getLauncherDirectory(), 'native-ui.json'), 'utf8')).animatedArt !== false } catch { return true }
+    }
+    const animJobs = new Map()   // folder name -> the running job
+
+    /** What the still preview is made from (the same rules), or null when the picture is not fetched at all. */
+    function sourceOf(kind, visual) {
+        if (!visual) return null
+        try {
+            if (visual.local) { const stat = fs.statSync(visual.local); return { local: visual.local, identity: `${visual.local}|${stat.size}|${Math.trunc(stat.mtimeMs)}` } }
+        } catch { return null }
+        if (visual.url && (kind === 'banner' || (visual.size || 0) <= MAX_REMOTE)) return { local: null, identity: `${visual.url}|${visual.md5 || visual.size || ''}` }
+        return null
+    }
+
+    const readAnim = (folder) => {
+        try {
+            const doc = JSON.parse(fs.readFileSync(path.join(folder, 'anim.json'), 'utf8'))
+            return { frames: doc.frames.map((name) => path.join(folder, name)), delays: doc.delays, loops: doc.loops || 0, width: doc.width, height: doc.height }
+        } catch { return null }
+    }
+
+    /** The frame maker, in a process of its own: what the image library held goes back to the system when it ends. */
+    function runWorker(options) {
+        return new Promise((resolve) => {
+            const child = spawn(process.execPath, [path.join(__dirname, '..', 'lib', 'anim-worker.js'), JSON.stringify(options)], { env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true })
+            try { os.setPriority(child.pid, os.constants.priority.PRIORITY_BELOW_NORMAL) } catch { /* it just runs at the normal priority */ }
+            let out = ''
+            const timer = setTimeout(() => child.kill(), 180000)
+            child.stdout.on('data', (chunk) => { out += chunk })
+            child.on('error', () => { clearTimeout(timer); resolve(null) })
+            child.on('close', () => { clearTimeout(timer); try { resolve(JSON.parse(out)) } catch { resolve(null) } })
+        })
+    }
+
+    async function makeAnimation(kind, serverId, visual, source, folder, none) {
+        const dir = artDir()
+        let temp = null
+        try {
+            let input = source.local
+            if (input) {
+                if (fs.statSync(input).size > MAX_ANIM_LOCAL) { fs.writeFileSync(none, 'too big'); return }
+            } else {
+                const limit = kind === 'banner' ? MAX_ANIM_REMOTE : MAX_REMOTE
+                if ((visual.size || 0) > limit) { fs.writeFileSync(none, 'too big'); return }
+                temp = path.join(dir, `${hash(source.identity)}.anim-download`)
+                await download(visual.url, temp, limit)
+                input = temp
+            }
+            const staging = `${folder}.tmp`
+            fs.rmSync(staging, { recursive: true, force: true })
+            const result = await runWorker({ file: input, outDir: staging, ...ANIM[kind] })
+            if (result && result.animated) {
+                fs.rmSync(folder, { recursive: true, force: true })
+                fs.renameSync(staging, folder)
+                // the animations of this picture's older versions are stale now
+                for (const name of fs.readdirSync(dir)) {
+                    if (name.startsWith(`${serverId}-${kind}-`) && /-anim(\.none)?$/.test(name) && path.join(dir, name) !== folder && path.join(dir, name) !== none) fs.rmSync(path.join(dir, name), { recursive: true, force: true })
+                }
+                if (state.ipc) state.ipc.broadcast('art.ready', { serverId, kind })
+            } else {
+                fs.rmSync(staging, { recursive: true, force: true })
+                if (result) fs.writeFileSync(none, result.reason || 'still')   // not animated (or not worth it): not asked again for this picture
+            }
+        } catch (err) {
+            state.log.warn(`Unable to make the animated ${kind} for ${serverId}.`, err)   // not remembered: the next request tries again
+        } finally {
+            if (temp) fs.rmSync(temp, { force: true })
+        }
+    }
+
+    /**
+     * The animation of a picture: { anim } when it is ready, { pending: true } when a job is making it (art.ready will say), otherwise nothing.
+     * Nothing is made unless the picture is a GIF, an animated WebP or an APNG within the limits, and the preference is on.
+     */
+    function animationFor(kind, serverId, visual) {
+        if (!animatedArtOn()) return { anim: null, pending: false }
+        const source = sourceOf(kind, visual)
+        if (!source) return { anim: null, pending: false }
+        const name = `${serverId}-${kind}-${hash(source.identity)}-anim`
+        const folder = path.join(artDir(), name), none = `${folder}.none`
+        const ready = readAnim(folder)
+        if (ready) return { anim: ready, pending: false }
+        if (fs.existsSync(none)) return { anim: null, pending: false }
+        if (!animJobs.has(name)) animJobs.set(name, makeAnimation(kind, serverId, visual, source, folder, none).finally(() => animJobs.delete(name)))
+        return { anim: null, pending: true }
+    }
+
+    /** { banner, background, bannerAnim, backgroundAnim, animating }: still images, the animations when they exist, and whether some are being made. */
     handlers.set('art.get', async ({ id } = {}) => {
         const { ConfigManager, DistroAPI } = ensureCore(state)
         const distro = await DistroAPI.getDistribution()
         const server = distro.getServerById(id || ConfigManager.getSelectedServer())
         if (!server) throw new EngineError('no_server', 'no such modpack')
         const visuals = describeServer(ConfigManager, server).visuals
+        const banner = await preview('banner', server.rawServer.id, visuals.banner)
+        const background = await preview('background', server.rawServer.id, visuals.background || visuals.backgroundPreview)
+        const bannerAnim = animationFor('banner', server.rawServer.id, visuals.banner)
+        const backgroundAnim = animationFor('background', server.rawServer.id, visuals.background || visuals.backgroundPreview)
         return {
-            serverId: server.rawServer.id,
-            banner: await preview('banner', server.rawServer.id, visuals.banner),
-            background: await preview('background', server.rawServer.id, visuals.background || visuals.backgroundPreview)
+            serverId: server.rawServer.id, banner, background,
+            bannerAnim: bannerAnim.anim, backgroundAnim: backgroundAnim.anim, animating: bannerAnim.pending || backgroundAnim.pending
         }
     })
 }

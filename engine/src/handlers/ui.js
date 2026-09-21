@@ -5,18 +5,20 @@
  *   fieldMode  'auto' (moves only when it is cheap), 'always' (moves whenever the window is visible), 'off' (a still image)
  *   dotColor   '#rrggbb', the colour of the field's dots (grey by default)
  *   dotOpacity 0.1 to 1, how visible the whole field is (1 by default): lower it to make the background calmer
+ *   animatedArt true (default) plays a modpack's animated banner and background (GIF, WebP, APNG); false keeps them still and makes no frames
  */
 const fs = require('fs')
 const path = require('path')
 const { ensureCore } = require('./core')
 const { EngineError } = require('../ipc/server')
 
-const DEFAULTS = { fieldMode: 'auto', dotColor: '#64635f', dotOpacity: 1 }
+const DEFAULTS = { fieldMode: 'auto', dotColor: '#64635f', dotOpacity: 1, animatedArt: true }
 // what each preference accepts: a list of values, or a test
 const ALLOWED = {
     fieldMode: (v) => ['auto', 'always', 'off'].includes(v),
     dotColor: (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v),
-    dotOpacity: (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0.1 && v <= 1
+    dotOpacity: (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0.1 && v <= 1,
+    animatedArt: (v) => typeof v === 'boolean'
 }
 
 function register(handlers, state) {

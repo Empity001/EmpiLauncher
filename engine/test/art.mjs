@@ -53,6 +53,43 @@ try {
     const local = await engine.call('art.get', { id: main.id })
     check('installed animated WebP background gives a still JPEG preview', local.ok && local.result.background && fs.existsSync(local.result.background), JSON.stringify(local.result))
 
+    // ---- an installed animated banner: its frames are made once, in the background, and announced ----
+    const culones = byName('CulonesRPG')
+    const bannerPath = culones && culones.visuals && culones.visuals.banner && culones.visuals.banner.path
+    if (bannerPath) {
+        const gif = async (colors) => sharp(Buffer.concat(colors.map(([r, g, b]) => Buffer.from(Array.from({ length: 96 * 96 }, () => [r, g, b, 255]).flat()))), { raw: { width: 96, height: 96 * colors.length, channels: 4, pageHeight: 96 } }).gif({ loop: 0, delay: colors.map(() => 100) }).toBuffer()
+        const installed = path.join(engine.root, 'data', 'instances', culones.id, bannerPath)
+        fs.mkdirSync(path.dirname(installed), { recursive: true })
+        fs.writeFileSync(installed, await gif([[255, 0, 0], [0, 255, 0], [0, 0, 255]]))
+        const first = await engine.call('art.get', { id: culones.id })
+        check('an animated GIF banner: the still preview comes at once and the animation is said to be in the making', first.ok && first.result.banner && fs.existsSync(first.result.banner) && first.result.bannerAnim === null && first.result.animating === true, JSON.stringify(first.result))
+        const ready = await engine.waitFor((e) => e.event === 'art.ready' && e.data.serverId === culones.id && e.data.kind === 'banner', 40000)
+        check('art.ready says when its frames exist', ready != null)
+        const second = await engine.call('art.get', { id: culones.id })
+        const anim = second.result && second.result.bannerAnim
+        check('then art.get gives the frames, their times and the loop count', second.ok && anim && anim.frames.length === 3 && anim.delays.join() === '100,100,100' && anim.loops === 0 && anim.frames.every((f) => fs.existsSync(f)) && second.result.animating === false, JSON.stringify(second.result))
+        t = Date.now()
+        const third = await engine.call('art.get', { id: culones.id })
+        check('a third request is served from what was made', third.ok && third.result.bannerAnim && third.result.bannerAnim.frames[0] === anim.frames[0] && Date.now() - t < 500, `${Date.now() - t} ms`)
+
+        // the switch: off means nothing is returned (and nothing would be made); on brings it back from the cache
+        await engine.call('ui.set', { key: 'animatedArt', value: false })
+        const off = await engine.call('art.get', { id: culones.id })
+        check('with animatedArt off the banner stays a still image', off.ok && off.result.bannerAnim === null && off.result.animating === false && !!off.result.banner)
+        await engine.call('ui.set', { key: 'animatedArt', value: true })
+        check('and on again it is back', (await engine.call('art.get', { id: culones.id })).result.bannerAnim !== null)
+
+        // another picture in its place: a new still is made (the old one goes), the old animation folder is not mistaken for a still, and the new one is made
+        fs.writeFileSync(installed, await gif([[255, 255, 0], [0, 255, 255]]))
+        const changed = await engine.call('art.get', { id: culones.id })
+        check('a changed picture gets a new still preview without upsetting the animation folders', changed.ok && !!changed.result.banner && changed.result.animating === true, JSON.stringify(changed.result))
+        const readyAgain = await engine.waitFor((e) => e.event === 'art.ready' && e.data.serverId === culones.id && e.data.kind === 'banner' && e.at > ready.at, 40000)
+        const latest = await engine.call('art.get', { id: culones.id })
+        check('and its new animation replaces the old one', readyAgain != null && latest.result.bannerAnim && latest.result.bannerAnim.frames.length === 2 && !fs.existsSync(anim.frames[0]), JSON.stringify(latest.result.bannerAnim))
+    } else {
+        console.log('SKIP  the real index has no banner path for CulonesRPG: the animated banner test did not run')
+    }
+
     // ---- native-only preferences ----
     const prefs = await engine.call('ui.get')
     check('ui.get defaults the field to auto', prefs.ok && prefs.result.fieldMode === 'auto', JSON.stringify(prefs.result))

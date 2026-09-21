@@ -33,6 +33,7 @@ internal sealed class AboutTab : SettingsTab
         var launcher = Ui.Section("Launcher", out var l);
         l.Children.Add(Ui.Row("Modo de rendimiento", "Automático ahorra recursos en equipos justos: sin efectos que cuesten memoria o GPU.", ModeChoice()));
         l.Children.Add(Ui.Row("Animación del logo", "El logo se arma con un efecto glitch al abrir el launcher y se deshace al cerrarlo (un clic o una tecla la salta). No se muestra si Windows tiene las animaciones apagadas.", Ui.Switch(NativeSettings.Splash, v => NativeSettings.Splash = v, "Animación del logo al abrir y cerrar")));
+        l.Children.Add(Ui.Row("Banner y fondo animados", "Los modpacks con un banner o un fondo animado (GIF, WebP o APNG) los ven en movimiento. Solo se mueven mientras el launcher está a la vista, y se quedan quietos si Windows tiene las animaciones apagadas. Apágalo para ahorrar procesador y disco.", Ui.Switch(_l.Prefs.AnimatedArt != false, v => _ = _l.SetAnimatedArtAsync(v), "Banner y fondo animados")));
         l.Children.Add(Ui.Row("Versiones de prueba", "Recibir también las versiones del launcher que aún se están probando.", Ui.Switch(Bool("allowPrerelease"), v => _ = Set("allowPrerelease", v), "Versiones de prueba")));
         Root.Children.Add(launcher);
         Root.Children.Add(FieldSection());

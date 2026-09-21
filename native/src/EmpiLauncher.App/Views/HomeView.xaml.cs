@@ -58,6 +58,7 @@ public partial class HomeView : UserControl
         InitializeComponent();
         Loaded += (_, _) =>
         {
+            _l.PrefsChanged += SyncBannerAnimation;
             _l.Changed += OnChanged; _l.GameChanged += OnGame; _l.ArtChanged += RefreshBanner; _l.NoticesChanged += OnChanged; _agenda.Start();
             // First, so what Refresh fills in below is already waiting its turn (invisible) and never flashes. While the logo's opening
             // still covers the window the parts wait hidden, and arrive the moment it uncovers them.
@@ -74,6 +75,8 @@ public partial class HomeView : UserControl
         };
         Unloaded += (_, _) =>
         {
+            _bannerPlayer?.Dispose(); _bannerPlayer = null;
+            _l.PrefsChanged -= SyncBannerAnimation;
             _l.Changed -= OnChanged; _l.GameChanged -= OnGame; _l.ArtChanged -= RefreshBanner; _l.NoticesChanged -= OnChanged; _status.Stop(); _agenda.Stop(); _glass?.Stop(); PackBanner.Source = null; ProgressCloud.Source = null;
             if (_flyout != null) _flyout.IsOpen = false;
             if (ReferenceEquals(LivingField.NextAction, PlayButton)) LivingField.NextAction = null;
@@ -141,12 +144,30 @@ public partial class HomeView : UserControl
     private string? _bannerPath;
     private int _bannerGeneration;
 
+    private FramePlayer? _bannerPlayer;
+
+    /// <summary>The animated banner plays over the still one while it can be seen (see FramePlayer); a modpack without one, or with the switch off, keeps the still.</summary>
+    private void SyncBannerAnimation()
+    {
+        var anim = _l.Art?.BannerAnim;
+        if (anim == null || anim.Frames.Count < 2 || !FramePlayer.Wanted || PackBanner.Visibility != Visibility.Visible)
+        {
+            if (_bannerPlayer != null) { _bannerPlayer.Dispose(); _bannerPlayer = null; if (PackBanner.Visibility == Visibility.Visible) { _bannerPath = null; RefreshBanner(); } }   // back to the still picture
+            return;
+        }
+        if (_bannerPlayer != null && _bannerPlayer.Matches(anim)) { _bannerPlayer.Evaluate(); return; }
+        _bannerPlayer?.Dispose();
+        _bannerPlayer = new FramePlayer(PackBanner, anim, Math.Min(anim.Width, 700), () => FramePlayer.Wanted);
+        _bannerPlayer.Start();
+    }
+
     /// <summary>The modpack's logo replaces the dotted name when there is one. Decoded at 700 px; the name stays as the accessible label.</summary>
     private async void RefreshBanner()
     {
         var wanted = _l.Art?.Banner;
-        if (wanted == _bannerPath && (wanted == null || PackBanner.Source != null)) return;
+        if (wanted == _bannerPath && (wanted == null || PackBanner.Source != null)) { SyncBannerAnimation(); return; }
         _bannerPath = wanted;
+        _bannerPlayer?.Dispose(); _bannerPlayer = null;
         var generation = ++_bannerGeneration;
         if (wanted == null) { PackBanner.Source = null; PackBanner.Visibility = Visibility.Collapsed; PackTitle.Visibility = Visibility.Visible; return; }
         var image = await Task.Run(() => ScreenshotViewer.Decode(wanted, 700));
@@ -157,6 +178,7 @@ public partial class HomeView : UserControl
         PackBanner.Visibility = Visibility.Visible;
         PackTitle.Visibility = Visibility.Collapsed;
         if (appearing) Motion.Rise(PackBanner, 0, 240, 6);   // the logo replaces the dotted name: it fades in, the name does not just vanish
+        SyncBannerAnimation();
     }
 
     private void Refresh()

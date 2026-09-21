@@ -106,8 +106,8 @@ Cómo la ve el juego: al lanzar, el motor arranca un servidor de skins **solo en
 ### Preferencias, arte, estado del servidor y actualizaciones
 | Método | Resultado |
 |---|---|
-| `ui.get` / `ui.set` `{key, value}` | Preferencias que solo tiene la interfaz nativa (`native-ui.json`). Hoy: `fieldMode: auto\|always\|off` (el campo de puntos vivo) `dotColor: #rrggbb` (el color de los puntos y de las ondas; gris `#64635f` por defecto) y `dotOpacity: 0.1 a 1` (cuánto se ve todo el fondo; 1 por defecto, se guarda con dos decimales) |
-| `art.get` `{id}` | `{serverId, banner, background}`: rutas de imágenes pequeñas ya listas (logo PNG ≤ 900 px con transparencia, fondo JPEG ≤ 1280 px) en la caché del launcher. Las remotas solo se bajan hasta 8 MB; un WebP animado enorme se reduce a su primer fotograma |
+| `ui.get` / `ui.set` `{key, value}` | Preferencias que solo tiene la interfaz nativa (`native-ui.json`). Hoy: `fieldMode: auto\|always\|off` (el campo de puntos vivo) `dotColor: #rrggbb` (el color de los puntos y de las ondas; gris `#64635f` por defecto), `dotOpacity: 0.1 a 1` (cuánto se ve todo el fondo; 1 por defecto, se guarda con dos decimales) y `animatedArt: true\|false` (banner y fondo animados; `true` por defecto) |
+| `art.get` `{id}` | `{serverId, banner, background, bannerAnim, backgroundAnim, animating}`: rutas de imágenes pequeñas ya listas (logo PNG ≤ 900 px con transparencia, fondo JPEG ≤ 1280 px) en la caché del launcher, siempre fijas y al momento. Las remotas solo se bajan hasta 8 MB. Si el banner o el fondo es un GIF, un WebP animado o un APNG, además se convierte **una sola vez**, en un proceso aparte, en fotogramas pequeños (banner: PNG 560 px con transparencia, ≤ 120 fotogramas; fondo: JPEG 960 px, ≤ 90) y `bannerAnim` / `backgroundAnim` es `{frames: [ruta], delays: [ms], loops, width, height}` (`loops` 0 = infinito; los fotogramas repetidos se funden en uno que dura más y la animación dura lo mismo que la original). Mientras se hace, `animating` es `true` y la imagen fija es lo que se ve; al terminar el motor emite `art.ready`. Límites: 16 MB si es remota (banner), 64 MB si es local; más grande se queda fija (el WebP de 278 MB de Panolis). Con `animatedArt` apagado no se hace ni se devuelve nada |
 | `server.status` `{id?}` | `{online, players?:{online,max}}` |
 | `update.check` | `{available, current, version?, releaseDate?, installer?, sha512?, size?, page?, reason?}`. Un solo canal: el `latest.yml` de la última release de GitHub (el mismo que lee el launcher clásico, por eso el clásico se actualiza al nativo). `reason`: `no_channel`, `bad_channel`, `offline` |
 | `update.install` | Descarga el instalador de la versión publicada, comprueba su sha512 y lo lanza en silencio (`/S --updated --force-run`). `{launched, file, version}`. Errores: `no_update bad_channel bad_checksum download_failed install_failed cancelled busy game_running`. No se instala nada sin huella, con un nombre que no sea un archivo, ni con Minecraft abierto |
@@ -180,6 +180,7 @@ la última barrera.
 | `game.notice` | `{level, text}` |
 | `pack.status` | igual que el método |
 | `distro.refreshed` | igual que `distro.load` sin `tookMs` |
+| `art.ready` `{serverId, kind}` | Terminó de hacerse la animación de un `banner` o `background`: se vuelve a pedir `art.get` y ya trae los fotogramas |
 | `config.changed` | `{serverId, key, value}` (por ejemplo el Java elegido tras una instalación) |
 | `auth.progress` | `{stage: window\|exchange\|logout}` |
 | `update.progress` | `{stage: download\|ready, received, total, bytesPerSecond?}` mientras `update.install` baja el instalador |

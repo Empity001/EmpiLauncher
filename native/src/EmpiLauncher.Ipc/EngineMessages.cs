@@ -119,10 +119,14 @@ public sealed record ThemeResult(string Source, JsonElement? Theme);
 public sealed record ValidResult(bool Valid);
 
 /// <summary>Small still images of a modpack's art (cached by the engine); null where there is none or it is too big to fetch.</summary>
-public sealed record ArtResult(string ServerId, string? Banner, string? Background);
+/// <summary>The frames of an animated banner or background (small still files, made once by the engine): the time each stays, and how many times to loop (0 = for ever).</summary>
+public sealed record AnimInfo(List<string> Frames, List<int> Delays, int Loops, int Width, int Height);
+
+/// <summary>Banner and background as still previews, plus their animations when they exist; Animating says some are being made (the engine announces them with art.ready).</summary>
+public sealed record ArtResult(string ServerId, string? Banner, string? Background, AnimInfo? BannerAnim = null, AnimInfo? BackgroundAnim = null, bool Animating = false);
 
 /// <summary>Preferences only the native interface has. FieldMode: auto | always | off. DotColor: #rrggbb of the field's dots. DotOpacity: 0.1 to 1, how visible the whole field is.</summary>
-public sealed record UiPrefs(string FieldMode, string? DotColor = null, double? DotOpacity = null);
+public sealed record UiPrefs(string FieldMode, string? DotColor = null, double? DotOpacity = null, bool? AnimatedArt = null);
 
 /// <summary>Answer of update.check. Reason is set when nothing is offered: no_channel (nothing published), bad_channel, offline.</summary>
 public sealed record UpdateInfo(bool Available, string? Current, string? Version, string? Installer, string? Sha512, long? Size, string? Page, string? Reason);
