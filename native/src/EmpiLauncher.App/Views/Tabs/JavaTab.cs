@@ -14,6 +14,10 @@ internal sealed class JavaTab : SettingsTab
     private Slider? _min, _max;
     private TextBlock? _minLabel, _maxLabel, _memoryStatus, _javaDetails;
     private TextBox? _javaBox;
+    private TextBlock? _javaState;
+    private Button? _javaInstall;
+    private JavaCheck? _check;
+    private bool _installing;
     private bool _loading;
 
     public override string Id => "java";
@@ -50,7 +54,22 @@ internal sealed class JavaTab : SettingsTab
         _javaDetails = Ui.Text("Comprobando...", "CaptionText");
         _javaDetails.Margin = new Thickness(4, 8, 0, 0);
         j.Children.Add(_javaDetails);
+
+        // what this modpack needs, what it uses, and the button to install or update exactly that Java
+        _javaState = Ui.Text("Comprobando el Java que pide este modpack...", "CaptionText");
+        _javaState.Margin = new Thickness(4, 8, 0, 0);
+        _javaState.TextWrapping = TextWrapping.Wrap;
+        j.Children.Add(_javaState);
+        _javaInstall = Ui.Button("Instalar Java", () => _ = InstallOrUpdateJavaAsync(), "PrimaryButton");
+        _javaInstall.IsEnabled = false;
+        _javaInstall.HorizontalAlignment = HorizontalAlignment.Left;
+        _javaInstall.Margin = new Thickness(0, 12, 0, 0);
+        j.Children.Add(_javaInstall);
+        j.Children.Add(Ui.Row("Instalar Java automáticamente", "Si al jugar falta el Java que pide el modpack, el launcher lo instala solo. Apágalo si prefieres que te pregunte antes.",
+            Ui.Switch(_l.Prefs.AutoJava != false, v => _ = _l.SetAutoJavaAsync(v), "Instalar Java automáticamente")));
         Root.Children.Add(java);
+        _l.GameChanged -= OnGameChanged; _l.GameChanged += OnGameChanged;
+        _l.JavaInstalled -= OnJavaInstalled; _l.JavaInstalled += OnJavaInstalled;
 
         // ---- jvm options ----
         var jvm = Ui.Section("Opciones de la JVM", out var o, "Argumentos separados por espacios. Déjalo como está si no sabes qué son.");
@@ -63,6 +82,72 @@ internal sealed class JavaTab : SettingsTab
 
         _loading = false;
         _ = RefreshJavaDetailsAsync(s.JavaExecutable);
+        _ = RefreshRequirementAsync();
+    }
+
+    /// <summary>What the modpack needs against what it uses: the sentence under the path, and what the button offers.</summary>
+    private async Task RefreshRequirementAsync()
+    {
+        if (_javaState == null || _javaInstall == null || _settings == null) return;
+        try
+        {
+            var check = _check = await _l.CheckJavaAsync(_settings.ServerId);
+            var need = check.Required.Major;
+            var busy = _l.Game.Busy || _l.Game.Running;
+            if (check.Current is { Ok: true } fits)
+            {
+                _javaState.Text = $"Este modpack usa Java {fits.Version}, el que pide (Java {need}).";
+                _javaState.Foreground = Ui.Res("Paper3Brush");
+                _javaInstall.Content = $"Buscar actualización de Java {need}";
+                _javaInstall.Style = (Style)Application.Current.FindResource("GhostButton");
+            }
+            else
+            {
+                var using_ = check.Current is { } wrong && wrong.Version != null ? $"Ahora usa Java {wrong.Version}, que no le sirve. " : "";
+                _javaState.Text = check.Found is { } found
+                    ? $"{using_}Este modpack pide Java {need} y ya hay uno en tu equipo ({found.Version}): lo usará al jugar, o puedes elegirlo ahora."
+                    : $"{using_}Este modpack pide Java {need} y no lo encuentro en tu equipo. {(check.AutoInstall ? "Se instalará solo al pulsar Jugar, o puedes instalarlo ahora." : "Instálalo aquí, o el launcher te preguntará al jugar.")}";
+                _javaState.Foreground = Ui.Res("WarnBrush");
+                _javaInstall.Content = check.Found != null ? $"Usar Java {need}" : $"Instalar Java {need}";
+                _javaInstall.Style = (Style)Application.Current.FindResource("PrimaryButton");
+            }
+            _javaInstall.IsEnabled = !busy;
+        }
+        catch (EngineException ex) { _javaState.Text = ex.Message; }
+    }
+
+    private async Task InstallOrUpdateJavaAsync()
+    {
+        if (_settings == null || _javaInstall == null || _javaState == null) return;
+        _installing = true;
+        _javaInstall.IsEnabled = false;
+        _javaState.Foreground = Ui.Res("Paper3Brush");
+        _javaState.Text = "Preparando...";
+        try { await _l.InstallJavaAsync(_settings.ServerId, update: _check?.Current?.Ok == true); }
+        catch (EngineException ex) { _installing = false; _javaState.Text = ex.Message; _javaInstall.IsEnabled = true; }
+    }
+
+    /// <summary>While it installs, the sentence is the engine's progress; when it stops (done or failed) the tab looks again.</summary>
+    private void OnGameChanged()
+    {
+        if (_javaState == null) return;
+        if (_l.Game.Mode == "java" && _l.Game.Busy)
+        {
+            _javaState.Text = _l.Game.Percent > 0 ? $"{_l.Game.Text}  {_l.Game.Percent}%" : _l.Game.Text;
+            if (_javaInstall != null) _javaInstall.IsEnabled = false;
+        }
+        else if (_installing && !_l.Game.Busy)
+        {
+            _installing = false;
+            _ = RefreshRequirementAsync();
+        }
+        else if (!_installing && _javaInstall != null && _check != null) _javaInstall.IsEnabled = !(_l.Game.Busy || _l.Game.Running);
+    }
+
+    private void OnJavaInstalled(string serverId, int major, bool reused)
+    {
+        _installing = false;
+        if (_settings != null && serverId == _settings.ServerId) _ = LoadAsync();   // the path box and the sentence show the Java it points at now
     }
 
     private Task SetJava(string key, object value) =>
@@ -145,5 +230,10 @@ internal sealed class JavaTab : SettingsTab
         catch (EngineException ex) { _javaDetails.Text = ex.Message; }
     }
 
-    public override void Release() => _save.Flush();
+    public override void Release()
+    {
+        _l.GameChanged -= OnGameChanged;
+        _l.JavaInstalled -= OnJavaInstalled;
+        _save.Flush();
+    }
 }

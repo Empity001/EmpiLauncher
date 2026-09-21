@@ -10,7 +10,8 @@
  *   game.state     { phase, mode, serverId, pid? }        phase: idle | launching | updating | restoring | running | stopping
  *   game.progress  { stage, text?, percent?, received?, total?, bytesPerSecond?, pendingFiles? }   fields that changed
  *   game.failure   { code, title, message }
- *   game.needJava  { serverId, suggestedMajor, distribution }
+ *   game.needJava  { serverId, suggestedMajor, distribution }   only when the player turned "Instalar Java automáticamente" off: the offer to fetch the Java the modpack needs
+ *   java.installed { serverId, major, reused, exec }         Ajustes > Java: the Java of a modpack was installed (or found) and the modpack points at it
  *   game.done      { mode, changed, repaired }             an update, restore or verify finished (repaired: how many files had to be fetched again)
  *   game.exit      { code, signal, stopped }
  *   pack.status    { ...pack status }                      what the launch button should offer
@@ -27,6 +28,7 @@ const offlineLib = require('../lib/offline')
 const { currentAccount } = offlineLib
 const skinLib = require('../lib/skin')
 const { createJavaScan } = require('../lib/javascan')
+const javaReq = require('../lib/javareq')
 const { startSkinServer } = require('../lib/skinserver')
 const fsSync = require('fs')
 
@@ -58,6 +60,7 @@ const TEXT = {
     javaPrepare: 'Preparando la descarga de Java...',
     extractingJava: 'Extrayendo Java',
     javaInstalled: 'Java instalado.',
+    javaCurrent: 'Ya tienes la última versión de este Java.',
     searchingJava: 'Buscando Java en el equipo... puede tardar un poco.',
     stopping: 'Deteniendo Minecraft...'
 }
@@ -198,11 +201,21 @@ function register(handlers, state) {
     }
 
     /** Finds a compatible Java (or asks the UI to offer installing one), then continues with the launch. */
-    async function scanJava(server) {
+    async function scanJava(server, { installed = false } = {}) {
         const { ConfigManager } = core()
-        const options = server.effectiveJavaOptions
+        const options = javaReq.requirement(server)
         detail('java-scan', TEXT.checkingJava)
         const jvm = await javaScan().find(options.supported, { onSlow: () => detail('java-scan', TEXT.searchingJava) })
+        if (jvm == null && !installed && autoJavaOn()) {
+            // the modpack says which Java it needs and this PC has none that fits: fetch exactly that one now, with no question first
+            try {
+                await downloadJava(server)
+            } catch (err) {
+                log().error('Java installation failed.', err)
+                return fail('java', 'No se pudo instalar Java', `${err.message || 'Revisa el registro del launcher para más detalles.'} Puedes instalarlo desde Ajustes > Java.`)
+            }
+            return scanJava(server, { installed: true })
+        }
         if (jvm == null) {
             game.pendingJava = { serverId: server.rawServer.id }
             setPhase('idle')
@@ -216,12 +229,61 @@ function register(handlers, state) {
         return pipeline({ login: true })
     }
 
+    /** "Instalar Java automáticamente" (Ajustes > Java, on by default): the launcher fetches the Java a modpack needs instead of asking first. */
+    function autoJavaOn() {
+        try { return JSON.parse(fsSync.readFileSync(path.join(core().ConfigManager.getLauncherDirectory(), 'native-ui.json'), 'utf8')).autoJava !== false } catch { return true }
+    }
+
+    async function serverFor(serverId) {
+        const { distro, server } = await currentServer()
+        return serverId ? distro.getServerById(serverId) : server
+    }
+
+    /** The modpack now launches with this Java. */
+    function pointAtJava(server, exec) {
+        const { ConfigManager } = core()
+        ConfigManager.setJavaExecutable(server.rawServer.id, exec)
+        ConfigManager.save()
+        emit('config.changed', { serverId: server.rawServer.id, key: 'javaExecutable', value: exec })
+    }
+
+    /** The launcher's own Java folders of this major that are older than the one just installed: nothing needs them any more. */
+    function forgetOlderJava(dataDir, major, keepExec) {
+        const dir = path.join(dataDir, 'runtime', process.arch)
+        let names = []
+        try { names = fsSync.readdirSync(dir).filter((name) => name.endsWith('.installed')) } catch { return }
+        for (const name of names) {
+            try {
+                const marker = path.join(dir, name)
+                const info = JSON.parse(fsSync.readFileSync(marker, 'utf8'))
+                if (info.major !== major || info.exec === keepExec) continue
+                const root = rt().ensureJavaDirIsRoot(info.exec)
+                if (root.startsWith(dir + path.sep)) fsSync.rmSync(root, { recursive: true, force: true })
+                fsSync.rmSync(marker, { force: true })
+            } catch (err) { log().warn('Unable to remove an old Java.', err) }   // in use, or already gone: it stays, nothing depends on it
+        }
+    }
+
+    /**
+     * Installs the Java a modpack needs: exactly its major (never "the newest"), the newest patch of it, into the launcher's own runtime folder,
+     * and points the modpack at it. If that very build is already there it is reused, so updating an up-to-date Java costs nothing.
+     * @returns {Promise<{ exec: string, reused: boolean, major: number }>}
+     */
     async function downloadJava(server) {
         const { ConfigManager } = core()
-        const options = server.effectiveJavaOptions
+        const options = javaReq.requirement(server)
         detail('java-download', TEXT.javaPrepare)
         const asset = await rt().latestOpenJDK(options.suggestedMajor, ConfigManager.getDataDirectory(), options.distribution)
         if (asset == null) throw new Error('No se encontró una distribución de OpenJDK.')
+        const marker = `${asset.path}.installed`
+        try {
+            const info = JSON.parse(fsSync.readFileSync(marker, 'utf8'))
+            if (info.exec && fsSync.existsSync(info.exec)) {
+                pointAtJava(server, info.exec)
+                emit('game.progress', { stage: 'java-installed', text: TEXT.javaCurrent, percent: 100 })
+                return { exec: info.exec, reused: true, major: options.suggestedMajor }
+            }
+        } catch { /* this build is not installed yet */ }
 
         let received = 0
         const started = Date.now()
@@ -242,10 +304,31 @@ function register(handlers, state) {
         clearTransfer()
         detail('java-extract', TEXT.extractingJava)
         const javaExec = await rt().extractJdk(asset.path)
-        ConfigManager.setJavaExecutable(server.rawServer.id, javaExec)
-        ConfigManager.save()
-        emit('config.changed', { serverId: server.rawServer.id, key: 'javaExecutable', value: javaExec })
-        emit('game.progress', { stage: 'java-installed', text: TEXT.javaInstalled })
+        fsSync.writeFileSync(marker, JSON.stringify({ exec: javaExec, major: options.suggestedMajor }))
+        fsSync.rmSync(asset.path, { force: true })   // the archive is not needed once it is extracted (it was left there, 200 MB each)
+        forgetOlderJava(ConfigManager.getDataDirectory(), options.suggestedMajor, javaExec)
+        pointAtJava(server, javaExec)
+        emit('game.progress', { stage: 'java-installed', text: TEXT.javaInstalled, percent: 100 })
+        return { exec: javaExec, reused: false, major: options.suggestedMajor }
+    }
+
+    /**
+     * Ajustes > Java, "Instalar": a Java that fits the modpack, from this PC if there is one, otherwise fetched. update = fetch the newest patch
+     * of the major even if one fits already.
+     */
+    async function ensureJava(server, { update = false } = {}) {
+        const options = javaReq.requirement(server)
+        if (!update) {
+            detail('java-scan', TEXT.checkingJava)
+            const jvm = await javaScan().find(options.supported, { onSlow: () => detail('java-scan', TEXT.searchingJava) })
+            if (jvm != null) {
+                const exec = rt().javaExecFromRoot(jvm.path)
+                pointAtJava(server, exec)
+                emit('game.progress', { stage: 'java-installed', text: TEXT.javaCurrent, percent: 100 })
+                return { exec, reused: true, major: options.suggestedMajor }
+            }
+        }
+        return downloadJava(server)
     }
 
     // ---- the pipeline (dlAsync) ---------------------------------------------------------------------------------------
@@ -628,7 +711,7 @@ function register(handlers, state) {
             const { ConfigManager } = core()
             const jExe = ConfigManager.getJavaExecutable(server.rawServer.id)
             if (jExe == null) return scanJava(server)
-            const details = await javaScan().validate(rt().ensureJavaDirIsRoot(jExe), server.effectiveJavaOptions.supported)
+            const details = await javaScan().validate(rt().ensureJavaDirIsRoot(jExe), javaReq.requirement(server).supported)
             if (details != null) {
                 log().info('Jvm Details', details)
                 return pipeline({ login: true })
@@ -638,10 +721,32 @@ function register(handlers, state) {
         return { started: true, mode: 'play' }
     })
 
-    /** The player accepted the offer from game.needJava: fetch a JDK, then carry on with the launch. */
-    handlers.set('java.install', async () => {
-        if (game.pendingJava == null) throw new EngineError('no_request', 'there is no Java request pending')
+    /**
+     * With a pending offer from game.needJava (no params): fetch the JDK, then carry on with the launch.
+     * With { serverId, update? } (Ajustes > Java): install or update the Java of that modpack, with no launch. Progress goes out as game.progress
+     * with mode "java", and java.installed says when it is done.
+     */
+    handlers.set('java.install', async ({ serverId, update = false } = {}) => {
         if (BUSY.has(game.phase)) throw new EngineError('busy', 'there is already an operation in progress')
+        if (game.pendingJava == null || serverId) {
+            if (game.phase === 'running' || game.proc != null) throw new EngineError('running', 'Minecraft is already running')
+            const target = await serverFor(serverId)
+            if (!target) throw new EngineError('no_server', 'no modpack is selected')
+            game.serverId = target.rawServer.id
+            game.pendingJava = null   // an old offer no longer applies: this one is for the modpack the player chose
+            setPhase('updating', 'java')
+            Promise.resolve().then(async () => {
+                try {
+                    const result = await ensureJava(target, { update })
+                    emit('java.installed', { serverId: target.rawServer.id, major: result.major, reused: result.reused, exec: result.exec })
+                    setPhase('idle')
+                } catch (err) {
+                    log().error('Java installation failed.', err)
+                    fail('java', 'Error al instalar Java', err.message || 'Revisa el registro del launcher para más detalles.')
+                }
+            })
+            return { started: true, standalone: true }
+        }
         const { server } = await currentServer()
         if (!server) throw new EngineError('no_server', 'no modpack is selected')
         game.pendingJava = null
@@ -656,6 +761,32 @@ function register(handlers, state) {
             }
         })
         return { started: true }
+    })
+
+    /**
+     * Which Java a modpack needs and which one it uses now: { serverId, required: { major, supported, distribution, source }, current: null | { path, ok, version },
+     * found: null | { path, version }, autoInstall }. "found" is a Java on this PC (in the cheap places) that fits, whether the modpack uses it or not.
+     */
+    handlers.set('java.check', async ({ serverId } = {}) => {
+        const { ConfigManager } = core()
+        const target = await serverFor(serverId)
+        if (!target) throw new EngineError('no_server', 'no modpack is selected')
+        const id = target.rawServer.id
+        const options = javaReq.requirement(target)
+        const scan = javaScan()
+        const version = (details) => (details && (details.semverStr || (details.semver && details.semver.version))) || null
+        const exec = ConfigManager.getJavaExecutable(id)
+        let current = null
+        if (exec) {
+            const details = await scan.validate(rt().ensureJavaDirIsRoot(exec), options.supported)
+            current = { path: exec, ok: details != null, version: version(details) }
+        }
+        let found = null
+        if (!current || !current.ok) {
+            const best = await scan.quick(options.supported)
+            if (best) found = { path: rt().javaExecFromRoot(best.path), version: version(best) }
+        }
+        return { serverId: id, required: { major: options.suggestedMajor, supported: options.supported, distribution: options.distribution || null, source: options.source }, current, found, autoInstall: autoJavaOn() }
     })
 
     /** The player declined the offer (or will install Java themselves). */

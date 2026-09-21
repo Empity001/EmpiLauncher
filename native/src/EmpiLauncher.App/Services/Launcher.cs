@@ -513,6 +513,21 @@ public sealed class Launcher : IAsyncDisposable
     }
 
     public Task InstallJavaAsync() => Client.CallAsync("java.install");
+
+    /// <summary>Ajustes > Java: install (or, with update, refresh) the Java of a modpack, with no launch. Progress comes as the game session (mode "java"); JavaInstalled says it is done.</summary>
+    public Task InstallJavaAsync(string serverId, bool update) => Client.CallAsync("java.install", new { serverId, update });
+
+    public Task<JavaCheck> CheckJavaAsync(string serverId) => Client.CallAsync<JavaCheck>("java.check", new { serverId });
+
+    /// <summary>"Instalar Java automáticamente": when Jugar finds the modpack's Java missing, install it without asking (on), or ask first (off).</summary>
+    public async Task SetAutoJavaAsync(bool on)
+    {
+        Prefs = await Client.CallAsync<UiPrefs>("ui.set", new { key = "autoJava", value = on });
+        PrefsChanged?.Invoke();
+    }
+
+    /// <summary>The Java of a modpack was installed or found from Ajustes: (serverId, major, reused).</summary>
+    public event Action<string, int, bool>? JavaInstalled;
     public Task DismissJavaAsync() => Client.CallAsync("java.dismiss");
 
     // ---- events ---------------------------------------------------------------------------------------------------
@@ -531,6 +546,10 @@ public sealed class Launcher : IAsyncDisposable
                 break;
             case "game.failure":
                 Failure?.Invoke(data.Deserialize<GameFailure>(Json.Options)!);
+                break;
+            case "java.installed":
+                JavaInstalled?.Invoke(data.GetProperty("serverId").GetString() ?? "", data.TryGetProperty("major", out var major) && major.ValueKind == JsonValueKind.Number ? major.GetInt32() : 0,
+                    data.TryGetProperty("reused", out var reused) && reused.ValueKind == JsonValueKind.True);
                 break;
             case "game.needJava":
                 JavaNeeded?.Invoke(data.Deserialize<NeedJava>(Json.Options)!);

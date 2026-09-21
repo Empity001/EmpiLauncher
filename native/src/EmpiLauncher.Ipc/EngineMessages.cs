@@ -126,7 +126,19 @@ public sealed record AnimInfo(List<string> Frames, List<int> Delays, int Loops, 
 public sealed record ArtResult(string ServerId, string? Banner, string? Background, AnimInfo? BannerAnim = null, AnimInfo? BackgroundAnim = null, bool Animating = false);
 
 /// <summary>Preferences only the native interface has. FieldMode: auto | always | off. DotColor: #rrggbb of the field's dots. DotOpacity: 0.1 to 1, how visible the whole field is.</summary>
-public sealed record UiPrefs(string FieldMode, string? DotColor = null, double? DotOpacity = null, bool? AnimatedArt = null);
+public sealed record UiPrefs(string FieldMode, string? DotColor = null, double? DotOpacity = null, bool? AnimatedArt = null, bool? AutoJava = null);
+
+/// <summary>The Java a modpack needs. Source: "pack" (its author wrote it), "minecraft" (worked out from its Minecraft version) or "default".</summary>
+public sealed record JavaRequirement(int Major, string Supported, string? Distribution, string Source);
+
+/// <summary>The Java the modpack launches with now, and whether it fits.</summary>
+public sealed record JavaInUse(string Path, bool Ok, string? Version);
+
+/// <summary>A Java on this PC that fits the modpack.</summary>
+public sealed record JavaFound(string Path, string? Version);
+
+/// <summary>Answer of java.check: what the modpack needs, what it uses, a fitting Java that is on the PC, and whether the launcher installs Java by itself.</summary>
+public sealed record JavaCheck(string ServerId, JavaRequirement Required, JavaInUse? Current, JavaFound? Found, bool AutoInstall);
 
 /// <summary>Answer of update.check. Reason is set when nothing is offered: no_channel (nothing published), bad_channel, offline.</summary>
 public sealed record UpdateInfo(bool Available, string? Current, string? Version, string? Installer, string? Sha512, long? Size, string? Page, string? Reason);

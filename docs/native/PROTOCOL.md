@@ -46,7 +46,7 @@ Códigos de error comunes: `unknown_method`, `bad_json`, `busy`, `no_server`, `n
 ### Modpacks
 | Método | Parámetros | Resultado |
 |---|---|---|
-| `distro.load` | `{refresh?}` | `{tookMs, selectedServer, mainServer, servers[]}`. Sincroniza la configuración de mods y de Java con el índice, como el launcher clásico |
+| `distro.load` | `{refresh?}` | `{tookMs, selectedServer, mainServer, servers[]}`. `servers` trae SIEMPRE primero el modpack principal (`mainServer`) y después los demás en el orden del índice. Sincroniza la configuración de mods y de Java con el índice, como el launcher clásico |
 | `distro.select` | `{id}` | `{selectedServer}` |
 | `distro.theme` | `{id}` | `{source: remote\|local\|none, theme}` (acento del modpack) |
 | `pack.status` | `{id?}` | `{serverId, installed, installedVersion, remoteVersion, needsUpdate, modified, differences[], action: play\|update\|restore}` |
@@ -57,7 +57,8 @@ Códigos de error comunes: `unknown_method`, `bad_json`, `busy`, `no_server`, `n
 | `game.start` | `{mode: auto\|play\|update\|restore\|verify}` | `{started, mode}` o `{started:false, reason:"modified", differences}`. Vuelve en cuanto acepta; lo demás son eventos. `verify` («Verificar y reparar»): comprueba cada archivo contra el índice y vuelve a bajar solo los que faltan o están mal, **sin borrar nada antes** (ni tocar mundos, capturas o ajustes); en un modpack sin instalar, o que necesita actualizar o restaurar, hace eso (`mode` en la respuesta dice lo que corrió) |
 | `game.stop` | | `{stopped}` |
 | `game.status` | | `{phase, mode, serverId, pid, pendingJava}` (para retomar tras reconectar) |
-| `java.install` | | `{started}`: descarga e instala el JDK que pidió `game.needJava` y sigue con el arranque |
+| `java.install` | `{serverId?, update?}` | `{started}`. Sin parámetros y con una oferta pendiente de `game.needJava`: descarga e instala el JDK y sigue con el arranque. Con `serverId` (Ajustes > Java): deja al modpack con un Java que le sirve y NO arranca nada; usa el que ya haya en el equipo, o baja exactamente la versión mayor que pide (nunca "la más nueva") si no lo hay; con `update: true` baja el último parche de esa versión mayor aunque ya haya uno que sirva. El motor queda en fase `updating` con modo `java` (progreso por `game.progress`) y termina con `java.installed`; si falla, `game.failure` con código `java`. Un Java del launcher que ya está al día se reutiliza sin bajar nada, y las copias más viejas de esa versión mayor se borran |
+| `java.check` | `{serverId?}` | `{serverId, required: {major, supported, distribution, source}, current, found, autoInstall}`: qué Java pide el modpack (`source`: `pack` si lo escribió el autor en `javaOptions`, `minecraft` si sale de su versión de Minecraft (26.x pide Java 25), `default`), cuál usa ahora (`current`: `{path, ok, version}` o `null`), un Java que sirva ya presente en el equipo (`found`, solo si el actual no sirve) y si la instalación automática está activa |
 | `java.dismiss` | | `{dismissed}` |
 | `discord.navigation` | `{id?}` | `{ok}` |
 
@@ -106,7 +107,7 @@ Cómo la ve el juego: al lanzar, el motor arranca un servidor de skins **solo en
 ### Preferencias, arte, estado del servidor y actualizaciones
 | Método | Resultado |
 |---|---|
-| `ui.get` / `ui.set` `{key, value}` | Preferencias que solo tiene la interfaz nativa (`native-ui.json`). Hoy: `fieldMode: auto\|always\|off` (el campo de puntos vivo) `dotColor: #rrggbb` (el color de los puntos y de las ondas; gris `#64635f` por defecto), `dotOpacity: 0.1 a 1` (cuánto se ve todo el fondo; 1 por defecto, se guarda con dos decimales) y `animatedArt: true\|false` (banner y fondo animados; `true` por defecto) |
+| `ui.get` / `ui.set` `{key, value}` | Preferencias que solo tiene la interfaz nativa (`native-ui.json`). Hoy: `fieldMode: auto\|always\|off` (el campo de puntos vivo) `dotColor: #rrggbb` (el color de los puntos y de las ondas; gris `#64635f` por defecto), `dotOpacity: 0.1 a 1` (cuánto se ve todo el fondo; 1 por defecto, se guarda con dos decimales) `animatedArt: true\|false` (banner y fondo animados; `true` por defecto) y `autoJava: true\|false` (instalar solo el Java que falte al jugar; `true` por defecto) |
 | `art.get` `{id}` | `{serverId, banner, background, bannerAnim, backgroundAnim, animating}`: rutas de imágenes pequeñas ya listas (logo PNG ≤ 900 px con transparencia, fondo JPEG ≤ 1280 px) en la caché del launcher, siempre fijas y al momento. Las remotas solo se bajan hasta 8 MB. Si el banner o el fondo es un GIF, un WebP animado o un APNG, además se convierte **una sola vez**, en un proceso aparte, en fotogramas pequeños (banner: PNG 560 px con transparencia, ≤ 120 fotogramas; fondo: JPEG 960 px, ≤ 90) y `bannerAnim` / `backgroundAnim` es `{frames: [ruta], delays: [ms], loops, width, height}` (`loops` 0 = infinito; los fotogramas repetidos se funden en uno que dura más y la animación dura lo mismo que la original). Mientras se hace, `animating` es `true` y la imagen fija es lo que se ve; al terminar el motor emite `art.ready`. Límites: 16 MB si es remota (banner), 64 MB si es local; más grande se queda fija (el WebP de 278 MB de Panolis). Con `animatedArt` apagado no se hace ni se devuelve nada |
 | `server.status` `{id?}` | `{online, players?:{online,max}}` |
 | `update.check` | `{available, current, version?, releaseDate?, installer?, sha512?, size?, page?, reason?}`. Un solo canal: el `latest.yml` de la última release de GitHub (el mismo que lee el launcher clásico, por eso el clásico se actualiza al nativo). `reason`: `no_channel`, `bad_channel`, `offline` |
@@ -174,7 +175,8 @@ la última barrera.
 | `game.state` | `{phase: idle\|launching\|updating\|restoring\|running\|stopping, mode, serverId, pid}` |
 | `game.progress` | Solo los campos que cambian; `null` borra uno: `{stage, text, percent, received, total, bytesPerSecond, pendingFiles}`. Etapas: `refresh protect clean verify download restore-personal prepare launch launched java-scan java-download java-extract java-installed stop` |
 | `game.failure` | `{code, title, message}`. Códigos: `distribution no_account protect clean verify download restore-personal metadata launch launchwrapper java blocked unhandled` |
-| `game.needJava` | `{serverId, suggestedMajor, distribution}` |
+| `game.needJava` | `{serverId, suggestedMajor, distribution}`. Solo si el jugador apagó "Instalar Java automáticamente": con la opción encendida (por defecto) el motor instala el Java que falta al pulsar Jugar, sin preguntar, y solo avisa con `game.failure` (código `java`) si no pudo |
+| `java.installed` | `{serverId, major, reused, exec}`: el Java de un modpack quedó instalado o elegido desde Ajustes (`reused`: ya estaba, no se bajó nada) |
 | `game.done` | `{mode: update\|restore\|verify, changed, repaired}` (`repaired`: cuántos archivos hubo que bajar otra vez; con `verify` y `0`, todo estaba en orden) |
 | `game.exit` | `{code, signal, stopped}`. Con `code` distinto de 0 y sin que el jugador lo detuviera, la interfaz ofrece el informe de fallo (`report.build`) |
 | `game.notice` | `{level, text}` |

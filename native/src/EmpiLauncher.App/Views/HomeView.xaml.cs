@@ -281,7 +281,9 @@ public partial class HomeView : UserControl
     {
         var everyServer = _l.Distro?.Servers ?? [];
         // a modpack that is another one's profile is shown inside that one, not on its own
-        var servers = everyServer.Where(s => s.ProfileOf == null).ToList();
+        // and the main modpack is always the first one (the engine already sends it first; this keeps it so whatever arrives)
+        var mainId = _l.Distro?.MainServer;
+        var servers = everyServer.Where(s => s.ProfileOf == null).OrderBy(s => s.Id == mainId ? 0 : 1).ToList();
         var key = string.Join("|", servers.Select(s => $"{s.Id}:{s.Name}:{PlayingLabel(s, everyServer)}:{UnreadDot(s.Id) != null}"));
         if (key == _railKey)
         {
@@ -553,6 +555,7 @@ public partial class HomeView : UserControl
         {
             "launching" => $"INICIANDO  {game.Percent}%",
             "updating" when game.Mode == "verify" => $"VERIFICANDO  {game.Percent}%",
+            "updating" when game.Mode == "java" => $"INSTALANDO JAVA  {game.Percent}%",
             "updating" => $"ACTUALIZANDO  {game.Percent}%",
             "restoring" => $"RESTAURANDO  {game.Percent}%",
             "stopping" => "DETENIENDO",

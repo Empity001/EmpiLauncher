@@ -80,7 +80,7 @@ function syncModConfigurations(ConfigManager, distro) {
 
 function ensureJavaSettings(ConfigManager, distro) {
     for (const serv of distro.servers) {
-        ConfigManager.ensureJavaConfig(serv.rawServer.id, serv.effectiveJavaOptions, serv.rawServer.javaOptions?.ram)
+        ConfigManager.ensureJavaConfig(serv.rawServer.id, require('./javareq').requirement(serv), serv.rawServer.javaOptions?.ram)
     }
     ConfigManager.save()
 }

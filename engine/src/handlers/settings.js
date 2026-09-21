@@ -54,7 +54,7 @@ function register(handlers, state) {
         const { ConfigManager } = core()
         const server = await serverById(serverId)
         const id = server.rawServer.id
-        const options = server.effectiveJavaOptions
+        const options = require('../lib/javareq').requirement(server)
         return {
             serverId: id,
             minRAMGb: ramToGb(ConfigManager.getMinRAM(id)),
@@ -94,7 +94,7 @@ function register(handlers, state) {
         const target = execPath ?? ConfigManager.getJavaExecutable(server.rawServer.id) ?? ''
         if (!target) return { valid: false, version: null, vendor: null, path: '' }
         // bounded: a Java that does not answer must not freeze the settings screen either
-        const details = await withTimeout(rt().validateSelectedJvm(rt().ensureJavaDirIsRoot(target), server.effectiveJavaOptions.supported), 12000, 'Ese Java').catch(() => null)
+        const details = await withTimeout(rt().validateSelectedJvm(rt().ensureJavaDirIsRoot(target), require('../lib/javareq').requirement(server).supported), 12000, 'Ese Java').catch(() => null)
         return details ? { valid: true, version: details.semverStr, vendor: details.vendor, path: target } : { valid: false, version: null, vendor: null, path: target }
     })
 

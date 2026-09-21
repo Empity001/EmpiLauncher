@@ -67,6 +67,8 @@ const packStatus = await call('pack.status')
 check('pack.status on a clean data folder offers play', packStatus.ok && packStatus.result.action === 'play' && !packStatus.result.installed, JSON.stringify(packStatus.result))
 
 // Play with no account saved: exercises pack check, Java discovery and the index refresh without downloading anything.
+// (with "Instalar Java automáticamente" off: a PC without the right Java gets the offer, instead of a real download in the middle of a test)
+await call('ui.set', { key: 'autoJava', value: false })
 const start = await call('game.start', { mode: 'play' })
 check('game.start is accepted', start.ok && start.result.started === true, JSON.stringify(start.result ?? start.error))
 const ended = await waitFor((e) => e.event === 'game.failure' || e.event === 'game.needJava', 45000)

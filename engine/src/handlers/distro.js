@@ -66,11 +66,18 @@ function describeServer(ConfigManager, server, everyRaw = []) {
     }
 }
 
+/** The main modpack first, then the others in the order the index lists them: the player always finds the main one at the top. */
+function mainFirst(servers, mainId) {
+    const at = servers.findIndex((server) => server.id === mainId)
+    return at <= 0 ? servers : [servers[at], ...servers.slice(0, at), ...servers.slice(at + 1)]
+}
+
 function describeDistribution(ConfigManager, distro) {
+    const mainServer = distro.getMainServer().rawServer.id
     return {
         selectedServer: ConfigManager.getSelectedServer(),
-        mainServer: distro.getMainServer().rawServer.id,
-        servers: distro.servers.map((s, _index, all) => describeServer(ConfigManager, s, all.map((other) => other.rawServer)))
+        mainServer,
+        servers: mainFirst(distro.servers.map((s, _index, all) => describeServer(ConfigManager, s, all.map((other) => other.rawServer))), mainServer)
     }
 }
 
@@ -127,4 +134,4 @@ function register(handlers, state) {
     })
 }
 
-module.exports = { register, describeDistribution, describeServer, refreshWithoutCache }
+module.exports = { register, describeDistribution, describeServer, refreshWithoutCache, mainFirst }
