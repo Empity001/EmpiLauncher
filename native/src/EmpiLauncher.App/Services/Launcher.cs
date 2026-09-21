@@ -661,8 +661,14 @@ public sealed class Launcher : IAsyncDisposable
         catch (EngineException ex) { _repairAsked = false; Notice?.Invoke(ex.Message); }
     }
 
-    /// <summary>For tests (EMPI_TEST_CRASH=1): the same thing that happens when the game ends with an error, without needing a real crash.</summary>
-    internal void RaiseCrashForTest() => GameCrashed?.Invoke(new GameExit(1, null, false));
+    /// <summary>
+    /// For tests (EMPI_TEST_CRASH=1, with the engine in test mode): a stand-in process plays Minecraft (it prints its start-up line, runs a few seconds and dies
+    /// with exit code 1), so what follows is the real path: the engine sees it start, run and crash, records how it ended, and the window reacts to its events.
+    /// </summary>
+    internal Task StartStandInGameForTestAsync() => Client.CallAsync("test.spawnFake", new
+    {
+        script = "console.log(\"[00:00:01] [main/INFO]: Loading Minecraft 1.21.11 with Fabric Loader 0.17.2\"); setTimeout(() => { console.log(\"[Render thread/FATAL]: Unreported exception thrown!\"); process.exit(1) }, 6000)"
+    });
 
     public void TrimMemory() => _host?.Trim();
 

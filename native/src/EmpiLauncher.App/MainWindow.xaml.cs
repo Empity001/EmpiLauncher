@@ -98,7 +98,7 @@ public partial class MainWindow : Window
             await _l.StartAsync();
             _idle.Start();
             _noticeTimer.Start();
-            if (Environment.GetEnvironmentVariable("EMPI_TEST_CRASH") == "1") _ = Task.Delay(2500).ContinueWith(_ => Dispatcher.Invoke(() => _l.RaiseCrashForTest()));   // tests: the dialog a real crash brings
+            if (Environment.GetEnvironmentVariable("EMPI_TEST_CRASH") == "1") _ = Task.Delay(2500).ContinueWith(_ => Dispatcher.Invoke(() => _ = _l.StartStandInGameForTestAsync()));   // tests: a stand-in game that starts and then dies with an error
         }
         catch (Exception ex)
         {
