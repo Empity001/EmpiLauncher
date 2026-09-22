@@ -523,6 +523,6 @@ function openFolder(config, id, what) {
 module.exports = {
     LOADERS, CATEGORIES, env, rootPath, baseUrl, serversDir, hideDir, generateDistro, runNebula, ensureBuilt,
     listPacks, getPack, setActive, patchMeta, createPack, saveMod, deleteMod, moveMod, saveIcon, iconPath, openFolder,
-    packDir, readServerMeta, writeServerMeta, modsOf, loaderOf, minecraftVersionOf,
+    packDir, readServerMeta, writeServerMeta, modsOf, modsFolder, loaderOf, minecraftVersionOf,
     FILE_KINDS, packFiles, saveFile, deleteFile
 }

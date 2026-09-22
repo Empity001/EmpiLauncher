@@ -1457,10 +1457,114 @@ function sendLauncher() {
 
 // ------------------------------------------------------------------ new modpack (inline form)
 
-const newPack = { loader: 'fabric', token: 0, mcLoaded: false, timer: null }
+const newPack = {
+    loader: 'fabric', token: 0, mcLoaded: false, timer: null, preferVersion: null,
+    // "Importar desde zip": zipImportId is only set once the server has the upload staged and told us what is inside.
+    zipImportId: null, zipBusy: false, zipProposal: null, zipCounts: null, zipSizeBytes: 0, zipSkipped: [], zipError: null
+}
 
 function packIdFromName(name) {
     return name.trim().replace(/\s+/g, '-').replace(/[^A-Za-z0-9_-]/g, '')
+}
+
+// ------------------------------------------------------------------ importing a modpack from a zip
+
+const SKIPPED_LABELS = {
+    saves: 'mundos', screenshots: 'capturas', logs: 'registros de partidas', crash_reports: 'informes de fallo', 'crash-reports': 'informes de fallo'
+}
+
+function zipZoneEmpty() {
+    return h('div', { class: 'zone-empty' },
+        icon('upload'),
+        'Arrastra aquí el .zip de un modpack ya jugado (una carpeta de Modrinth, CurseForge o tu .minecraft)',
+        h('button', { class: 'btn small', type: 'button', onclick: () => $('#npZipPicker').click() }, 'Elegir el archivo'))
+}
+
+function renderZipZone() {
+    const inner = $('#npZipInner')
+    inner.replaceChildren()
+
+    if (newPack.zipBusy) { inner.append(h('div', { class: 'zone-empty' }, 'Leyendo el zip…')); return }
+    if (newPack.zipError) {
+        inner.append(h('div', { class: 'zip-result' },
+            h('div', { class: 'zip-result-head warn' }, icon('alert'), h('p', {}, newPack.zipError)),
+            h('button', { class: 'btn small', type: 'button', onclick: () => { resetZipImport(); renderZipZone() } }, 'Intentar con otro zip')))
+        return
+    }
+    if (!newPack.zipImportId) { inner.append(zipZoneEmpty()); return }
+
+    const p = newPack.zipProposal
+    const headClass = p && p.source === 'log' ? 'ok' : p ? 'warn' : 'warn'
+    const headIcon = p && p.source === 'log' ? 'checkCircle' : 'alert'
+    const headText = !p
+        ? 'No pude adivinar la versión de Minecraft ni el loader de este zip: elígelos abajo.'
+        : p.source === 'log'
+            ? `Minecraft ${p.minecraft} con ${LOADER_NAMES[p.loader]} ${p.loaderVersion}, leído en su registro de partidas.`
+            : p.loader
+                ? `Parece Minecraft ${p.minecraft} con ${LOADER_NAMES[p.loader]} (adivinado por los mods; confírmalo abajo).`
+                : `Parece Minecraft ${p.minecraft} (no distinguí el loader por los mods; elígelo abajo).`
+
+    const c = newPack.zipCounts
+    const chips = []
+    if (c.mods) chips.push(`${plural(c.mods, 'mod', 'mods')}${c.disabledMods ? ` (${c.disabledMods} desactivados, no incluidos)` : ''}`)
+    if (c.configFiles) chips.push(`${plural(c.configFiles, 'archivo de configuración', 'archivos de configuración')}`)
+    if (c.resourcepacks) chips.push(`${plural(c.resourcepacks, 'paquete de recursos', 'paquetes de recursos')}`)
+    if (c.shaderpacks) chips.push(`${plural(c.shaderpacks, 'paquete de shaders', 'paquetes de shaders')}`)
+
+    inner.append(h('div', { class: 'zip-result' },
+        h('div', { class: `zip-result-head ${headClass}` }, icon(headIcon), h('p', {}, headText),
+            h('button', { class: 'icon-btn zip-clear', type: 'button', title: 'Quitar el zip', 'aria-label': 'Quitar el zip', onclick: () => { resetZipImport(); renderZipZone() } }, icon('x'))),
+        h('div', { class: 'zip-counts' }, ...chips.map((text) => h('span', { class: 'chip' }, text)), h('span', { class: 'chip' }, formatSize(newPack.zipSizeBytes))),
+        newPack.zipSkipped.length
+            ? h('details', { class: 'zip-skipped' },
+                h('summary', {}, `No hacía falta incluir esto (${newPack.zipSkipped.length})`),
+                h('ul', {}, ...newPack.zipSkipped.map((entry) => h('li', {}, `${SKIPPED_LABELS[entry.name] || entry.name} (${formatSize(entry.size)})`))))
+            : null))
+}
+
+function resetZipImport() {
+    newPack.zipImportId = null; newPack.zipBusy = false; newPack.zipProposal = null; newPack.zipCounts = null; newPack.zipSizeBytes = 0; newPack.zipSkipped = []; newPack.zipError = null
+    $('#npZipPicker').value = ''
+}
+
+async function uploadZipForImport(file) {
+    if (!file) return
+    if (!file.name.toLowerCase().endsWith('.zip')) return toast('Eso no es un .zip.', true)
+    resetZipImport()
+    newPack.zipBusy = true
+    renderZipZone()
+    try {
+        const result = await api('/api/packs/import/inspect', { method: 'POST', raw: file })
+        newPack.zipBusy = false
+        newPack.zipImportId = result.importId
+        newPack.zipProposal = result.proposal
+        newPack.zipCounts = result.counts
+        newPack.zipSizeBytes = result.sizeBytes
+        newPack.zipSkipped = result.skipped
+        if (!result.counts.mods && !result.counts.configFiles && !result.counts.resourcepacks && !result.counts.shaderpacks) {
+            newPack.zipError = 'No encontré mods, configuración ni recursos dentro de ese zip.'
+            newPack.zipImportId = null
+        } else {
+            // pre-fill the manual fields below with what the zip suggested; the operator can still change any of them before creating
+            const p = result.proposal
+            if (p && p.minecraft) { $('#npMc').value = p.minecraft }
+            if (p && p.loader) {
+                newPack.loader = p.loader
+                for (const button of $('#npLoader').children) {
+                    button.classList.toggle('active', button.dataset.value === p.loader)
+                    button.setAttribute('aria-checked', String(button.dataset.value === p.loader))
+                }
+            }
+            newPack.preferVersion = p && p.source === 'log' ? p.loaderVersion : null
+            if (!$('#npName').value.trim()) $('#npName').value = file.name.replace(/\.zip$/i, '')
+            updateNewPackPreview()
+            loadLoaderChoices()
+        }
+    } catch (err) {
+        newPack.zipBusy = false
+        newPack.zipError = err.message
+    }
+    renderZipZone()
 }
 
 function loaderVersionValue() {
@@ -1481,6 +1585,9 @@ async function loadLoaderChoices() {
     const custom = $('#npLoaderVersionCustom')
     const hint = $('#npLoaderHint')
     const mc = $('#npMc').value.trim()
+    // a zip import's exact loader version is offered only to the very next load: used if it fits, dropped either way after this
+    const zipVersion = newPack.preferVersion
+    newPack.preferVersion = null
 
     custom.hidden = true
     if (!/^\d+(\.\d+){1,2}$/.test(mc)) {
@@ -1496,8 +1603,10 @@ async function loadLoaderChoices() {
         const { versions, recommended } = await api(`/api/versions/loader?type=${newPack.loader}&mc=${mc}`)
         if (token !== newPack.token) return
         if (versions.length === 0) throw new Error(`No encontré versiones de ${LOADER_NAMES[newPack.loader]} para Minecraft ${mc}.`)
+        // a zip import that read the exact loader version out of a played log wins over "recommended", so the pack keeps the mods' own version
+        const prefer = zipVersion && versions.includes(zipVersion) ? zipVersion : recommended
         select.replaceChildren(
-            ...versions.slice(0, 60).map((version) => h('option', { value: version, selected: version === recommended }, version === recommended ? `${version} (recomendada)` : version)),
+            ...versions.slice(0, 60).map((version) => h('option', { value: version, selected: version === prefer }, version === prefer ? `${version} (${version === recommended ? 'recomendada' : 'la del zip'})` : version)),
             h('option', { value: '__custom' }, 'Otra versión…'))
         select.disabled = false
         hint.textContent = ''
@@ -1515,6 +1624,8 @@ async function openNewPack() {
     state.creating = true
     render()
     $('#npName').value = ''
+    resetZipImport()
+    renderZipZone()
     updateNewPackPreview()
     $('#npName').focus()
     if (!newPack.mcLoaded) {
@@ -1557,6 +1668,15 @@ $('#npLoaderVersion').addEventListener('change', () => {
 })
 $('#npLoaderVersionCustom').addEventListener('input', updateNewPackPreview)
 
+$('#npZipZone').addEventListener('dragover', (event) => { event.preventDefault(); $('#npZipZone').classList.add('over') })
+$('#npZipZone').addEventListener('dragleave', (event) => { if (!$('#npZipZone').contains(event.relatedTarget)) $('#npZipZone').classList.remove('over') })
+$('#npZipZone').addEventListener('drop', (event) => {
+    event.preventDefault()
+    $('#npZipZone').classList.remove('over')
+    uploadZipForImport(event.dataTransfer.files[0])
+})
+$('#npZipPicker').addEventListener('change', (event) => uploadZipForImport(event.target.files[0]))
+
 $('#newPackForm').addEventListener('submit', (event) => {
     event.preventDefault()
     const name = $('#npName').value.trim()
@@ -1566,8 +1686,11 @@ $('#newPackForm').addEventListener('submit', (event) => {
     if (!id) return toast('Ponle un nombre al modpack.', true)
     if (!loaderVersion || loaderVersion === '__custom') return toast('Elige la versión del loader.', true)
 
+    const importId = newPack.zipImportId
+    const endpoint = importId ? '/api/jobs/import-zip' : '/api/jobs/create-pack'
+    const body = importId ? { importId, id, minecraft, loader: newPack.loader, loaderVersion, displayName: name } : { id, minecraft, loader: newPack.loader, loaderVersion, displayName: name }
     closeNewPack()
-    runJob(`Crear ${id}-${minecraft}`, '/api/jobs/create-pack', { id, minecraft, loader: newPack.loader, loaderVersion, displayName: name }, async (result) => {
+    runJob(`Crear ${id}-${minecraft}`, endpoint, body, async (result) => {
         await refreshPacks()
         if (result && result.id) {
             state.selectedId = result.id
@@ -1575,7 +1698,8 @@ $('#newPackForm').addEventListener('submit', (event) => {
             state.pack = await api(`/api/packs/${encodeURIComponent(result.id)}`)
         }
         render()
-        showBanner('ok', 'Modpack creado. Ahora sube sus mods.', { icon: 'package', label: 'Ir a los mods', run: () => { $('#activity').hidden = true } })
+        const withCounts = importId && result && result.counts ? ` Se importaron ${plural(result.counts.mods || 0, 'mod', 'mods')} del zip.` : ''
+        showBanner('ok', `Modpack creado.${withCounts || ' Ahora sube sus mods.'}`, { icon: 'package', label: 'Ir a los mods', run: () => { $('#activity').hidden = true } })
     })
 })
 

@@ -15,6 +15,13 @@ no queda nada consumiendo recursos en segundo plano.
    - **+ Nuevo**: nombre, versión de Minecraft, loader (Fabric / Forge / NeoForge) y su versión
      (te ofrece la lista real y marca la recomendada). Por detrás ejecuta
      `nebula generate server <nombre> <mc> --<loader> <versión>`.
+   - O **importar desde un zip**: arrastra el `.zip` de una carpeta ya jugada (un perfil de
+     Modrinth App, un `.minecraft`, una instancia de Prism/CurseForge) y se reparte solo -
+     los `.jar` de `mods/` a Obligatorios, `config/` entero, y los `.zip` de `resourcepacks/`
+     y `shaderpacks/`; mundos, capturas, registros y el resto quedan fuera (se listan, por si
+     falta algo que esperabas). Si el modpack se jugó, lee `logs/latest.log` y saca la versión
+     de Minecraft y del loader exactas de ahí; si no, las adivina por los nombres de los mods
+     y te deja confirmarlas. Nada se crea hasta que pulsas "Crear modpack".
    - En la ficha del modpack: **Ajustes** (nombre, versión del pack, IP, Java, whitelist…),
      **Mods** (arrastra los `.jar` a Obligatorios / Opcional activado / Opcional apagado) y
      **Archivos** (abre la carpeta `files` para configs, resource packs, shaders…).

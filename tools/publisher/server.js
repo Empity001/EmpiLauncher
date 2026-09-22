@@ -4,6 +4,7 @@ const path = require('path')
 const crypto = require('crypto')
 const os = require('os')
 const { exec } = require('child_process')
+const { pipeline } = require('stream/promises')
 
 const config = require('./lib/config')
 const nebula = require('./lib/nebula')
@@ -16,6 +17,7 @@ const appearance = require('./lib/appearance')
 const gh = require('./lib/gh')
 const notices = require('./lib/notices')
 const verify = require('./lib/verify')
+const importzip = require('./lib/importzip')
 const { capture, runInJob, killTree } = require('./lib/exec')
 
 const PORT = Number(process.env.PUBLISHER_PORT) || 4848
@@ -221,6 +223,18 @@ route('DELETE', '/api/packs/:id/visual', ({ params, query }) => {
 route('POST', '/api/jobs/create-pack', async ({ req }) => {
     const body = await readJson(req)
     const job = startJob(`Crear ${body.id}`, (log, step) => nebula.createPack(config.load(), body, log, step))
+    return { jobId: job.id }
+})
+// "Importar desde zip": inspect() is quick (just reads the zip's index and, sometimes, one small log entry), so it answers directly,
+// not as a job; the author sees what it found and confirms or fixes the fields before anything is created.
+route('POST', '/api/packs/import/inspect', async ({ req }) => {
+    const upload = path.join(os.tmpdir(), `empi-publisher-upload-${crypto.randomUUID()}.zip`)
+    await pipeline(req, fs.createWriteStream(upload))
+    return importzip.inspect(upload)
+})
+route('POST', '/api/jobs/import-zip', async ({ req }) => {
+    const body = await readJson(req)
+    const job = startJob(`Importar ${body.id}`, (log, step) => importzip.apply(config.load(), body.importId, body, log, step))
     return { jobId: job.id }
 })
 route('POST', '/api/jobs/compile-packs', () => ({ jobId: startJob('Compilar modpacks', (log, step) => packs.compile(config.load(), {}, log, step)).id }))
