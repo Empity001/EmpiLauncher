@@ -8,6 +8,14 @@
  *
  * So: what the author wrote always wins; only when it is missing does this table decide (and a partly written javaOptions is completed
  * from what it does say, never from the wrong guess). Every place in the engine that asks "which Java" goes through requirement().
+ *
+ * Every range below (bar the newest tier, which has no known ceiling yet) is capped just under the NEXT tier's floor, not left open.
+ * Java installs are shared across every modpack in one launcher, in one folder: a Java fetched earlier for a newer pack (say, 25 for a
+ * 26.x pack) sits right there when an older Forge pack (say, 1.20.1, wanting 17) is scanned. An open ">=17.x" range calls that Java 25
+ * "close enough" and reuses it instead of fetching a real 17 - and Forge/Mixin/Connector's old bytecode tooling breaks in ways that
+ * look like a missing mod (a pack imported by lib/importzip.js hit exactly this: "connectormod is not installed" even though its jar
+ * was right there, because the game was actually running on the Java 25 left over from an unrelated 26.x pack). A capped range makes
+ * the scan correctly say "no, this Java doesn't fit" and fetch the right one instead.
  */
 
 /** [major, minor, patch] of a release Minecraft version ("1.21.11", "26.3"), or null for anything else (snapshots, "latest"...). */
@@ -16,26 +24,33 @@ function parseMinecraft(version) {
     return match ? [Number(match[1]), Number(match[2]), Number(match[3] || 0)] : null
 }
 
-/** The Java a Minecraft release needs by default, or null when the version is not one this table understands. */
-function defaultFor(minecraftVersion) {
-    const parsed = parseMinecraft(minecraftVersion)
-    if (!parsed) return null
-    const [first, minor, patch] = parsed
-    if (first >= 26) return { supported: '>=25.x', suggestedMajor: 25 }                                     // 26.1 and later: Java 25
-    if (first !== 1) return null
-    if (minor > 20 || (minor === 20 && patch >= 5)) return { supported: '>=21.x', suggestedMajor: 21 }     // 1.20.5 to 1.21.x: Java 21
-    if (minor >= 17) return { supported: '>=17.x', suggestedMajor: 17 }                                      // 1.17 to 1.20.4 (1.17 asks for 16: 17 does it too)
-    return { supported: '8.x', suggestedMajor: 8 }
-}
-
 /** The first whole number in a semver range (">=25 <26" -> 25), the major it is about. */
 const majorOfRange = (range) => {
     const match = /(\d+)/.exec(String(range || ''))
     return match ? Number(match[1]) : null
 }
 
-/** A range that accepts `major` (and, past Java 8, anything newer: that is what helios-core's own defaults say too). */
-const rangeFor = (major) => (major <= 8 ? `${major}.x` : `>=${major}.x`)
+/** The next major this table would ever ask for after `major`: a Java bought for that one must not satisfy `major`'s own range. */
+const KNOWN_CEILING = { 8: 9, 17: 21, 21: 25 }
+
+/** A range that accepts `major`, and anything newer only up to (not including) the next major this table knows about. */
+const rangeFor = (major) => {
+    if (major <= 8) return '8.x'
+    const ceiling = KNOWN_CEILING[major]
+    return ceiling ? `>=${major}.x <${ceiling}` : `>=${major}.x`
+}
+
+/** The Java a Minecraft release needs by default, or null when the version is not one this table understands. */
+function defaultFor(minecraftVersion) {
+    const parsed = parseMinecraft(minecraftVersion)
+    if (!parsed) return null
+    const [first, minor, patch] = parsed
+    if (first >= 26) return { supported: rangeFor(25), suggestedMajor: 25 }                                  // 26.1 and later: Java 25, the newest tier
+    if (first !== 1) return null
+    if (minor > 20 || (minor === 20 && patch >= 5)) return { supported: rangeFor(21), suggestedMajor: 21 }  // 1.20.5 to 1.21.x: Java 21
+    if (minor >= 17) return { supported: rangeFor(17), suggestedMajor: 17 }                                   // 1.17 to 1.20.4 (1.17 asks for 16: 17 does it too)
+    return { supported: rangeFor(8), suggestedMajor: 8 }
+}
 
 /** True when the author's javaOptions says anything at all about the Java that applies on this platform. */
 function statesSomething(javaOptions) {

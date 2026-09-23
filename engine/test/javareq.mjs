@@ -25,7 +25,11 @@ const fake = (minecraftVersion, javaOptions, effective = heliosDefault) => ({ ra
     check('1.17 up to 1.20.4 want Java 17', req.defaultFor('1.17.1').suggestedMajor === 17 && req.defaultFor('1.20.4').suggestedMajor === 17 && req.defaultFor('1.18.2').suggestedMajor === 17)
     check('1.16 and older want Java 8, and only 8', req.defaultFor('1.16.5').suggestedMajor === 8 && req.defaultFor('1.12.2').supported === '8.x' && req.defaultFor('1.8.9').suggestedMajor === 8)
     check('a version it does not understand (snapshots, nonsense) is left to helios-core', req.defaultFor('24w14a') === null && req.defaultFor('') === null && req.defaultFor(undefined) === null && req.defaultFor('latest') === null)
-    check('the range accepts its own major and anything newer', req.defaultFor('26.3').supported === '>=25.x' && req.rangeFor(21) === '>=21.x' && req.rangeFor(8) === '8.x')
+    check('the newest tier has no ceiling; the older ones are capped just under the next tier\'s floor', req.defaultFor('26.3').supported === '>=25.x' && req.rangeFor(21) === '>=21.x <25' && req.rangeFor(17) === '>=17.x <21' && req.rangeFor(8) === '8.x')
+    // the bug this fixes: a Java bought for a NEWER pack (25, left over from a 26.x one) must not "fit" an OLDER pack's open-ended range
+    const semver = require('semver')
+    check('a Java meant for a newer pack no longer satisfies an older pack\'s range (26.x\'s Java 25 vs 1.20.1\'s range)', !semver.satisfies('25.0.3', req.defaultFor('1.20.1').supported) && semver.satisfies('17.0.12', req.defaultFor('1.20.1').supported), req.defaultFor('1.20.1').supported)
+    check('and a Java meant for 1.20.1-era packs no longer satisfies a 1.21.x pack\'s range either', !semver.satisfies('17.0.12', req.defaultFor('1.21.11').supported) && semver.satisfies('21.0.11', req.defaultFor('1.21.11').supported))
     check('the major of a range is its first number', req.majorOfRange('>=25 <26') === 25 && req.majorOfRange('17.x') === 17 && req.majorOfRange('') === null)
 
     // what the author wrote always wins
