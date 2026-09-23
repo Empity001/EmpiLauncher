@@ -9,10 +9,9 @@ const path = require('path')
 const { Readable } = require('stream')
 const nebula = require('../lib/nebula')
 
-function makeRoot(meta = {}) {
+function makeRoot(meta = {}, id = 'Pack-1.21.11') {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'publisher-options-'))
     const config = { nebulaProjectPath: path.join(root, 'no-nebula-here'), nebulaRootPath: root }
-    const id = 'Pack-1.21.11'
     const dir = path.join(root, 'servers', id)
     fs.mkdirSync(path.join(dir, 'fabricmods', 'required'), { recursive: true })
     fs.mkdirSync(path.join(dir, 'files'), { recursive: true })
@@ -81,6 +80,48 @@ test('removing the memory leaves the Java rules, and with none left removes java
 test('a pack that only has the spec\'s own numbers shows as having none', () => {
     const { config, id } = makeRoot({ javaOptions: { supported: '>=21 <22', suggestedMajor: 21, ram: { recommended: 4096, minimum: 3072 } } })
     assert.strictEqual(nebula.getPack(config, id).ram, null)
+})
+
+// ------------------------------------------------------------ Java: what "Automático" means, and what a manual choice writes
+// (this is the fix for a real crash: the old manual choice wrote ">=21 <22", too narrow to matter, but "Automático" wrote nothing
+// at all and left it to the launcher's own guess, whose open-ended ranges let an unrelated newer pack's Java get reused - see
+// engine/src/lib/javareq.js and its test for the story. Now both the auto default and a manual pick get a bounded range.)
+
+test('"Automático" is what the Ajustes tab shows for a pack\'s own Minecraft version, not written until Compilar', () => {
+    const { config, id, meta } = makeRoot({}, 'Pack-1.21.11')
+    const pack = nebula.getPack(config, id)
+    assert.strictEqual(pack.javaMajor, null)
+    assert.deepStrictEqual(pack.javaAuto, { supported: '>=21.x <25', suggestedMajor: 21 })
+    assert.strictEqual(meta().javaOptions, undefined, 'nothing is written to servermeta.json just for showing the suggestion')
+})
+
+test('an older Minecraft version suggests an older, differently-capped Java', () => {
+    const { config, id } = makeRoot({}, 'Old-1.20.1')
+    assert.deepStrictEqual(nebula.getPack(config, id).javaAuto, { supported: '>=17.x <21', suggestedMajor: 17 })
+})
+
+test('a manual Java choice writes a range that accepts that major\'s own updates, not just one exact version', () => {
+    const { config, id, meta } = makeRoot({}, 'Old-1.20.1')
+    nebula.patchMeta(config, id, { javaMajor: 17 })
+    assert.strictEqual(meta().javaOptions.supported, '>=17.x <21')
+    assert.strictEqual(meta().javaOptions.suggestedMajor, 17)
+})
+
+test('applyDefaultJavaOptions fills in only what a compiled distribution.json is missing, and says so', () => {
+    const distribution = {
+        servers: [
+            { id: 'Auto-1.20.1', name: 'Auto Pack', minecraftVersion: '1.20.1' },
+            { id: 'Chosen-1.21.11', name: 'Chosen Pack', minecraftVersion: '1.21.11', javaOptions: { supported: '>=25 <26', suggestedMajor: 25 } },
+            { id: 'Weird-24w14a', name: 'Weird Pack', minecraftVersion: '24w14a' }
+        ]
+    }
+    const logs = []
+    nebula.applyDefaultJavaOptions(distribution, (line) => logs.push(line))
+    assert.deepStrictEqual(distribution.servers[0].javaOptions, { supported: '>=17.x <21', suggestedMajor: 17, distribution: 'TEMURIN' })
+    assert.deepStrictEqual(distribution.servers[1].javaOptions, { supported: '>=25 <26', suggestedMajor: 25 }, 'an explicit choice is left exactly as the author set it')
+    assert.strictEqual(distribution.servers[2].javaOptions, undefined, 'a version the table does not understand is left alone too')
+    assert.strictEqual(logs.length, 1, 'only the one that actually changed is logged')
+    assert.match(logs[0], /Auto Pack.*Java 17/)
 })
 
 // ------------------------------------------------------------ the files folder

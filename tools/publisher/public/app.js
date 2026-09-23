@@ -676,7 +676,10 @@ function settingsForm(pack) {
                 h('label', {}, `Versión de ${LOADER_NAMES[pack.loader.type] || 'loader'}`,
                     h('select', { id: 'metaLoaderVersion', onchange: set('loaderVersion') }, h('option', { value: pack.loader.version }, pack.loader.version))),
                 h('label', {}, 'Java',
-                    h('select', { onchange: set('javaMajor') }, ...JAVA_CHOICES.map(([id, label]) => h('option', { value: id, selected: String(value('javaMajor', pack.javaMajor || '')) === id }, label)))))),
+                    h('select', { onchange: set('javaMajor') }, ...JAVA_CHOICES.map(([id, label]) =>
+                        h('option', { value: id, selected: String(value('javaMajor', pack.javaMajor || '')) === id },
+                            id === '' ? (pack.javaAuto ? `Automático (Java ${pack.javaAuto.suggestedMajor})` : 'Automático') : label))),
+                    h('small', { class: 'muted' }, 'Automático elige el Java según la versión de Minecraft al Compilar (17 para 1.17-1.20.4, 21 para 1.20.5-1.21.x, 25 para 26.x en adelante). Elige uno a mano solo si sabes que este modpack necesita otra cosa.')))),
         h('section', { class: 'module' }, head('Opciones'),
             h('div', { class: 'checks' },
                 // "Servidor principal", "Whitelist" and "Publicado" live in the head of the modpack and save at once.

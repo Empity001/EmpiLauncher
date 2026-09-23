@@ -123,6 +123,9 @@ async function compile(config, options, log, step) {
     const urlMap = Object.fromEntries(planned.map((file) => [file.rel, file.url]))
 
     const distribution = JSON.parse(fs.readFileSync(path.join(root, 'distribution.json'), 'utf8').replace(/^﻿/, ''))
+    // a modpack left on "Automático" (no Java chosen) gets the right one for its Minecraft version written in, so every player's
+    // launcher reads it straight from the modpack instead of having to guess at run time
+    nebula.applyDefaultJavaOptions(distribution, log)
     // profiles: modpacks that list others as their profiles, and the ones that are somebody's profile, say so in the index
     for (const line of profiles.applyLinks(distribution, (id) => { try { return nebula.readServerMeta(config, id) } catch { return null } }).lines) log(line)
     const rewritten = largeAssets.rewriteDistributionUrls(distribution, urlMap, nebula.baseUrl(config))

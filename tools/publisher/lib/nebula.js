@@ -5,6 +5,10 @@ const { spawn } = require('child_process')
 const { runNode } = require('./exec')
 const { readJson, writeJson } = require('./config')
 const { normalizeRam } = require('./ram')
+// The one table for "which Java does this Minecraft version want" lives in the engine (engine/src/lib/javareq.js); the Publisher
+// reuses it instead of keeping its own copy, so the two can never quietly drift apart the way the launcher's own open-ended ranges
+// once did (see that file's own comment for the "Java from an unrelated newer modpack gets reused" bug this avoided).
+const javareq = require(path.join(__dirname, '..', '..', '..', 'engine', 'src', 'lib', 'javareq.js'))
 
 const LOADERS = ['fabric', 'forge', 'neoforge']
 const CATEGORIES = ['required', 'optionalon', 'optionaloff']
@@ -81,6 +85,24 @@ async function generateDistro(config, log) {
     })
     if (!fs.existsSync(target) || fs.statSync(target).mtimeMs < startedAt - 1000) {
         throw new Error(`Nebula no pudo generar distribution.json.${errors.length ? ` ${errors.slice(-2).join(' ')}` : ' Revisa el registro de arriba.'}`)
+    }
+}
+
+/**
+ * Fills in `javaOptions` for every modpack a compiled distribution.json is missing it on (an author who left the Publisher's Java
+ * field on "Automático"), using the same table the launcher itself falls back to. Publishing it explicitly means every player gets
+ * the right Java from the modpack's own data, not from whatever their particular launcher's engine happens to guess at the time -
+ * and a modpack the author set an explicit Java on, or wrote by hand, is left exactly as they set it. Mutates `distribution` in place
+ * (called right after Nebula writes it, before the Publisher writes its own copy to the EmpiPacks repo); `log`, if given, is told
+ * about each one so it shows up in the Compilar step's log instead of happening invisibly.
+ */
+function applyDefaultJavaOptions(distribution, log) {
+    for (const server of distribution.servers || []) {
+        if (server.javaOptions) continue
+        const guess = javareq.defaultFor(server.minecraftVersion)
+        if (!guess) continue
+        server.javaOptions = { ...guess, distribution: 'TEMURIN' }
+        if (log) log(`${server.name || server.id}: Java ${guess.suggestedMajor} automático (según su Minecraft ${server.minecraftVersion}).`)
     }
 }
 
@@ -229,6 +251,8 @@ function getPack(config, id) {
         meta: meta.meta,
         defaultDiscordImage: `${baseUrl(config)}servers/${id}/icon.png`,
         javaMajor: meta.meta.javaOptions ? meta.meta.javaOptions.suggestedMajor || null : null,
+        // what "Automático" would use for this modpack's Minecraft version, so the Ajustes tab can say so instead of just "Automático"
+        javaAuto: javareq.defaultFor(summary.minecraft),
         ram: ramOf(meta),
         mods,
         filesEntries: fs.existsSync(filesDir) ? fs.readdirSync(filesDir).slice(0, 60) : [],
@@ -236,7 +260,9 @@ function getPack(config, id) {
     }
 }
 
-const JAVA_OPTIONS = (major) => ({ supported: `>=${major} <${Number(major) + 1}`, suggestedMajor: Number(major), distribution: 'TEMURIN' })
+// An author's explicit choice in the Publisher's Java dropdown: the same bounded range the table would use for that major on its own
+// (17 accepts 17-20, not just 17, but never a Java the author didn't ask for), never open-ended.
+const JAVA_OPTIONS = (major) => ({ supported: javareq.rangeFor(Number(major)), suggestedMajor: Number(major), distribution: 'TEMURIN' })
 
 // ---------------------------------------------------------------- memory (javaOptions.ram)
 
@@ -521,7 +547,7 @@ function openFolder(config, id, what) {
 }
 
 module.exports = {
-    LOADERS, CATEGORIES, env, rootPath, baseUrl, serversDir, hideDir, generateDistro, runNebula, ensureBuilt,
+    LOADERS, CATEGORIES, env, rootPath, baseUrl, serversDir, hideDir, generateDistro, applyDefaultJavaOptions, runNebula, ensureBuilt,
     listPacks, getPack, setActive, patchMeta, createPack, saveMod, deleteMod, moveMod, saveIcon, iconPath, openFolder,
     packDir, readServerMeta, writeServerMeta, modsOf, modsFolder, loaderOf, minecraftVersionOf,
     FILE_KINDS, packFiles, saveFile, deleteFile
