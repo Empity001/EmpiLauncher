@@ -942,34 +942,30 @@ class ProcessBuilder {
     /**
      * Files that must be DOWNLOADED but never put on the classpath.
      *
-     * NeoForge 21.11+ (FML 10, main class net.neoforged.fml.startup.Client) finds NeoForge itself and the patched Minecraft jar in the
-     * libraries folder, from -DlibraryDirectory and the --fml.* arguments. If either is already on the classpath FML decides it is
-     * running in a development environment ("CLIENT in DEV") and stops with "NeoForge dev environment Minecraft jar does not have a
-     * Minecraft-Dists attribute in its manifest"; with only the patched jar left off it stops with "The patched Minecraft jar is
-     * missing". Nebula publishes both as ordinary libraries, so this keeps them off the -cp. A module can say so itself with
-     * `classpath: false` (Nebula sets it now); the id checks cover indexes published before that, so a launcher fix is enough.
+     * NeoForge finds its own core jars (the patched Minecraft client and its own universal jar) by itself, through a dedicated
+     * FML locator built from -DlibraryDirectory and the --fml.* arguments (FML 10, main class net.neoforged.fml.startup.Client,
+     * uses the same idea in its own startup code). Putting either of them on our own -cp too makes ModLauncher mark that file
+     * path "already located" before that dedicated locator runs; the locator then skips it as a duplicate instead of reading
+     * it, so NeoForge's own "neoforge" mod (declared inside the universal jar's neoforge.mods.toml) never registers, and every
+     * mod that depends on it reports it as "[MISSING]" - confirmed from a real player's debug.log: "Locator PathBasedLocator
+     * [name=neoforge] ... found 0 mods ... skipped 1 candidates" right after "Skipping ...universal.jar because it was already
+     * located earlier". This is true for both the older (BootstrapLauncher) and the FML 10 launch scheme, and for Forge's own
+     * equivalent dev-environment guard on the patched client jar. Nebula publishes both as ordinary libraries, so this keeps
+     * them off the -cp. A module can say so itself with `classpath: false` (Nebula sets it now); the id checks cover indexes
+     * published before that, so a launcher fix is enough.
      *
      * @param {Object} mdl A module from the server distribution.
-     * @param {boolean} fml10 Whether the mod loader is started through FML 10's own entry point.
      * @returns {boolean} True if the module must stay off the classpath.
      */
-    static isOffClasspath(mdl, fml10 = false){
+    static isOffClasspath(mdl){
         if(mdl?.rawModule?.classpath === false){
             return true
         }
         const id = String(mdl?.rawModule?.id ?? '')
-        // Older NeoForge (21.1.x) keeps its own launching scheme: only its patched client jar stays out.
-        if(/^net\.neoforged:neoforge:[^:]+:client(@|$)/.test(id)){
+        if(/^net\.neoforged:neoforge:[^:]+:(client|universal)(@|$)/.test(id)){
             return true
         }
-        if(fml10){
-            return /^net\.neoforged:minecraft-client-patched:/.test(id) || /^net\.neoforged:neoforge:[^:]+:universal(@|$)/.test(id)
-        }
         return /^net\.neoforged:minecraft-client-patched:/.test(id)
-    }
-
-    _usesFml10(){
-        return /^net\.neoforged\.fml\.startup\./.test(String(this.modManifest?.mainClass ?? ''))
     }
 
     /**
@@ -988,7 +984,7 @@ class ProcessBuilder {
         for(let mdl of mdls){
             const type = mdl.rawModule.type
             if(type === Type.ForgeHosted || type === Type.NeoForgeHosted || type === Type.Fabric || type === Type.Library){
-                if(!ProcessBuilder.isOffClasspath(mdl, this._usesFml10())){
+                if(!ProcessBuilder.isOffClasspath(mdl)){
                     libs[mdl.getVersionlessMavenIdentifier()] = mdl.getPath()
                 }
                 if(mdl.subModules.length > 0){
@@ -1023,7 +1019,7 @@ class ProcessBuilder {
         for(let sm of mdl.subModules){
             if(sm.rawModule.type === Type.Library){
 
-                if((sm.rawModule.classpath ?? true) && !ProcessBuilder.isOffClasspath(sm, this._usesFml10())) {
+                if((sm.rawModule.classpath ?? true) && !ProcessBuilder.isOffClasspath(sm)) {
                     libs[sm.getVersionlessMavenIdentifier()] = sm.getPath()
                 }
             }

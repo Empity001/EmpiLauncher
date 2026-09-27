@@ -3,6 +3,7 @@
 /.vscode/
 /target/
 /logs/
+/engine/logs/
 /dist/
 /.impeccable/review/
 /native/**/bin/
