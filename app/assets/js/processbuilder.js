@@ -351,7 +351,18 @@ class ProcessBuilder {
             return []
         }
 
-        const writeBuffer = mods.map(mod => {
+        // Sinytra Connector's "-full" jar isn't a normal FML mod: it registers ModLauncher-level
+        // IModLocator/IDependencyLocator services that ModLauncher only scans for in the physical
+        // mods/ folder, never in jars referenced via --fml.modLists. Without this it loads fine as
+        // a "mod file" but its bundled inner mod (modid "connectormod") never gets registered, and
+        // anything depending on it (e.g. ConnectorExtras) crashes with "connectormod is not installed".
+        const physicalMods = this.usingFabricLoader ? [] : mods.filter(mod => ProcessBuilder._requiresPhysicalModsFolder(mod))
+        if(physicalMods.length > 0) {
+            this._syncModsFolder(physicalMods)
+        }
+        const listMods = physicalMods.length > 0 ? mods.filter(mod => !physicalMods.includes(mod)) : mods
+
+        const writeBuffer = listMods.map(mod => {
             return this.usingFabricLoader ? mod.getPath() : mod.getExtensionlessMavenIdentifier()
         }).join('\n')
 
@@ -911,6 +922,21 @@ class ProcessBuilder {
             return 'msa'
         }
         return account?.type === 'offline' ? 'legacy' : 'mojang'
+    }
+
+    /**
+     * Mods that register ModLauncher-level locator/transformer services (IModLocator,
+     * IDependencyLocator, ITransformationService in their META-INF/services) instead of a plain
+     * mods.toml. ModLauncher only scans the physical mods/ folder for these, so on Forge versions
+     * below 1.20.3 (which otherwise ship mods via --fml.modLists) they must be copied there anyway.
+     * Sinytra Connector's "-full" artifact is the common real-world case.
+     *
+     * @param {Object} mod A resolved forge mod (has rawModule.id).
+     * @returns {boolean} True if the mod must be physically placed in mods/ regardless of MC version.
+     */
+    static _requiresPhysicalModsFolder(mod){
+        const id = String(mod?.rawModule?.id ?? '')
+        return /^generated\.forgemod:connector:/.test(id)
     }
 
     /**

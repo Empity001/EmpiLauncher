@@ -169,6 +169,8 @@ route('GET', '/api/status', () => ({ job: jobSummary(activeJob && !activeJob.don
 
 route('GET', '/api/versions/minecraft', () => versions.minecraft())
 route('GET', '/api/versions/loader', ({ query }) => versions.loader(query.get('type'), query.get('mc')))
+// The three loaders for one Minecraft version at once: which exist, which Nebula can build, and each one's versions (the "new modpack" form).
+route('GET', '/api/versions/support', ({ query }) => versions.support(query.get('mc')))
 
 route('GET', '/api/packs', () => nebula.listPacks(config.load()))
 route('GET', '/api/packs/:id', ({ params }) => nebula.getPack(config.load(), params.id))

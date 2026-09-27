@@ -39,9 +39,9 @@ typography:
     fontWeight: 700
     lineHeight: 1.1
     letterSpacing: "0"
-  tile-numeral:
+  capsule-numeral:
     fontFamily: "Doto, Cascadia Mono, Consolas, monospace"
-    fontSize: "21px"
+    fontSize: "36px"
     fontWeight: 700
     lineHeight: 1.1
   drawer-title:
@@ -135,6 +135,7 @@ rounded:
   tile: "16px"
   zone: "20px"
   module: "22px"
+  capsule: "28px"
   drawer: "26px"
   dock: "32px"
   pill: "999px"
@@ -201,11 +202,27 @@ components:
     textColor: "{colors.paper}"
     rounded: "{rounded.module}"
     padding: "20px 22px"
-  tile:
-    backgroundColor: "rgb(255 255 255 / .04)"
+  capsule:
+    backgroundColor: "{colors.module}"
     textColor: "{colors.paper}"
-    rounded: "{rounded.tile}"
-    padding: "10px 12px"
+    rounded: "{rounded.capsule}"
+    padding: "18px 20px"
+    height: "168px"
+  rail:
+    backgroundColor: "rgb(11 11 13 / .86)"
+    textColor: "{colors.paper}"
+    width: "88px"
+  console:
+    backgroundColor: "{colors.module}"
+    textColor: "{colors.paper}"
+    rounded: "26px"
+    padding: "22px 22px 24px"
+    width: "320px to 400px"
+  command-palette:
+    backgroundColor: "rgb(13 14 16 / .985)"
+    textColor: "{colors.paper}"
+    rounded: "26px"
+    width: "640px"
   zone:
     backgroundColor: "{colors.module}"
     rounded: "{rounded.zone}"
@@ -213,8 +230,8 @@ components:
   pack-card:
     backgroundColor: "transparent"
     textColor: "{colors.paper}"
-    rounded: "{rounded.tile}"
-    padding: "10px 12px"
+    rounded: "20px"
+    padding: "11px 12px"
   pack-card-active:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.bg}"
@@ -229,7 +246,7 @@ components:
   topbar:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.paper}"
-    height: "60px"
+    height: "64px"
   dock:
     backgroundColor: "{colors.dock}"
     textColor: "{colors.paper}"
@@ -339,7 +356,7 @@ A monochrome darkroom palette: warm-tinted near-blacks, three paper tones, one a
 
 ### Hierarchy
 - **Display** (Doto 700, 30px, 1.1; 24px at 520px and below): selected pack title and empty-state heading (Publisher).
-- **Tile Numeral** (Doto 700, 21px; 19px at 520px): the value in each data tile.
+- **Capsule Numeral** (Doto 700, 18px to 36px, sized to the capsule's width and the length of the value): the value in each data capsule; the mod count in the mods field is Doto 34px.
 - **Drawer Title** (Doto 700, 24px, 1.1): activity drawer title; version numerals in the launcher version choices.
 - **Wordmark** (Doto 800, 17px, 0.02em, uppercase): "Empi Publisher" in the topbar; hidden below 520px.
 - **Headline** (Geist Mono 500, 15px, -0.01em): module headings (h2).
@@ -347,19 +364,19 @@ A monochrome darkroom palette: warm-tinted near-blacks, three paper tones, one a
 - **Button** (Geist Mono 500, 13px; small 12px, big 14px; paper 600, primary 700): all Publisher buttons and tabs.
 - **Body** (Segoe 400, 14px, 1.5): prose and input text; prose capped at 62ch. Checkbox-switch labels are Segoe 14px.
 - **Label** (Geist Mono 500, 12px, `paper-2`): form labels.
-- **Caption** (Geist Mono 400, 11.5px): hints, facts, sub-lines, counts, chip text, tile keys and sub-lines.
+- **Caption** (Geist Mono 400, 11.5px): hints, facts, sub-lines, counts, chip text, capsule keys and sub-lines.
 - **Launcher sizes** (Doto 700, 0.04em unless noted): 32px settings tab headers; 30px welcome header, login options heading and settings nav header; 22px login subheader; 20px rail title (0.08em, uppercase). The launch label is Doto 800 at 0.14em. These are the only launcher sizes at which Doto appears.
 - **Launcher Avenir** (700 for labels, 400 to 500 elsewhere): 13px labels (launch progress label, player name, updater title), 12px frame title (0.2em, uppercase), 11px help text and progress stats, 10px chips and small labels.
 
 ### Named Rules
-**The Dots Are Headlines Rule.** Doto is for wordmark, pack name and headings, tile numerals, the drawer title, version numerals and the launch label. It is never body text, labels, buttons (other than the launch label), or inputs, and in the launcher never below 20px. In the Publisher its smallest use is the 19px tile numeral.
+**The Dots Are Headlines Rule.** Doto is for wordmark, pack name and headings, capsule numerals, the drawer title, version numerals and the launch label. It is never body text, labels, buttons (other than the launch label), or inputs, and in the launcher never below 20px. In the Publisher its smallest use is the 18px capsule numeral.
 **The Three Voices Rule (Publisher).** Doto names and counts, Geist Mono reports and labels, Segoe reads and receives typing. Do not set prose in mono or data in Segoe.
 **The Small-Type Floor Rule.** Launcher text is never below 10px (chips and labels) or 11px (help text and progress). Do not shrink further to fit.
 **The Tabular Numerals Rule.** Counts, sizes, versions and progress use `tabular-nums`.
 
 ## Layout
 
-**Publisher.** A two-column workbench: a 308px sticky pack sidebar (top 84px, 16px gap between its modules) and a fluid content column (layout max 1360px, 24px padding, 20px column gap). Single-column surfaces (launcher tab, settings) are centred at max 1080px. The topbar is 60px tall. Content is stacked modules (20px 22px padding, 16px between). Settings and the launcher tab are bento grids: two equal columns with 16px gaps, `span2` items across both, items top-aligned. The new-pack form is a two-column grid (18px/24px gaps, max 900px) whose heading, command preview and actions span both. Mod zones keep three equal columns. The modpack hero is one module with the pack head, then four data tiles in a row (8px gap). A floating dock (below) replaces the old footer and reserves `--pipeline-h: 112px` of bottom space (`main` pads `--pipeline-h + 16px`); the toast sits above it. The dot-field canvas is a fixed layer behind everything. Breakpoints: at 900px the sidebar becomes static above the content, bento and launcher grids and the form collapse to one column, tiles go two across, the dock narrows to `100vw - 16px` at bottom 8px with 26px radius, the drawer inset shrinks to 6px on all sides, the publishing status module is hidden (the dock already shows it), the pack head wraps with its button full width, and the topbar is 56px. At 520px the wordmark text is hidden, tab padding shrinks to 12px, version choices go one column, dock buttons keep to one line with icons hidden, tile numerals drop to 19px, and h1 to 24px.
+**Publisher.** A workbench that uses the whole window; nothing is centred in a column any more (the earlier 1360px and 1080px caps are gone). From the left: an 88px **rail** (fixed; the sections as icon over a mono label, the paper thumb sliding up and down between them, then the motion switch and Ajustes at the foot), then the workspace, whose 64px sticky **top bar** carries the wordmark, a breadcrumb (section, and the modpack being edited), the **search** button (opens the command palette) and the health pills and "Verificar publicación". Below the top bar, at 1280px and wider, three regions share 24px side padding and 20px gaps: the pack list (`clamp(280px, 17vw, 340px)`, sticky, its list scrolls inside), the work (fluid) and the **publishing console** (`clamp(320px, 19vw, 400px)`, sticky). Between 901px and 1279px the console is not shown as a column: publishing goes back to the floating dock (below), and the crumb hides at 1180px. The Avisos section has its own publish button, so it drops the console and takes the width. Content is modules (20px 22px padding, 16px between). The modpack opens with a **cockpit**: a five-column grid (12px gaps) with the pack head across all five, then three capsules (Minecraft, Loader, Versión, one column each) and the mods field across the last two. Settings and the launcher tab are bento grids that fill the width, `repeat(auto-fit, minmax(380px, 1fr))` (420px for the launcher), with `span2` items across all columns. The new-pack form is a two-column grid (18px/24px gaps, max 1000px) whose heading, command preview and actions span both. Mod zones keep three equal columns and grow with the window height. The sub-tabs stick under the top bar while the modpack scrolls. The dot-field canvas is a fixed layer behind everything. Breakpoints: at 1100px the cockpit becomes three columns with the mods field across them; at 900px the rail becomes a 64px sticky row above the top bar (tabs in a row, the paper thumb replaced by a filled tab), the sidebar becomes static above the content, bento and launcher grids and the form collapse to one column, the dock narrows to `100vw - 16px` at bottom 8px with 26px radius, the drawer inset shrinks to 6px on all sides, and the top bar is 56px; at 520px the tab labels hide, capsules and the cockpit go two across, version choices go one column, dock buttons keep to one line with icons hidden, and h1 to 24px.
 
 **Static plates (no-JS fallback).** `art/field.png` plates on `body::before` and `body::after` are what a Publisher without JavaScript sees. When `life.js` sets `data-motion` on the root the plates are hidden. Both also hide at 900px and below.
 
@@ -397,7 +414,7 @@ Replaces the earlier "still at rest" rule for the Publisher only. Motion tokens 
 
 ## Shapes
 
-**Publisher: soft and modular.** Radius scale: modules 22px, tiles and pack cards and choices 16px, mod zones and the permission tree 20px, inputs 12px (textarea 16px), dialog 24px, drawer 26px, dock 32px (26px on narrow screens), banners 14px, mod rows 12px, pack icons 12px (64px hero icon 18px). Everything you press is a pill (999px: buttons, tabs, sub-tabs, segmented controls, chips, health pills, entries, toasts, search input, switches) or a circle (50%: icon buttons, step numerals, the accent sample, stage dots, switch knobs). Silhouette comes from the module edge (1px hairline), the halftone corner and inversion to paper. Icons are 16px, square-capped, miter-joined 1.5px outline strokes.
+**Publisher: soft and modular.** Radius scale: modules 22px, capsules 28px, pack cards 20px, choices 16px, mod zones and the permission tree 20px, inputs 12px (textarea 16px), dialog 24px, drawer 26px, dock 32px (26px on narrow screens), banners 14px, mod rows 12px, pack icons 12px (64px hero icon 18px). Everything you press is a pill (999px: buttons, tabs, sub-tabs, segmented controls, chips, health pills, entries, toasts, search input, switches) or a circle (50%: icon buttons, step numerals, the accent sample, stage dots, switch knobs). Silhouette comes from the module edge (1px hairline), the halftone corner and inversion to paper. Icons are 16px, square-capped, miter-joined 1.5px outline strokes.
 
 **Launcher: square and notched.** Square corners throughout (border-radius 0; the launcher forces it with `!important` inside `#main`; only its round spinners stay round). 1px dotted borders on containers. The launch button has a clip-path polygon that cuts an 18px notch off the top-right corner, removed on `:focus-visible` so the focus ring stays whole. The selected rail entry and the selected version choice invert to paper with four L-shaped crop marks (7px arms).
 
@@ -427,20 +444,27 @@ Replaces the earlier "still at rest" rule for the Publisher only. Motion tokens 
 Top tabs (42px) and sub-tabs share one shape: a pill track (`rgb(17 18 21 / .7)`, 1px hair, 4px padding), pill tabs at 13px Geist Mono, and one paper thumb (`.ink`, inset 4px top and bottom) that slides and resizes behind the current tab over .55s `cubic-bezier(.34, 1.25, .64, 1)`. The current tab's text turns bench-black. Sub-tabs scroll horizontally in their track on narrow widths.
 
 ### Modules and tiles
-Module: the recipe in Elevation & Depth; head row (`module-head`, h2 flex-1, actions to the right, min-height 30px), `details.module` uses a summary with a spring-rotating chevron. Tile: 16px radius, `rgb(255 255 255 / .04)` fill, 1px hair, 10px 12px padding, a mono key (11.5px, `paper-3`), a Doto numeral (21px) and a mono sub-line. Four tiles sit in the modpack hero; the mods tile carries the hatched share bar.
+Module: the recipe in Elevation & Depth; head row (`module-head`, h2 flex-1, actions to the right, min-height 30px), `details.module` uses a summary with a spring-rotating chevron. Data is shown in capsules (below), no longer in small tiles.
 
-### Hatched share bar
-8px-tall row of pill segments with 2px gaps (`.mix`): required mods solid paper, optional-on mods paper at 50%, optional-off mods hatched (`--hatch`: 135-degree paper lines, 2px on a 5px pitch, at 55%) with a 1px paper inset outline. It carries an `aria-label` with the three counts. Hatching means "present but off", the same family as stipple.
+### Present but off
+A mod that is present but switched off is a ring where the others are dots (see the mods field), and elsewhere it is hatched or stippled: the same family, never a faded fill. The old hatched share bar was replaced by the dot field; the `--hatch` token was removed with it.
 
 ### Pack Card (sidebar)
-16px radius row with a 12px-radius icon tile, bold name and mono 11.5px sub-line. Hover: Surface 2 and a 4px lean right. Active: filled paper with bench-black text (no crop marks). On selection the pack title decodes out of noise.
+20px radius row with a 14px-radius, 44px icon tile, bold name and mono 11.5px sub-line. The list has a filter field above it (a pill search) and scrolls inside the sidebar. Hover: Surface 2 (no lean; the list scrolls sideways-clipped). Active: filled paper with bench-black text (no crop marks). On selection the pack title decodes out of noise.
 
 ### Navigation and status
-- **Topbar:** 60px, translucent Surface with the ribbed-glass overlay and no dotted bottom rule; wordmark beside the dot-matrix E logo (one row slipped sideways, one pink dot); the top tabs are the segmented control above. Health pills are pill chips (`rgb(255 255 255 / .05)`, hair border, mono); `bad` turns the border coral; pills hide at 900px.
-- **Status module (sidebar):** a module titled "Publicación" with three 10px stage dots in its head (`on` = filled paper, `next` = pink border with pink tint, rest = hair-strong outline) and key-value rows (`.kv`, mono 12.5px, hairline top rules, right-aligned tabular values). Hidden at 900px.
+- **Rail:** 88px, fixed, `rgb(11 11 13 / .86)` with a hair right border. The dot-matrix E logo on top, then one segmented pill track (68px wide, 28px radius) holding the sections as a 20px icon over an 11px Geist Mono label; the paper thumb (`.ink`) slides vertically between them on the same spring as the horizontal tabs (`data-axis="y"` on the track makes `Life.ink` move it up and down). The motion switch and Ajustes sit at the foot as 44px icon buttons.
+- **Topbar:** 64px, translucent Surface with the ribbed-glass overlay and no dotted bottom rule; the wordmark (Doto) then the breadcrumb (section in `paper-3`, modpack in paper), then the search button. Health pills are pill chips (`rgb(255 255 255 / .05)`, hair border, mono); `bad` turns the border coral; pills hide at 900px.
+- **Status (in the console):** the "Publicación" block: a heading with three 10px stage dots (`on` = filled paper, `next` = pink border with pink tint, rest = hair-strong outline) and key-value rows (`.kv`, mono 12.5px, hairline top rules, right-aligned tabular values). On the Launcher section it tells the launcher's story (in your code, published, will publish, installer). Only shown where the console is a column.
 
-### Pipeline dock (signature)
-A floating pill-cornered dock: `width: min(960px, 100vw - 32px)`, centred, `bottom: 16px`, radius 32px, 1px hair border, `rgb(14 15 17 / .95)` fill, min-height 76px, padding 10px 20px, the dock shadow. Step numerals are circles; done is paper with a check, the current step beats twice every 10 s, a changed step pops. The step title is mono 600 14px, its hint mono 11.5px; message bubbles and toasts are pills.
+### Capsule and mods field (the cockpit)
+A capsule is a data pill: 28px radius, `module` fill, 1px hair border, 168px tall, the key small in mono at the top (`paper-3`), the value in Doto at the bottom and one mono line under it. Its tone is halftone: two layers of paper dots (1px on a 6px pitch, 1.4px on a 12px pitch) masked so they pool in the lower-left corner like light inside a glass pill; the tone never becomes a coloured fill. The value's size follows the capsule's width (`container-type: inline-size`, `100cqw / (chars x .66)`, 18px to 36px) so "26.3" is big and "NeoForge" still fits on one line. Hover lifts it 2px (hover-capable pointers only). The **mods field** is a module with the mod count in Doto and one 9px dot per mod (one per few when there are hundreds, said in a line under it): solid paper = required, half paper = optional and on, ring = optional and off. Its legend keys are pills that light their kind of dot on hover or focus (the rest drop to 16%) and open the Mods sub-tab. The dots arrive with a 3 ms stagger, only while alive.
+
+### Publishing console (signature, wide) and dock (narrow)
+At 1280px and wider publishing is a sticky column on the right: a 26px-radius module with the halftone corner, the status block on top, then the three steps stacked (36px numerals, dotted vertical connectors, full-width buttons, the change message under the last one). Narrower it is the floating dock: `width: min(960px, 100vw - 32px)`, centred on the workspace (offset by the rail), `bottom: 16px`, radius 32px, 1px hair border, `rgb(14 15 17 / .95)` fill, min-height 76px, padding 10px 20px, the dock shadow. In both, step numerals are circles; done is paper with a check, the current step beats twice every 10 s, a changed step pops. The step title is mono 600 14px (15px in the console), its hint mono 11.5px; message bubbles and toasts are pills.
+
+### Command palette
+Ctrl K (Cmd K) or the search button in the top bar opens a 640px dialog, 26px radius: a search field, then the modpacks, the sections and the actions that make sense now (Compilar and Enviar only when they can run), grouped under mono captions. Typing narrows it (accents ignored, every word must match); the arrow keys move, Enter runs, Esc closes. The chosen row is inverted to paper like every other selection. Actions run after the palette has closed.
 
 ### Activity Drawer (signature)
 A floating 520px panel inset 12px from top, right and bottom (6px all round at 900px), radius 26px, hair border, `rgb(13 14 16 / .985)` fill, left cast shadow. The head is rounded 26px at the top and carries the cloud plate behind a gradient; the title is Doto 24px. Steps: done in paper with a check, current bold with the pink 10px square LED (1s `steps(1)` blink), failed in coral. The `resolve` strip is a 14px row of dots on a 12px pitch whose radius grows with progress (`--p`, radius = `--p` x 3.6px). Error banners (14px radius) have a coral border over the `tear.png` texture and tear once.

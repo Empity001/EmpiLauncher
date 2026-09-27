@@ -124,6 +124,16 @@ test('applyDefaultJavaOptions fills in only what a compiled distribution.json is
     assert.match(logs[0], /Auto Pack.*Java 17/)
 })
 
+test('a pack whose javaOptions only has ram (patchMeta wiped the range back to "Automático") still gets a Java range, and keeps its ram', () => {
+    const distribution = {
+        servers: [{ id: 'RamOnly-1.21.1', name: 'Ram Only Pack', minecraftVersion: '1.21.1', javaOptions: { ram: { minimumMb: 2048, maximumMb: 6144 } } }]
+    }
+    nebula.applyDefaultJavaOptions(distribution, () => {})
+    assert.deepStrictEqual(distribution.servers[0].javaOptions, {
+        supported: '>=21.x <25', suggestedMajor: 21, distribution: 'TEMURIN', ram: { minimumMb: 2048, maximumMb: 6144 }
+    })
+})
+
 // ------------------------------------------------------------ the files folder
 
 test('shaders and resource packs take .zip only; configs take anything', async () => {

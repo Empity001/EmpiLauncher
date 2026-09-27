@@ -22,7 +22,7 @@
     const DOT_KEY = 'empi.dots', DEFAULT_DOT = '#64635f', ACCENT = [255, 61, 139], MIX = 16
     const BUCKETS = 44
     const hyp = (a, b) => Math.sqrt(a * a + b * b)
-    const HOT = '.pack-card, .toggle-pill, .btn:not(:disabled), .subtab, .tab, .choice, .zone, .icon-btn, .segmented button, input, select, textarea, .mod-row, .prow, .module, .section'
+    const HOT = '.pack-card, .toggle-pill, .btn:not(:disabled), .subtab, .tab, .choice, .zone, .icon-btn, .segmented button, input, select, textarea, .mod-row, .prow, .module, .section, .capsule, .cmd-trigger, .legend-key'
 
     const read = () => { try { return localStorage.getItem(KEY) } catch { return null } }
     const write = (value) => { try { localStorage.setItem(KEY, value) } catch { /* private window */ } }
@@ -102,7 +102,7 @@
     /** Where text lives: dots stay faint there so nothing is ever hard to read. */
     function measureQuiet() {
         quiet = []
-        for (const selector of ['#packList', '#packContent:not([hidden])', '#newPackForm:not([hidden])', '#tab-launcher:not([hidden]) #launcherContent']) {
+        for (const selector of ['#packList', '#packContent:not([hidden])', '#newPackForm:not([hidden])', '#tab-launcher:not([hidden]) #launcherContent', '#tab-notices:not([hidden]) #noticesContent', '#pipeline:not([hidden])']) {
             const el = document.querySelector(selector)
             if (!el || !el.offsetParent) continue
             const r = el.getBoundingClientRect()
@@ -355,18 +355,25 @@
         const target = container.querySelector(selector)
         if (!target) { bar.style.opacity = '0'; return }
         const r = target.getBoundingClientRect(), c = container.getBoundingClientRect()
-        const x = Math.round(r.left - c.left - container.clientLeft + container.scrollLeft + inset), w = Math.max(0, Math.round(r.width - inset * 2))
+        // data-axis="y": the thumb slides up and down (the rail); otherwise left and right (the sub-tabs)
+        const vertical = container.dataset.axis === 'y'
+        const x = vertical
+            ? Math.round(r.top - c.top - container.clientTop + container.scrollTop + inset)
+            : Math.round(r.left - c.left - container.clientLeft + container.scrollLeft + inset)
+        const w = Math.max(0, Math.round((vertical ? r.height : r.width) - inset * 2))
+        const move = (at) => `translate${vertical ? 'Y' : 'X'}(${at}px)`
+        const setExtent = (extent) => { bar.style[vertical ? 'height' : 'width'] = `${extent}px` }
         const before = inkMemory[key]
         bar.style.opacity = '1'
         if (before && alive) {
             bar.style.transition = 'none'
-            bar.style.transform = `translateX(${before.x}px)`
-            bar.style.width = `${before.w}px`
+            bar.style.transform = move(before.x)
+            setExtent(before.w)
             void bar.offsetWidth
         }
         bar.style.transition = ''
-        bar.style.transform = `translateX(${x}px)`
-        bar.style.width = `${w}px`
+        bar.style.transform = move(x)
+        setExtent(w)
         inkMemory[key] = { x, w }
     }
 

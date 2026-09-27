@@ -33,7 +33,12 @@ const ICONS = {
     file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
     image: '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
     wave: '<path d="M2 12c2.5-6 5-6 7.5 0s5 6 7.5 0 3.5-4 5-3"/><path d="M2 18c2.5-4 5-4 7.5 0s5 4 7.5 0 3.5-2.5 5-2"/>',
-    refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>'
+    refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+    bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+    rocket: '<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>',
+    shieldCheck: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+    arrowUpRight: '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>'
 }
 
 const state = {
@@ -46,6 +51,7 @@ const state = {
     subtab: 'settings',
     draft: {},
     filter: '',
+    packFilter: '',
     protection: null,
     protectionOpen: new Set(),
     protectionFilter: '',
@@ -152,9 +158,11 @@ const packIconUrl = (pack) => `/api/packs/${encodeURIComponent(pack.id)}/icon?t=
 // Static markup carries `data-icon`; fill those in once.
 for (const el of document.querySelectorAll('[data-icon]')) el.prepend(icon(el.dataset.icon))
 
-// The footer's height changes with the viewport; keep content and toast clear of it.
+// The publishing dock's height changes with the viewport; keep content and toast clear of it. As a console on the right
+// (wide screens) it is part of the layout and reserves nothing.
 new ResizeObserver(([entry]) => {
-    document.documentElement.style.setProperty('--pipeline-h', `${Math.ceil(entry.target.getBoundingClientRect().height)}px`)
+    const docked = getComputedStyle(entry.target).position === 'fixed'
+    document.documentElement.style.setProperty('--pipeline-h', docked ? `${Math.ceil(entry.target.getBoundingClientRect().height)}px` : '0px')
 }).observe($('#pipeline'))
 
 // ------------------------------------------------------------------ activity drawer (live progress)
@@ -393,17 +401,46 @@ function render() {
     renderLauncher()
     renderPipeline()
     renderStatus()
+    renderCrumb()
+}
+
+const VIEW_NAMES = { packs: 'Modpacks', launcher: 'Launcher', notices: 'Avisos' }
+
+/** Top bar: which section, and for Modpacks which modpack (or the new one being made). */
+function renderCrumb() {
+    const box = $('#crumb')
+    if (!box) return
+    const parts = [h('span', { class: 'crumb-view' }, VIEW_NAMES[state.tab] || '')]
+    if (state.tab === 'packs' && state.loaded) {
+        if (state.creating) parts.push(h('span', { class: 'crumb-sep', 'aria-hidden': 'true' }, '/'), h('span', { class: 'crumb-pack' }, 'Nuevo modpack'))
+        else if (state.pack) parts.push(h('span', { class: 'crumb-sep', 'aria-hidden': 'true' }, '/'), h('span', { class: 'crumb-pack' }, state.pack.name))
+    }
+    box.replaceChildren(...parts)
 }
 
 /** Where the publishing stands, in the sidebar: three dots, then four facts. */
 function renderStatus() {
     const box = $('#statusModule')
     if (!box) return
+    const row = (name, value) => h('div', { class: 'kv' }, h('span', {}, name), h('b', { class: 'tnum' }, value))
+    if (state.tab === 'launcher') {
+        const info = state.launcher
+        const build = info && info.build && info.build.version === launcherVersion() && info.build.kind === launcherKind() ? info.build : null
+        const stageOfLauncher = !build ? 0 : build.sent ? 3 : 2
+        box.replaceChildren(...[
+            h('div', { class: 'module-head' }, h('h2', {}, 'Publicación'),
+                h('span', { class: 'stage', 'aria-hidden': 'true' }, ...[0, 1, 2].map((i) => h('i', { class: i < stageOfLauncher ? 'on' : i === stageOfLauncher ? 'next' : '' })))),
+            row('En tu código', info ? `v${info.version}` : '-'),
+            row('Publicada', info ? (info.latestTag || 'nunca') : '-'),
+            row('Se publicará', info ? `v${launcherVersion()}` : '-'),
+            row('Instalador', !info ? '-' : build ? (build.sent ? 'enviado' : 'listo') : 'sin compilar')
+        ])
+        return
+    }
     const { compiled, stale } = state.packsStatus
     const fresh = !!compiled && !stale
     const sent = fresh && !!compiled.sentAt
     const stage = !compiled ? 0 : sent ? 3 : fresh ? 2 : 1
-    const row = (name, value) => h('div', { class: 'kv' }, h('span', {}, name), h('b', { class: 'tnum' }, value))
     box.replaceChildren(...[
         h('div', { class: 'module-head' }, h('h2', {}, 'Publicación'),
             h('span', { class: 'stage', 'aria-hidden': 'true' }, ...[0, 1, 2].map((i) => h('i', { class: i < stage ? 'on' : i === stage ? 'next' : '' })))),
@@ -435,8 +472,16 @@ function renderPackList() {
         h('div', { class: 'pack-name' }, pack.name),
         h('div', { class: 'pack-sub tnum' }, `${LOADER_NAMES[pack.loader.type] || '?'} · MC ${pack.minecraft} · v${pack.packVersion}`),
         packFlags(pack)))
-    const active = state.packs.filter((pack) => pack.active !== false)
-    const inactive = state.packs.filter((pack) => pack.active === false)
+    const needle = state.packFilter.trim().toLowerCase()
+    const shown = needle
+        ? state.packs.filter((pack) => `${pack.name} ${pack.id} ${pack.minecraft} ${LOADER_NAMES[pack.loader.type] || ''}`.toLowerCase().includes(needle))
+        : state.packs
+    if (shown.length === 0) {
+        list.replaceChildren(h('p', { class: 'muted' }, 'Ningún modpack coincide.'))
+        return
+    }
+    const active = shown.filter((pack) => pack.active !== false)
+    const inactive = shown.filter((pack) => pack.active === false)
     list.replaceChildren(
         ...active.map(card),
         ...(inactive.length ? [h('div', { class: 'list-divider' }, `Desactivados (${inactive.length})`), ...inactive.map(card)] : []))
@@ -499,7 +544,7 @@ function renderPackDetail() {
 
     // A deactivated modpack is only a shelf: read it, reactivate it. Everything editable waits until it is active again.
     if (pack.active === false) {
-        box.replaceChildren(h('section', { class: 'module hero' },
+        box.replaceChildren(h('div', { class: 'cockpit' }, h('section', { class: 'module hero' },
             h('div', { class: 'pack-head' },
                 pack.hasIcon ? h('img', { class: 'pack-icon', src: packIconUrl(pack), alt: '' }) : h('div', { class: 'pack-icon' }, icon('package')),
                 h('div', { class: 'grow' },
@@ -508,23 +553,18 @@ function renderPackDetail() {
             packFlags(pack) ? h('div', { style: 'margin-top:10px' }, packFlags(pack)) : null,
             h('div', { class: 'off-notice' },
                 h('p', {}, 'Este modpack está desactivado: no se publica y los jugadores no lo ven. Sus archivos siguen guardados. Al activarlo vuelve a la lista y a la siguiente compilación.'),
-                h('button', { class: 'btn primary', onclick: () => setActive(pack.id, true) }, withIcon('checkCircle', 'Activar modpack')))))
+                h('button', { class: 'btn primary', onclick: () => setActive(pack.id, true) }, withIcon('checkCircle', 'Activar modpack')))),
+            capsule('Minecraft', pack.minecraft),
+            capsule('Loader', LOADER_NAMES[pack.loader.type] || 'Sin loader', pack.loader.version || ''),
+            capsule('Versión', `v${pack.packVersion}`),
+            modsField(pack, modCount)))
         return
     }
 
     const tabs = [['settings', 'Ajustes'], ['appearance', 'Apariencia'], ['protection', 'Protección'], ['mods', `Mods (${modCount})`], ['files', 'Archivos'], ['profiles', 'Perfiles']]
 
-    const tile = (name, value, sub) => h('div', { class: 'tile' }, h('span', { class: 'k' }, name), h('span', { class: 'v' }, value), sub ? h('span', { class: 'sub' }, sub) : null)
-    const counts = pack.counts
-    const segment = (kind, n) => (n ? h('i', { class: kind, style: `flex:${n}` }) : null)
-    const modsTile = h('div', { class: 'tile' },
-        h('span', { class: 'k' }, 'Mods'),
-        h('span', { class: 'v' }, String(modCount)),
-        h('div', { class: 'mix', role: 'img', 'aria-label': `${counts.required} obligatorios, ${counts.optionalon} opcionales activados, ${counts.optionaloff} opcionales apagados` },
-            segment('req', counts.required), segment('on', counts.optionalon), segment('off', counts.optionaloff)),
-        h('span', { class: 'sub' }, `${counts.required} obligatorios, ${counts.optionalon + counts.optionaloff} opcionales`))
-
     box.replaceChildren(
+        h('div', { class: 'cockpit' },
         h('section', { class: 'module hero' },
             h('div', { class: 'pack-head' },
                 h('label', { class: 'icon-pick', title: 'Cambiar el icono (PNG)' },
@@ -533,7 +573,7 @@ function renderPackDetail() {
                 h('div', { class: 'grow' },
                     h('h1', {}, pack.name),
                     pack.meta.description ? h('p', { class: 'muted' }, pack.meta.description) : null),
-                h('button', { class: 'btn small', onclick: () => openFolder('root') }, withIcon('folder', 'Abrir carpeta'))),
+                h('button', { class: 'icon-btn', title: 'Abrir la carpeta del modpack', 'aria-label': 'Abrir la carpeta del modpack', onclick: () => openFolder('root') }, icon('folder'))),
             h('div', { class: 'head-toggles' },
                 headToggle('main', 'Servidor principal', pack.mainServer, (value) => setFlag(pack, 'mainServer', value),
                     'El que se abre primero en el launcher. Solo puede haber uno: al marcar este, se lo quita al anterior.'),
@@ -541,15 +581,15 @@ function renderPackDetail() {
                     'Avisa a los jugadores de que este servidor solo deja entrar a quien esté en la lista.'),
                 headToggle('', 'Publicado', true, () => setActive(pack.id, false),
                     'Pulsa para desactivarlo: deja de publicarse, sin borrar nada.')),
-            h('div', { class: 'tiles' },
-                tile('Minecraft', pack.minecraft),
-                tile('Loader', LOADER_NAMES[pack.loader.type] || 'Sin loader', pack.loader.version || ''),
-                tile('Versión', `v${pack.packVersion}`),
-                modsTile)),
+            ),
+        capsule('Minecraft', pack.minecraft),
+        capsule('Loader', LOADER_NAMES[pack.loader.type] || 'Sin loader', pack.loader.version || ''),
+        capsule('Versión', `v${pack.packVersion}`),
+        modsField(pack, modCount)),
         h('div', { class: 'subtabs', role: 'tablist' },
             ...tabs.map(([id, label]) => h('button', {
                 class: 'subtab', role: 'tab', 'aria-selected': String(state.subtab === id),
-                onclick: () => { state.subtab = id; renderPackDetail(); Life?.enter($('#packContent'), ':scope > :not(.hero):not(.subtabs)', 70) }
+                onclick: () => { state.subtab = id; renderPackDetail(); Life?.enter($('#packContent'), ':scope > :not(.cockpit):not(.subtabs)', 70) }
             }, label))),
         state.subtab === 'settings' ? settingsForm(pack)
             : state.subtab === 'appearance' ? appearanceView(pack)
@@ -562,6 +602,41 @@ function renderPackDetail() {
     if (state.subtab === 'protection') loadProtection()
     if (state.subtab === 'files') loadFiles()
     if (state.subtab === 'profiles') loadProfiles()
+}
+
+/** A data capsule: the label small, the value in dot-matrix, a line under it. The tone is halftone dots pooled in a corner. */
+function capsule(name, value, sub) {
+    return h('div', { class: 'capsule' },
+        h('span', { class: 'k' }, name),
+        h('span', { class: 'v', style: `--n:${Math.max(4, String(value).length)}` }, value),
+        h('span', { class: 'sub' }, sub || ' '))
+}
+
+const DOTS_MAX = 120
+
+/**
+ * The mods as a field of dots, one dot per mod (or one per few when there are hundreds): solid = required, half = optional and on,
+ * ring = optional and off. The legend lights its kind on hover and opens the Mods tab.
+ */
+function modsField(pack, modCount) {
+    const { required, optionalon, optionaloff } = pack.counts
+    const per = Math.max(1, Math.ceil(modCount / DOTS_MAX))
+    const dots = []
+    const add = (kind, n) => { for (let i = 0; i < Math.ceil(n / per); i++) dots.push(h('i', { class: kind, style: `--i:${dots.length}` })) }
+    add('req', required)
+    add('on', optionalon)
+    add('off', optionaloff)
+    const grid = h('div', { class: 'dotgrid', role: 'img', 'aria-label': `${required} obligatorios, ${optionalon} opcionales activados, ${optionaloff} opcionales apagados` }, ...dots)
+    const focus = (kind) => () => { if (kind) grid.dataset.focus = kind; else delete grid.dataset.focus }
+    const key = (kind, label, n) => h('button', {
+        type: 'button', class: `legend-key ${kind}`, onmouseenter: focus(kind), onmouseleave: focus(), onfocus: focus(kind), onblur: focus(),
+        onclick: () => { state.subtab = 'mods'; renderPackDetail(); Life?.enter($('#packContent'), ':scope > :not(.cockpit):not(.subtabs)', 70) }
+    }, h('i', { class: kind, 'aria-hidden': 'true' }), label, h('b', { class: 'tnum' }, String(n)))
+    return h('section', { class: 'module mods-field' },
+        h('div', { class: 'module-head' }, h('h2', {}, 'Mods'), h('span', { class: 'mods-total' }, String(modCount))),
+        grid,
+        h('div', { class: 'legend' }, key('req', 'Obligatorios', required), key('on', 'Opcionales', optionalon), key('off', 'Apagados', optionaloff)),
+        per > 1 ? h('p', { class: 'muted small-help' }, `1 punto = ${per} mods`) : null)
 }
 
 /** A pill you press to switch one thing on or off. It saves at once (these are not part of the form's draft). */
@@ -1281,8 +1356,9 @@ function markPipeline(key) {
 
 function renderPipeline() {
     const busy = !!state.running
-    const footer = $('#pipeline')
-    footer.hidden = state.tab === 'notices'   // Avisos has its own publish button
+    const dock = $('#pipeline')
+    const footer = $('#pipelineSteps')
+    dock.hidden = state.tab === 'notices'   // Avisos has its own publish button
     if (state.tab === 'notices') return
 
     if (state.tab === 'packs') {
@@ -1339,6 +1415,7 @@ function renderPipeline() {
             h('button', { class: `btn ${canSend ? 'primary' : ''} big`, disabled: busy || !canSend, onclick: sendLauncher }, withIcon('send', 'Enviar')),
             h('span', { class: 'hint' }, build ? (build.sent ? `v${build.version} ya está publicada` : 'Sube la versión a GitHub para que se actualicen') : 'Primero compila')))
     markPipeline('launcher')
+    renderStatus()
 }
 
 function compilePacks() {
@@ -1402,18 +1479,17 @@ function renderLauncher() {
         return true
     })()
 
-    const tile = (name, value, sub) => h('div', { class: 'tile' }, h('span', { class: 'k' }, name), h('span', { class: 'v' }, value), sub ? h('span', { class: 'sub' }, sub) : null)
     box.replaceChildren(...[
         h('section', { class: 'module hero span2' },
             h('div', { class: 'pack-head' },
                 h('div', { class: 'grow' },
                     h('h1', {}, 'Publicar el launcher'),
                     h('p', { class: 'muted' }, 'Una versión nueva llega a todos los jugadores como actualización.'))),
-            h('div', { class: 'tiles' },
-                tile('En tu código', `v${info.version}`),
-                tile('Publicada en GitHub', info.latestTag || '-'),
-                tile('Sin subir', String(info.dirty), info.dirty > 0 ? 'archivos modificados' : 'nada pendiente'),
-                tile('Se publicará', `v${launcherVersion()}`))),
+            h('div', { class: 'capsules four' },
+                capsule('En tu código', `v${info.version}`),
+                capsule('Publicada en GitHub', info.latestTag || '-'),
+                capsule('Sin subir', String(info.dirty), info.dirty > 0 ? 'archivos modificados' : 'nada pendiente'),
+                capsule('Se publicará', `v${launcherVersion()}`))),
         h('section', { class: 'module' },
             h('div', { class: 'module-head' }, h('h2', {}, 'Versión nueva')),
             h('p', { class: 'muted' }, 'Cuánto cambia el número decide cómo se presenta la actualización.'),
@@ -1462,6 +1538,8 @@ function sendLauncher() {
 
 const newPack = {
     loader: 'fabric', token: 0, mcLoaded: false, timer: null, preferVersion: null,
+    // keepLoader: a zip's own loader is not swapped on the next lookup; unavailable: why the chosen loader can not be used for this Minecraft
+    keepLoader: false, unavailable: null,
     // "Importar desde zip": zipImportId is only set once the server has the upload staged and told us what is inside.
     zipImportId: null, zipBusy: false, zipProposal: null, zipCounts: null, zipSizeBytes: 0, zipSkipped: [], zipError: null
 }
@@ -1552,11 +1630,8 @@ async function uploadZipForImport(file) {
             const p = result.proposal
             if (p && p.minecraft) { $('#npMc').value = p.minecraft }
             if (p && p.loader) {
-                newPack.loader = p.loader
-                for (const button of $('#npLoader').children) {
-                    button.classList.toggle('active', button.dataset.value === p.loader)
-                    button.setAttribute('aria-checked', String(button.dataset.value === p.loader))
-                }
+                setLoader(p.loader)
+                newPack.keepLoader = true
             }
             newPack.preferVersion = p && p.source === 'log' ? p.loaderVersion : null
             if (!$('#npName').value.trim()) $('#npName').value = file.name.replace(/\.zip$/i, '')
@@ -1580,20 +1655,52 @@ function updateNewPackPreview() {
     const mc = $('#npMc').value.trim() || '1.21.11'
     $('#npNameHint').textContent = `Se creará como ${id}-${mc}. Sin espacios ni símbolos raros.`
     $('#npCommand').textContent = `nebula generate server ${id} ${mc} --${newPack.loader} ${loaderVersionValue() || '…'}`
+    $('#npCreate').disabled = !!newPack.unavailable
 }
+
+// When the loader in use does not exist for a Minecraft version, the closest one that does: its sibling first (Forge <-> NeoForge), then the rest.
+const LOADER_FALLBACK = { fabric: ['forge', 'neoforge'], forge: ['neoforge', 'fabric'], neoforge: ['forge', 'fabric'] }
+
+function setLoader(type) {
+    newPack.loader = type
+    for (const button of $('#npLoader').children) {
+        button.classList.toggle('active', button.dataset.value === type)
+        button.setAttribute('aria-checked', String(button.dataset.value === type))
+    }
+}
+
+/** Greys out the loaders that do not exist (or that Nebula can not build) for this Minecraft. `info` is null when the lookup failed: everything stays clickable. */
+function showLoaderAvailability(info) {
+    for (const button of $('#npLoader').children) {
+        const entry = info && info.loaders[button.dataset.value]
+        const off = !!entry && (entry.status === 'none' || entry.status === 'blocked')
+        button.disabled = off
+        button.title = off ? entry.reason : ''
+    }
+}
+
+/** A version the list really has: old Forge lists "10.13.4.1614-1.7.10" where a log or a promotion says "10.13.4.1614". */
+const matchVersion = (versions, wanted) => (wanted && versions.find((version) => version === wanted || version.startsWith(`${wanted}-`))) || null
 
 async function loadLoaderChoices() {
     const token = ++newPack.token
     const select = $('#npLoaderVersion')
     const custom = $('#npLoaderVersionCustom')
     const hint = $('#npLoaderHint')
+    const note = $('#npLoaderNote')
     const mc = $('#npMc').value.trim()
     // a zip import's exact loader version is offered only to the very next load: used if it fits, dropped either way after this
     const zipVersion = newPack.preferVersion
     newPack.preferVersion = null
+    // its loader likewise: what the zip's own log says is not swapped for another loader (it is explained below the buttons instead)
+    const keepLoader = newPack.keepLoader
+    newPack.keepLoader = false
 
     custom.hidden = true
+    note.textContent = ''
+    newPack.unavailable = null
     if (!/^\d+(\.\d+){1,2}$/.test(mc)) {
+        showLoaderAvailability(null)
         select.replaceChildren(h('option', {}, 'Escribe primero la versión de Minecraft'))
         select.disabled = true
         hint.textContent = ''
@@ -1602,23 +1709,59 @@ async function loadLoaderChoices() {
 
     select.disabled = true
     select.replaceChildren(h('option', {}, 'Buscando versiones…'))
-    try {
-        const { versions, recommended } = await api(`/api/versions/loader?type=${newPack.loader}&mc=${mc}`)
+
+    // one question for the three loaders at once; if it fails (offline) the per-loader lookup below still works
+    let info = null
+    try { info = await api(`/api/versions/support?mc=${encodeURIComponent(mc)}`) } catch { /* fall back to asking loader by loader */ }
+    if (token !== newPack.token) return
+    showLoaderAvailability(info)
+
+    if (info) {
+        const missing = (type) => info.loaders[type].status === 'none' || info.loaders[type].status === 'blocked'
+        if (missing(newPack.loader) && !keepLoader) {
+            const next = LOADER_FALLBACK[newPack.loader].find((type) => !missing(type))
+            if (next) {
+                note.textContent = `${info.loaders[newPack.loader].reason} Cambié a ${LOADER_NAMES[next]}.`
+                setLoader(next)
+            } else {
+                note.textContent = `Para Minecraft ${mc} no hay ningún loader que se pueda armar.`
+            }
+        }
+    }
+
+    let entry
+    if (info) {
+        entry = info.loaders[newPack.loader]
+    } else {
+        try {
+            entry = { status: 'ok', ...(await api(`/api/versions/loader?type=${newPack.loader}&mc=${encodeURIComponent(mc)}`)) }
+            if (entry.versions.length === 0) entry = { status: 'unknown', reason: `No encontré versiones de ${LOADER_NAMES[newPack.loader]} para Minecraft ${mc}.` }
+        } catch (err) {
+            entry = { status: 'unknown', reason: err.message }
+        }
         if (token !== newPack.token) return
-        if (versions.length === 0) throw new Error(`No encontré versiones de ${LOADER_NAMES[newPack.loader]} para Minecraft ${mc}.`)
+    }
+
+    if (entry.status === 'ok') {
         // a zip import that read the exact loader version out of a played log wins over "recommended", so the pack keeps the mods' own version
-        const prefer = zipVersion && versions.includes(zipVersion) ? zipVersion : recommended
+        const prefer = matchVersion(entry.versions, zipVersion) || entry.recommended
+        const shown = entry.versions.slice(0, 60)
+        if (!shown.includes(prefer)) shown.push(prefer)
         select.replaceChildren(
-            ...versions.slice(0, 60).map((version) => h('option', { value: version, selected: version === prefer }, version === prefer ? `${version} (${version === recommended ? 'recomendada' : 'la del zip'})` : version)),
+            ...shown.map((version) => h('option', { value: version, selected: version === prefer }, version === prefer ? `${version} (${version === entry.recommended ? 'recomendada' : 'la del zip'})` : version)),
             h('option', { value: '__custom' }, 'Otra versión…'))
         select.disabled = false
         hint.textContent = ''
-    } catch (err) {
-        if (token !== newPack.token) return
+    } else if (entry.status === 'none' || entry.status === 'blocked') {
+        newPack.unavailable = entry.reason
+        select.replaceChildren(h('option', { value: '' }, 'No disponible para esta versión'))
+        select.disabled = true
+        hint.textContent = entry.reason
+    } else {
         select.replaceChildren(h('option', { value: '__custom' }, 'Escribir a mano'))
         select.disabled = false
         custom.hidden = false
-        hint.textContent = err.message
+        hint.textContent = entry.reason
     }
     updateNewPackPreview()
 }
@@ -1657,12 +1800,8 @@ $('#npMc').addEventListener('input', () => {
 })
 $('#npLoader').addEventListener('click', (event) => {
     const button = event.target.closest('button')
-    if (!button) return
-    newPack.loader = button.dataset.value
-    for (const other of $('#npLoader').children) {
-        other.classList.toggle('active', other === button)
-        other.setAttribute('aria-checked', String(other === button))
-    }
+    if (!button || button.disabled) return
+    setLoader(button.dataset.value)
     loadLoaderChoices()
 })
 $('#npLoaderVersion').addEventListener('change', () => {
@@ -1687,6 +1826,7 @@ $('#newPackForm').addEventListener('submit', (event) => {
     const minecraft = $('#npMc').value.trim()
     const loaderVersion = loaderVersionValue()
     if (!id) return toast('Ponle un nombre al modpack.', true)
+    if (newPack.unavailable) return toast(newPack.unavailable, true)
     if (!loaderVersion || loaderVersion === '__custom') return toast('Elige la versión del loader.', true)
 
     const importId = newPack.zipImportId
@@ -1732,13 +1872,13 @@ $('#settingsForm').addEventListener('submit', async (event) => {
 
 // ------------------------------------------------------------------ tabs & boot
 
-$('#mainTabs').addEventListener('click', (event) => {
-    const button = event.target.closest('.tab')
-    if (!button) return
-    state.tab = button.dataset.tab
+function goTab(name) {
+    if (!VIEW_NAMES[name]) return
+    state.tab = name
     document.body.dataset.view = state.tab
     for (const tab of $('#mainTabs').children) {
-        if (tab === button) tab.setAttribute('aria-current', 'page')
+        if (!tab.dataset || !tab.dataset.tab) continue
+        if (tab.dataset.tab === name) tab.setAttribute('aria-current', 'page')
         else tab.removeAttribute('aria-current')
     }
     $('#tab-packs').hidden = state.tab !== 'packs'
@@ -1746,9 +1886,135 @@ $('#mainTabs').addEventListener('click', (event) => {
     $('#tab-notices').hidden = state.tab !== 'notices'
     if (state.tab === 'notices') noticesEnter()
     renderPipeline()
+    renderCrumb()
     Life?.ink($('#mainTabs'), 'main', '.tab[aria-current]', 0)
     Life?.enter(state.tab === 'launcher' ? $('#launcherContent') : state.tab === 'notices' ? $('#noticesContent') : $('#packContent'), ':scope > *', 70)
     Life?.refresh()
+}
+
+$('#mainTabs').addEventListener('click', (event) => {
+    const button = event.target.closest('.tab')
+    if (button) goTab(button.dataset.tab)
+})
+
+$('#packSearch').addEventListener('input', (event) => {
+    state.packFilter = event.target.value
+    renderPackList()
+    Life?.refresh()
+})
+
+// ------------------------------------------------------------------ command palette (Ctrl K)
+
+const cmd = { items: [], shown: [], index: 0 }
+const fold = (text) => String(text).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
+/** Everything you can jump to or do, as it stands right now (a list is built each time the palette opens). */
+function commandItems() {
+    const items = []
+    const busy = !!state.running
+    for (const pack of state.packs) {
+        items.push({
+            group: 'Modpacks', icon: 'package', label: pack.name, keywords: `${pack.id} modpack`,
+            hint: `${LOADER_NAMES[pack.loader.type] || '?'} · MC ${pack.minecraft}${pack.active === false ? ' · desactivado' : ''}`,
+            run: () => { goTab('packs'); selectPack(pack.id) }
+        })
+    }
+    items.push(
+        { group: 'Ir a', icon: 'package', label: 'Modpacks', hint: 'Sección', run: () => goTab('packs') },
+        { group: 'Ir a', icon: 'rocket', label: 'Launcher', hint: 'Publicar una versión nueva', run: () => goTab('launcher') },
+        { group: 'Ir a', icon: 'bell', label: 'Avisos', hint: 'Páginas y avisos para los jugadores', run: () => goTab('notices') },
+        { group: 'Acciones', icon: 'plus', label: 'Nuevo modpack', hint: 'Desde cero o desde un zip', keywords: 'crear', run: () => { goTab('packs'); $('#newPackBtn').click() } })
+    const { compiled, stale } = state.packsStatus
+    const fresh = !!compiled && !stale
+    const canSend = fresh && !compiled.sentAt && compiled.changes.total > 0
+    if (!busy && state.packs.length) items.push({ group: 'Acciones', icon: 'package', label: fresh ? 'Compilar modpacks de nuevo' : 'Compilar modpacks', hint: 'Paso 2 de publicar', keywords: 'compile build', run: () => { goTab('packs'); compilePacks() } })
+    if (!busy && canSend) items.push({ group: 'Acciones', icon: 'send', label: 'Enviar modpacks', hint: `${plural(compiled.changes.total, 'cambio', 'cambios')} listos`, keywords: 'publicar subir push', run: () => { goTab('packs'); sendPacks() } })
+    items.push(
+        { group: 'Acciones', icon: 'shieldCheck', label: 'Verificar publicación', hint: 'Que lo publicado esté donde los jugadores lo leen', run: () => $('#verifyBtn').click() },
+        { group: 'Acciones', icon: 'sliders', label: 'Ajustes', hint: 'Carpetas, fondo y color de los puntos', keywords: 'configuracion', run: () => $('#settingsBtn').click() },
+        { group: 'Acciones', icon: 'wave', label: 'Movimiento del fondo', hint: 'Vivo o tranquilo', keywords: 'animacion calmar', run: () => $('#lifeBtn').click() })
+    return items
+}
+
+function paintCommands() {
+    const list = $('#cmdList')
+    const tokens = fold($('#cmdInput').value).split(/s+/).filter(Boolean)
+    cmd.shown = cmd.items.filter((item) => {
+        const hay = fold(`${item.label} ${item.hint || ''} ${item.keywords || ''} ${item.group}`)
+        return tokens.every((token) => hay.includes(token))
+    }).slice(0, 40)
+    cmd.index = Math.min(cmd.index, Math.max(0, cmd.shown.length - 1))
+    if (cmd.shown.length === 0) {
+        list.replaceChildren(h('p', { class: 'cmd-empty muted' }, 'Nada coincide con eso.'))
+        return
+    }
+    let group = null
+    const nodes = []
+    cmd.shown.forEach((item, i) => {
+        if (item.group !== group) { group = item.group; nodes.push(h('div', { class: 'cmd-group', role: 'presentation' }, group)) }
+        nodes.push(h('button', {
+            type: 'button', class: 'cmd-item', role: 'option', id: `cmdItem${i}`, 'aria-selected': String(i === cmd.index),
+            onpointermove: () => { if (cmd.index !== i) { cmd.index = i; markCommand() } },
+            onclick: () => runCommand(i)
+        }, icon(item.icon), h('span', { class: 'cmd-label' }, item.label), item.hint ? h('span', { class: 'cmd-hint' }, item.hint) : null))
+    })
+    list.replaceChildren(...nodes)
+    markCommand()
+}
+
+function markCommand() {
+    for (const [i, el] of [...document.querySelectorAll('#cmdList .cmd-item')].entries()) {
+        el.setAttribute('aria-selected', String(i === cmd.index))
+        if (i === cmd.index) { el.scrollIntoView({ block: 'nearest' }); $('#cmdInput').setAttribute('aria-activedescendant', el.id) }
+    }
+}
+
+function runCommand(i) {
+    const item = cmd.shown[i]
+    if (!item) return
+    closeCommands()
+    // let the palette finish closing first: some actions open a dialog of their own
+    setTimeout(() => item.run(), 30)
+}
+
+function openCommands() {
+    const dialog = $('#cmdDialog')
+    if (dialog.open) return
+    if (document.querySelector('dialog[open]')) return
+    cmd.items = commandItems()
+    cmd.index = 0
+    $('#cmdInput').value = ''
+    paintCommands()
+    dialog.showModal()
+    $('#cmdInput').focus()
+}
+
+function closeCommands() {
+    const dialog = $('#cmdDialog')
+    if (dialog.open) dialog.close()
+}
+
+$('#cmdBtn').addEventListener('click', openCommands)
+$('#cmdInput').addEventListener('input', () => { cmd.index = 0; paintCommands() })
+$('#cmdInput').addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault()
+        if (cmd.shown.length === 0) return
+        cmd.index = (cmd.index + (event.key === 'ArrowDown' ? 1 : -1) + cmd.shown.length) % cmd.shown.length
+        markCommand()
+    } else if (event.key === 'Enter') {
+        event.preventDefault()
+        runCommand(cmd.index)
+    }
+})
+// a click on the backdrop (outside the panel) closes it
+$('#cmdDialog').addEventListener('click', (event) => { if (event.target === event.currentTarget) closeCommands() })
+document.addEventListener('keydown', (event) => {
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        if ($('#cmdDialog').open) closeCommands()
+        else openCommands()
+    }
 })
 
 // Dropping a file outside a drop zone must not make the browser navigate away to it.

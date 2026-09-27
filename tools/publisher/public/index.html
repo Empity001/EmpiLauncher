@@ -6,33 +6,44 @@
     <meta name="color-scheme" content="dark">
     <title>Empi Publisher</title>
     <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/workbench.css">
 </head>
 <body>
     <canvas id="life" class="life" aria-hidden="true"></canvas>
     <div id="offline" class="offline" role="alert" hidden>El Publisher se cerró. Ábrelo de nuevo con su acceso directo y recarga esta página.</div>
 
-    <header class="topbar">
-        <div class="brand">
-            <!-- a dot-matrix E; one row slipped sideways, one dot lit -->
-            <svg class="logo" viewBox="0 0 20 28" aria-hidden="true" fill="currentColor">
-                <g><circle cx="2" cy="2" r="1.6"/><circle cx="6" cy="2" r="1.6"/><circle cx="10" cy="2" r="1.6"/><circle cx="14" cy="2" r="1.6"/><circle cx="18" cy="2" r="1.6"/>
-                <circle cx="2" cy="6" r="1.6"/><circle cx="2" cy="10" r="1.6"/>
-                <circle cx="2" cy="14" r="1.6"/><circle cx="6" cy="14" r="1.6"/><circle cx="10" cy="14" r="1.6"/><circle cx="14" cy="14" r="1.6"/>
-                <circle cx="2" cy="18" r="1.6"/><circle cx="2" cy="22" r="1.6"/>
-                <circle cx="2" cy="26" r="1.6"/><circle cx="6" cy="26" r="1.6"/><circle cx="10" cy="26" r="1.6"/><circle cx="14" cy="26" r="1.6"/></g>
-                <circle cx="18" cy="26" r="1.6" fill="#ff3d8b"/>
-            </svg>
-            <span>Empi Publisher</span>
+    <div class="shell">
+    <!-- the rail: where you are, always one press away -->
+    <nav class="rail" aria-label="Secciones">
+        <!-- a dot-matrix E; one row slipped sideways, one dot lit -->
+        <svg class="logo" viewBox="0 0 20 28" aria-hidden="true" fill="currentColor">
+            <g><circle cx="2" cy="2" r="1.6"/><circle cx="6" cy="2" r="1.6"/><circle cx="10" cy="2" r="1.6"/><circle cx="14" cy="2" r="1.6"/><circle cx="18" cy="2" r="1.6"/>
+            <circle cx="2" cy="6" r="1.6"/><circle cx="2" cy="10" r="1.6"/>
+            <circle cx="2" cy="14" r="1.6"/><circle cx="6" cy="14" r="1.6"/><circle cx="10" cy="14" r="1.6"/><circle cx="14" cy="14" r="1.6"/>
+            <circle cx="2" cy="18" r="1.6"/><circle cx="2" cy="22" r="1.6"/>
+            <circle cx="2" cy="26" r="1.6"/><circle cx="6" cy="26" r="1.6"/><circle cx="10" cy="26" r="1.6"/><circle cx="14" cy="26" r="1.6"/></g>
+            <circle cx="18" cy="26" r="1.6" fill="#ff3d8b"/>
+        </svg>
+        <div class="tabs" id="mainTabs" data-axis="y">
+            <button class="tab active" data-tab="packs" aria-current="page"><span data-icon="package"></span><span class="tab-label">Modpacks</span></button>
+            <button class="tab" data-tab="launcher"><span data-icon="rocket"></span><span class="tab-label">Launcher</span></button>
+            <button class="tab" data-tab="notices"><span data-icon="bell"></span><span class="tab-label">Avisos</span></button>
         </div>
-        <nav class="tabs" id="mainTabs" aria-label="Secciones">
-            <button class="tab active" data-tab="packs" aria-current="page">Modpacks</button>
-            <button class="tab" data-tab="launcher">Launcher</button>
-            <button class="tab" data-tab="notices">Avisos</button>
-        </nav>
-        <button class="btn small" id="verifyBtn" title="Comprueba que lo que publicaste está de verdad donde los jugadores lo leen">Verificar publicación</button>
+        <div class="rail-foot">
+            <button class="icon-btn" id="lifeBtn" aria-pressed="true" aria-label="Movimiento del fondo" title="Movimiento" data-icon="wave"></button>
+            <button class="icon-btn" id="settingsBtn" aria-label="Ajustes" title="Ajustes" data-icon="sliders"></button>
+        </div>
+    </nav>
+
+    <div class="workspace">
+    <header class="topbar">
+        <div class="brand"><span>Empi Publisher</span></div>
+        <div class="crumb" id="crumb" aria-live="polite"></div>
+        <button class="cmd-trigger" id="cmdBtn" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K">
+            <span data-icon="search"></span><span class="cmd-text">Buscar modpack o acción</span><kbd>Ctrl K</kbd>
+        </button>
         <div class="health" id="health" role="status"></div>
-        <button class="icon-btn" id="lifeBtn" aria-pressed="true" aria-label="Movimiento del fondo" title="Movimiento" data-icon="wave"></button>
-        <button class="icon-btn" id="settingsBtn" aria-label="Ajustes" title="Ajustes" data-icon="sliders"></button>
+        <button class="btn small" id="verifyBtn" title="Comprueba que lo que publicaste está de verdad donde los jugadores lo leen"><span data-icon="shieldCheck"></span>Verificar publicación</button>
     </header>
 
     <main>
@@ -45,9 +56,9 @@
                         <span class="chip tnum" id="packCount" aria-label="Cantidad de modpacks"></span>
                         <button class="btn paper small" id="newPackBtn"><span data-icon="plus"></span>Nuevo</button>
                     </div>
+                    <input type="search" id="packSearch" class="pack-search" placeholder="Filtrar modpacks" aria-label="Filtrar modpacks" autocomplete="off">
                     <div id="packList" class="pack-list"></div>
                 </section>
-                <section class="module status-module" id="statusModule" aria-label="Estado de la publicación"></section>
             </aside>
 
             <div class="content">
@@ -84,6 +95,7 @@
                             <button type="button" role="radio" aria-checked="false" data-value="forge">Forge</button>
                             <button type="button" role="radio" aria-checked="false" data-value="neoforge">NeoForge</button>
                         </div>
+                        <small class="muted" id="npLoaderNote"></small>
                     </div>
 
                     <label>Versión del loader
@@ -113,9 +125,15 @@
         <section id="tab-notices" class="single wide" hidden>
             <div id="noticesContent"></div>
         </section>
-    </main>
 
-    <footer class="pipeline" id="pipeline" aria-label="Pasos para publicar"></footer>
+        <!-- Publishing: a console on the right when there is room, a dock at the bottom when there is not. -->
+        <aside class="pipeline" id="pipeline" aria-label="Publicar">
+            <section class="module status-module" id="statusModule" aria-label="Estado de la publicación"></section>
+            <div class="psteps" id="pipelineSteps"></div>
+        </aside>
+    </main>
+    </div>
+    </div>
 
     <!-- Live progress of whatever is running -->
     <aside class="activity" id="activity" role="dialog" aria-labelledby="activityTitle" hidden>
@@ -168,6 +186,13 @@
                 <button type="submit" class="btn paper">Guardar</button>
             </div>
         </form>
+    </dialog>
+
+    <!-- Ctrl K: jump to a modpack, a section or an action -->
+    <dialog id="cmdDialog" class="cmd" aria-label="Buscar">
+        <div class="cmd-search"><span data-icon="search"></span><input id="cmdInput" type="text" placeholder="Escribe un modpack o una acción" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="true" aria-controls="cmdList" aria-autocomplete="list"></div>
+        <div class="cmd-list" id="cmdList" role="listbox"></div>
+        <div class="cmd-foot"><span><kbd>↑</kbd><kbd>↓</kbd> moverse</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
     </dialog>
 
     <div id="toast" class="toast" role="status" hidden></div>

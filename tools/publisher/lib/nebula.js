@@ -5,6 +5,7 @@ const { spawn } = require('child_process')
 const { runNode } = require('./exec')
 const { readJson, writeJson } = require('./config')
 const { normalizeRam } = require('./ram')
+const versions = require('./versions')
 // The one table for "which Java does this Minecraft version want" lives in the engine (engine/src/lib/javareq.js); the Publisher
 // reuses it instead of keeping its own copy, so the two can never quietly drift apart the way the launcher's own open-ended ranges
 // once did (see that file's own comment for the "Java from an unrelated newer modpack gets reused" bug this avoided).
@@ -98,10 +99,12 @@ async function generateDistro(config, log) {
  */
 function applyDefaultJavaOptions(distribution, log) {
     for (const server of distribution.servers || []) {
-        if (server.javaOptions) continue
+        // javaOptions can already exist with only a `ram` field (patchMeta wipes `supported`/`suggestedMajor` back to just `{ ram }`
+        // whenever the author picks "Automático" so this recomputes it fresh): only a real range means it does not need one.
+        if (server.javaOptions && server.javaOptions.supported) continue
         const guess = javareq.defaultFor(server.minecraftVersion)
         if (!guess) continue
-        server.javaOptions = { ...guess, distribution: 'TEMURIN' }
+        server.javaOptions = { ...guess, distribution: 'TEMURIN', ...(server.javaOptions && server.javaOptions.ram ? { ram: server.javaOptions.ram } : {}) }
         if (log) log(`${server.name || server.id}: Java ${guess.suggestedMajor} automático (según su Minecraft ${server.minecraftVersion}).`)
     }
 }
@@ -381,6 +384,12 @@ async function createPack(config, options, log, step) {
     if (!/^\d+(\.\d+){1,2}$/.test(minecraft || '')) throw new Error('La version de Minecraft debe verse como 1.21.11.')
     if (!LOADERS.includes(loader)) throw new Error('Elige Fabric, Forge o NeoForge.')
     if (!loaderVersion || !String(loaderVersion).trim()) throw new Error('Falta la version del loader.')
+
+    // `nebula g server` writes servermeta.json for any combination without checking it, and the mistake only shows at compile time
+    // (Fabric on 1.12.2, Forge on a Minecraft it can't build...). Say it now, with the reason. A lookup that could not be made
+    // ("unknown", e.g. offline) lets Nebula try anyway rather than blocking the author over a network hiccup.
+    const found = (await versions.support(minecraft)).loaders[loader]
+    if (found.status === 'none' || found.status === 'blocked') throw new Error(`${found.reason} No creé el modpack.`)
 
     const effectiveId = `${id}-${minecraft}`
     if (fs.existsSync(path.join(serversDir(config), effectiveId))) {

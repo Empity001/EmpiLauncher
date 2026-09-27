@@ -203,6 +203,9 @@ label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--t
 .segmented button { background: none; border: 0; color: var(--text-2); font: inherit; padding: 6px 16px; cursor: pointer; transition: background .1s var(--ease), color .1s var(--ease); }
 .segmented button:hover { color: var(--text); }
 .segmented button.active { background: var(--text); color: var(--bg); font-weight: 700; }
+/* a loader that does not exist for the chosen Minecraft (the form says why in its title and in the note under it) */
+.segmented button:disabled { opacity: .35; cursor: not-allowed; text-decoration: line-through; }
+.segmented button:disabled:hover { color: var(--text-2); }
 
 /* ------------------------------------------------------------ sidebar */
 .pack-list { display: flex; flex-direction: column; gap: 6px; }
@@ -595,7 +598,7 @@ button.pname { cursor: pointer; }
 
 /* ============================================================ modular UI (modules on the living ground)
    Dark translucent modules so the dot field reads through their edges, pills and circles for everything you press,
-   Geist Mono for data and chrome, Doto for big numerals and titles, hatched bars where a share is shown.
+   Geist Mono for data and chrome, Doto for big numerals and titles, and a field of dots where a share is shown.
    Corner rule: modules 22px, inputs 12px, everything pressable is a pill or a circle. */
 @font-face {
     font-family: 'Geist Mono';
@@ -614,7 +617,6 @@ button.pname { cursor: pointer; }
     --hair-strong: rgb(241 239 232 / .22);
     --spring: cubic-bezier(.34, 1.56, .64, 1);
     --pipeline-h: 112px;
-    --hatch: repeating-linear-gradient(135deg, rgb(241 239 232 / .55) 0 2px, transparent 2px 5px);
 }
 
 h1 { font: 700 30px/1.1 var(--font-dot); }
@@ -731,22 +733,12 @@ main { padding-bottom: calc(var(--pipeline-h) + 16px); }
 .stage i.on { background: var(--text); border-color: var(--text); }
 .stage i.next { border-color: var(--accent); background: var(--accent-tint); }
 
-/* the modpack: name, then four data tiles (numerals in Doto, hatched share for mods) */
+/* the modpack head (the capsules and the mods field are in workbench.css) */
 .hero { padding: 22px 24px 20px; margin-bottom: 0; background-image: radial-gradient(120% 170% at 0% 0%, rgb(241 239 232 / .08), transparent 55%); }
 .hero .pack-head { align-items: center; }
 .hero .pack-head p { margin-top: 4px; font-size: 13px; }
 .pack-head .icon-pick .pack-icon { width: 64px; height: 64px; border-radius: 18px; }
 .pack-head .icon-pick::after { border-radius: 18px; }
-.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 20px; }
-.tile { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 13px 14px 12px; border-radius: 16px; background: rgb(255 255 255 / .04); border: 1px solid var(--hair); }
-.tile .k { font: 500 11.5px/1.2 var(--font-mono); color: var(--text-3); }
-.tile .v { font: 700 24px/1.1 var(--font-dot); margin-top: 4px; overflow-wrap: anywhere; }
-.tile .sub { font: 11.5px/1.3 var(--font-mono); color: var(--text-2); }
-.mix { display: flex; gap: 2px; height: 8px; margin: 6px 0 2px; }
-.mix i { display: block; min-width: 4px; border-radius: 4px; }
-.mix .req { background: var(--text); }
-.mix .on { background: rgb(241 239 232 / .5); }
-.mix .off { background: var(--hatch); box-shadow: inset 0 0 0 1px rgb(241 239 232 / .35); }
 
 /* settings as a bento of modules */
 .bento { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
@@ -821,7 +813,6 @@ dialog { border-radius: 24px; border: 1px solid var(--hair-strong); }
     .layout { grid-template-columns: minmax(0, 1fr); padding: 16px 16px 8px; }
     .sidebar { position: static; }
     .bento, #launcherContent { grid-template-columns: minmax(0, 1fr); }
-    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .pipeline { width: calc(100vw - 16px); bottom: 8px; padding: 10px 12px; border-radius: 26px; }
     .activity { top: 6px; right: 6px; bottom: 6px; left: 6px; width: auto; }
     .topbar { height: 56px; }
@@ -837,9 +828,6 @@ dialog { border-radius: 24px; border: 1px solid var(--hair-strong); }
 .pipeline { background: rgb(14 15 17 / .95); }
 .activity { background: rgb(13 14 16 / .985); }
 .hero { padding: 16px 20px 16px; }
-.tiles { margin-top: 14px; gap: 8px; }
-.tile { padding: 10px 12px; }
-.tile .v { font-size: 21px; margin-top: 2px; }
 .form-pane { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px; max-width: 900px; align-items: start; }
 .form-pane > :first-child, .form-pane > .command-preview, .form-pane > .form-actions { grid-column: 1 / -1; }
 .form-pane > .form-actions { margin-top: 4px; }
@@ -858,7 +846,6 @@ dialog { border-radius: 24px; border: 1px solid var(--hair-strong); }
 @media (max-width: 520px) {
     .pinfo .btn { white-space: nowrap; padding-left: 10px; padding-right: 10px; }
     .pinfo .btn .i { display: none; }
-    .tile .v { font-size: 19px; }
     h1 { font-size: 24px; }
 }
 
