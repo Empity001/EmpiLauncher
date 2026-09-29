@@ -4,7 +4,9 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using System.Windows.Media.Imaging;
 using EmpiLauncher.App.Services;
+using EmpiLauncher.App.Styles;
 using EmpiLauncher.App.Themes;
 using EmpiLauncher.App.Views;
 using EmpiLauncher.Ipc;
@@ -27,6 +29,9 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        // The screen is kept as a texture: the background moving under it (every frame, all over the window) then never makes WPF draw
+        // the whole interface again, only put the texture back. Measured: the base style 4.1 % -> 2.7 % of one core, Celestial 18 % -> 13 %.
+        if (Environment.GetEnvironmentVariable("EMPI_UI_CACHE") != "0") ViewHost.CacheMode = new BitmapCache { EnableClearType = true, SnapsToDevicePixels = true };
         MinButton.Click += (_, _) => WindowState = WindowState.Minimized;
         MaxButton.Click += (_, _) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
         CloseButton.Click += (_, _) => Close();
@@ -62,7 +67,13 @@ public partial class MainWindow : Window
             if (e.Key != Key.Escape) return;
             if (ReportLayer.Visibility == Visibility.Visible) { HideReport(); e.Handled = true; }
             else if (NoticesLayer.Visibility == Visibility.Visible) { HideNotices(); e.Handled = true; }
+            else if (_backgroundOnly) { SetBackgroundOnly(false); e.Handled = true; }
         };
+        // "ver solo el fondo": the eye toggles it; the pointer resting (5 s) or leaving the window takes even the buttons away, moving brings them back
+        BackgroundOnlyButton.Click += (_, _) => SetBackgroundOnly(!_backgroundOnly);
+        _chromeRest.Tick += (_, _) => { _chromeRest.Stop(); ShowChrome(false); };
+        PreviewMouseMove += (_, _) => { if (!_backgroundOnly) return; ShowChrome(true); _chromeRest.Stop(); _chromeRest.Start(); };
+        MouseLeave += (_, _) => { if (!_backgroundOnly) return; _chromeRest.Stop(); ShowChrome(false); };
         // while the window is in front, EmpiPacks is asked for news every five minutes (a few KB, and nothing when it is hidden)
         _noticeTimer.Tick += async (_, _) => { if (IsActive && WindowState != WindowState.Minimized && _l.Connected && !_l.Game.Busy) await _l.RefreshNoticesAsync(); };
         UpdateButton.Click += (_, _) => ShowUpdateDialog();
@@ -202,12 +213,14 @@ public partial class MainWindow : Window
 
     // ---- views ----------------------------------------------------------------------------------------------------
 
-    private void ShowHome()
+    private void ShowHome() => ShowHome(quiet: false);
+
+    private void ShowHome(bool quiet)
     {
         if (_l.Notices?.Launcher.Blocked == true) { ShowBlocked(); return; }   // a launcher below the minimum plays nothing until it is updated
         if (_l.SignedOut) { ShowLogin(); return; }   // nobody plays until an account is chosen: "Listo" from Ajustes lands here too
         ReleaseSettings();
-        var home = new HomeView();
+        var home = new HomeView { SkipEntrance = quiet };
         home.OpenSettings += () => ShowSettings();
         ViewHost.Content = home;
         UpdateBackdrop();
@@ -242,9 +255,10 @@ public partial class MainWindow : Window
         else if (ViewHost.Content is LoginView) ShowHome();
     }
 
-    private void ShowSettings(string tab = "account")
+    private void ShowSettings(string tab = "account", double? restoreOffset = null)
     {
-        var view = new SettingsView(tab);
+        ReleaseSettings();
+        var view = restoreOffset is { } offset ? new SettingsView(tab, offset) : new SettingsView(tab);
         view.Done += ShowHome;
         view.TabLoaded += ScheduleTrim;
         _settings = view;
@@ -478,6 +492,7 @@ public partial class MainWindow : Window
     public void ShowDialog(string title, string message, params (string Label, Action? Action, bool Primary)[] buttons)
     {
         if (_dialogOpen) { _dialogQueue.Enqueue(() => ShowDialog(title, message, buttons)); return; }
+        if (_backgroundOnly) SetBackgroundOnly(false);   // something needs an answer: the interface comes back for it
         _dialogOpen = true;
         DialogTitle.Text = title;
         DialogMessage.Text = message;
@@ -709,6 +724,110 @@ public partial class MainWindow : Window
         // leaving is quicker than arriving (the player has already answered), and the buttons stop answering at once
         DialogLayer.IsHitTestVisible = false;
         Motion.Leave(DialogLayer, () => { if (!_dialogOpen) DialogLayer.Visibility = Visibility.Collapsed; }, 120);
+    }
+
+    // ---- styles -----------------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Ajustes > Launcher > Estilo. The background arrives its own way (StyleHost: a style coming in over the one going away, never a cut);
+    /// the interface is dressed again (StyleTheme) and the screen rebuilt under a picture of how it looked, which fades away: type, shapes
+    /// and colours all change together, with nothing jumping.
+    /// </summary>
+    public void ChangeStyle(string id)
+    {
+        var style = StyleCatalog.Get(id);
+        if (style.Id == StyleTheme.Current) return;
+        NativeSettings.Style = style.Id;
+        var picture = Snapshot();
+        StyleTheme.Apply(style.Id);
+        Launcher.RefreshAccent();
+        Field.Go(style.Id);
+        switch (ViewHost.Content)
+        {
+            case SettingsView settings: ShowSettings(settings.CurrentTab, settings.ScrollOffset); break;
+            case HomeView: ShowHome(quiet: true); break;
+            case LoginView: ShowLogin(); break;
+            case BlockedView: ShowBlocked(); break;
+        }
+        if (picture == null) return;
+        StyleSnapshot.Source = picture;
+        StyleSnapshot.Visibility = Visibility.Visible;
+        Motion.Animate(StyleSnapshot, OpacityProperty, 1, 0, 460, 0, Motion.Out, () => { if (StyleSnapshot.Opacity < 0.01) { StyleSnapshot.Visibility = Visibility.Collapsed; StyleSnapshot.Source = null; } });
+        Motion.Animate(ViewHost, OpacityProperty, 0, 1, 380, 70, Motion.Out);
+    }
+
+    /// <summary>"Usar el color del modpack": the modpack's colour wins, or the style's.</summary>
+    public void SetPackAccent(bool on)
+    {
+        NativeSettings.PackAccent = on;
+        Launcher.RefreshAccent();
+    }
+
+    /// <summary>The interface as it looks now, as a picture (for the crossfade into another style). Null when there is nothing to fade.</summary>
+    private RenderTargetBitmap? Snapshot()
+    {
+        if (!Motion.Enabled || ViewHost.ActualWidth < 1 || ViewHost.ActualHeight < 1 || _backgroundOnly) return null;
+        var dpi = VisualTreeHelper.GetDpi(this);
+        var size = new Size(ViewHost.ActualWidth, ViewHost.ActualHeight);
+        // through a brush, so the picture starts at the view's own corner and not at the window's
+        var visual = new DrawingVisual();
+        using (var dc = visual.RenderOpen()) dc.DrawRectangle(new VisualBrush(ViewHost) { Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top }, null, new Rect(size));
+        var bitmap = new RenderTargetBitmap((int)Math.Ceiling(size.Width * dpi.DpiScaleX), (int)Math.Ceiling(size.Height * dpi.DpiScaleY), dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        bitmap.Freeze();
+        return bitmap;
+    }
+
+    // ---- "ver solo el fondo" -----------------------------------------------------------------------------------------
+
+    private bool _backgroundOnly;
+    private bool _chromeShown = true;
+    private readonly DispatcherTimer _chromeRest = new() { Interval = TimeSpan.FromSeconds(5) };
+
+    /// <summary>
+    /// The eye in the title bar. On: the whole interface steps aside (the modpacks, the account, the logo, everything) and only the window's
+    /// buttons and the eye itself stay; once the pointer rests for five seconds, or leaves the window, those go too and only the background
+    /// is left. Moving the pointer brings the buttons back; the eye (or Esc) brings the interface back.
+    /// </summary>
+    public void SetBackgroundOnly(bool on)
+    {
+        if (on == _backgroundOnly) return;
+        _backgroundOnly = on;
+        BackgroundOnlyButton.ToolTip = on ? "Mostrar la interfaz" : "Ver solo el fondo";
+        System.Windows.Automation.AutomationProperties.SetName(BackgroundOnlyButton, on ? "Mostrar la interfaz" : "Ver solo el fondo");
+        foreach (var part in new UIElement[] { TitleLeft, MegaHost, ViewHost, NoticePopup, Toast })
+        {
+            if (on)
+            {
+                if (part.Visibility != Visibility.Visible) continue;
+                part.IsHitTestVisible = false;
+                // hidden once it has faded: the background then treats the space as open (no quiet zones, no glow around Play)
+                Motion.Animate(part, OpacityProperty, part.Opacity, 0, 320, 0, Motion.Out, () => { if (_backgroundOnly) part.Visibility = Visibility.Hidden; });
+            }
+            else
+            {
+                if (part.Visibility == Visibility.Hidden) part.Visibility = Visibility.Visible;
+                part.IsHitTestVisible = true;
+                Motion.Animate(part, OpacityProperty, part.Opacity, 1, 320, 0, Motion.Out);
+            }
+        }
+        if (!on && MegaHost.Visibility == Visibility.Hidden) MegaHost.Visibility = Visibility.Visible;
+        UpdateMega();
+        ShowChrome(true);
+        if (on) { _chromeRest.Stop(); _chromeRest.Start(); } else _chromeRest.Stop();
+    }
+
+    private void ShowChrome(bool shown)
+    {
+        if (!shown && !_backgroundOnly) return;
+        Cursor = shown ? null : Cursors.None;
+        if (shown == _chromeShown) return;
+        _chromeShown = shown;
+        foreach (var part in new UIElement[] { WindowButtons, BackgroundOnlyButton })
+        {
+            part.IsHitTestVisible = shown;
+            Motion.Animate(part, OpacityProperty, part.Opacity, shown ? 1 : 0, shown ? 180 : 420, 0, Motion.Out);
+        }
     }
 
     // ---- window ---------------------------------------------------------------------------------------------------

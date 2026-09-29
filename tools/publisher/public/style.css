@@ -352,6 +352,17 @@ label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--t
 .build-row { display: flex; align-items: center; gap: 12px; color: var(--text-2); }
 .build-row .i { color: var(--ok); }
 .build-row b { color: var(--text); font-weight: 500; }
+/* Pendientes: the launcher's styles, one update each */
+.style-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.style-choice { position: relative; gap: 4px; padding: 12px 12px 10px; min-height: 104px; }
+.style-choice b { font: 700 20px/1.1 var(--font-dot); display: flex; align-items: center; gap: 8px; }
+.style-choice b i { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--swatch); box-shadow: 0 0 0 2px rgb(255 255 255 / .08); }
+.style-choice .state { margin-top: auto; font: 500 11px/1.4 var(--font-mono); letter-spacing: .02em; }
+.style-choice .state.ready { color: var(--ok); }
+.style-choice:disabled { cursor: default; opacity: .55; }
+.style-choice:disabled:hover { background: var(--surface); transform: none; }
+.style-choice[aria-checked=true] .state { color: #47473f; }
+.style-choice.none b { font: 500 15px/1.2 var(--font-mono); }
 
 /* ------------------------------------------------------------ pipeline footer (frame, develop, print) */
 .pipeline {

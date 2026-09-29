@@ -29,7 +29,12 @@ public sealed record Visuals(Visual? Banner, Visual? Background, Visual? BannerP
 
 public sealed record Modpack(
     string Id, string Name, string Description, string? Icon, string MinecraftVersion, string Version,
-    bool MainServer, bool Whitelist, string? Address, string? Accent, Visuals Visuals, ProfilesInfo? Profiles = null, string? ProfileOf = null);
+    bool MainServer, bool Whitelist, string? Address, string? Accent, Visuals Visuals, ProfilesInfo? Profiles = null, string? ProfileOf = null,
+    int Mods = 0, string? Loader = null);
+
+/// <summary>Time played (stats.playtime): the last seven days, oldest first, and the whole total, in seconds. Playing: the modpack being played now.</summary>
+public sealed record PlayDay(string Date, int Weekday, int Seconds);
+public sealed record PlaytimeResult(List<PlayDay> Days, int TotalSeconds, string? Playing);
 
 /// <summary>The memory a modpack asks for, in megabytes.</summary>
 public sealed record ProfileRam(int MinimumMb, int MaximumMb);

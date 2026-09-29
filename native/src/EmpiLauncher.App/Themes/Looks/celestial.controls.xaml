@@ -1,0 +1,39 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- CELESTIAL's own control shapes, merged after Themes/Controls.xaml: surfaces with a foil edge, a foil Play button that drifts, and a
+         lighter, wider display type. A style that replaces one of the same name is written in full (a style cannot be based on its own key). -->
+
+    <Style x:Key="DisplayText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource DisplayFont}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource PaperBrush}"/>
+        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+    </Style>
+
+    <Style x:Key="Module" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource ModuleBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource HoloEdgeBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource RadiusModule}"/>
+        <Setter Property="Padding" Value="20,18"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource HoloEdgeStrongBrush}"/></Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="Pill" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource TintBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource HoloEdgeBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource PillRadius}}"/>
+        <Setter Property="Padding" Value="10,3"/>
+    </Style>
+
+    <!-- the main action is a holographic sticker: pastel foil drifting under dark violet ink -->
+    <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource GhostButton}">
+        <Setter Property="Background" Value="{DynamicResource HoloFillBrush}"/>
+        <Setter Property="Foreground" Value="#241433"/>
+        <Setter Property="FontFamily" Value="{DynamicResource DisplayFont}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+</ResourceDictionary>

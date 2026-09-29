@@ -301,9 +301,23 @@ public sealed class Launcher : IAsyncDisposable
         ApplyAccent(accent);
     }
 
-    /// <summary>The one colour of the interface: the modpack's accent, electric pink when it sets none.</summary>
+    /// <summary>The selected modpack's own colour, if it has one (the accent may still be the style's: see ApplyAccent).</summary>
+    public static string? PackAccentHex { get; private set; }
+
+    /// <summary>The modpack changed: its colour, if the player lets the modpack's colour win (Ajustes > Launcher > Estilo).</summary>
     public static void ApplyAccent(string? hex)
     {
+        PackAccentHex = hex;
+        RefreshAccent();
+    }
+
+    /// <summary>
+    /// The one colour of the interface: the modpack's accent when it has one and "Usar el color del modpack" is on, the style's own otherwise
+    /// (electric pink for the base style). Called again when the style or that switch changes.
+    /// </summary>
+    public static void RefreshAccent()
+    {
+        var hex = NativeSettings.PackAccent && !string.IsNullOrWhiteSpace(PackAccentHex) ? PackAccentHex : Styles.StyleCatalog.Get(Styles.StyleTheme.Current).AccentHex;
         Color color;
         try { color = (Color)ColorConverter.ConvertFromString(string.IsNullOrWhiteSpace(hex) ? "#ff3d8b" : hex); }
         catch { color = Color.FromRgb(0xff, 0x3d, 0x8b); }
@@ -321,7 +335,13 @@ public sealed class Launcher : IAsyncDisposable
         res["AccentBrush"] = Frozen(color);
         res["AccentInkBrush"] = Frozen(ink);
         res["AccentSoftBrush"] = Frozen(Color.FromArgb(0x29, color.R, color.G, color.B));
+        // the Play label reads on the accent, unless the style paints the button itself (Celestial's foil)
+        res["PlayInkBrush"] = Frozen(Styles.StyleTheme.PlayInk ?? ink);
+        AccentChanged?.Invoke();
     }
+
+    /// <summary>The accent was set again (another modpack, another style, the switch): drawings that cache it pick it up.</summary>
+    public static event Action? AccentChanged;
 
     // ---- accounts -------------------------------------------------------------------------------------------------
 

@@ -60,6 +60,9 @@ const state = {
     packsStatus: { compiled: null, stale: false },
     launcher: null,
     launcherChoice: 'patch',
+    // Pendientes: the style this release switches on (null: a normal update), and the notes it filled in (so they follow the version)
+    launcherStyle: null,
+    styleNotes: '',
     notes: '',
     commitMessage: '',
     running: null,
@@ -360,7 +363,17 @@ async function refreshStatus() {
 }
 
 async function refreshLauncher() {
+    const first = !state.launcher
     state.launcher = await api('/api/launcher')
+    // a style build compiled earlier and not sent yet: the page comes back with that style picked, so Enviar is right there
+    const build = state.launcher.build
+    if (first && build && !build.sent && build.style && !state.launcherStyle) {
+        state.launcherStyle = build.style
+        state.notes = state.styleNotes = build.notes || ''
+        const info = state.launcher
+        const choice = ['patch', 'minor', 'major'].find((k) => info.next[k] === build.version) || (info.version === build.version ? 'same' : null)
+        if (choice) state.launcherChoice = choice
+    }
 }
 
 async function refreshAll() {
@@ -425,7 +438,7 @@ function renderStatus() {
     const row = (name, value) => h('div', { class: 'kv' }, h('span', {}, name), h('b', { class: 'tnum' }, value))
     if (state.tab === 'launcher') {
         const info = state.launcher
-        const build = info && info.build && info.build.version === launcherVersion() && info.build.kind === launcherKind() ? info.build : null
+        const build = matchingBuild()
         const stageOfLauncher = !build ? 0 : build.sent ? 3 : 2
         box.replaceChildren(...[
             h('div', { class: 'module-head' }, h('h2', {}, 'Publicación'),
@@ -1400,8 +1413,8 @@ function renderPipeline() {
     }
 
     const info = state.launcher
-    // A compiled installer only counts if it is the version and the kind currently chosen above.
-    const build = info && info.build && info.build.version === launcherVersion() && info.build.kind === launcherKind() ? info.build : null
+    // A compiled installer only counts if it is the version, the kind and the style currently chosen above.
+    const build = matchingBuild()
     const other = info && info.build && !build ? info.build : null
     const canSend = !!build && !build.sent
     footer.replaceChildren(
@@ -1409,7 +1422,7 @@ function renderPipeline() {
         connector(true),
         step(2, { done: !!build, current: !build },
             h('button', { class: `btn ${build ? '' : 'primary'} big`, disabled: busy || !info, onclick: compileLauncher }, withIcon('package', build ? 'Compilar de nuevo' : 'Compilar')),
-            h('span', { class: 'hint tnum' }, build ? `Instalador v${build.version} listo (${formatSize(build.size)})` : other ? `Hay uno ${other.kind === 'native' ? 'nativo' : 'clásico'} de v${other.version}; para v${launcherVersion()} (${launcherKind() === 'native' ? 'nativo' : 'clásico'}) compila otra vez` : 'Genera el instalador (unos minutos)')),
+            h('span', { class: 'hint tnum' }, build ? `Instalador v${build.version} listo (${formatSize(build.size)})` : other && other.version === launcherVersion() && other.kind === launcherKind() ? `El compilado es ${other.style ? `del estilo ${styleName(other.style)}` : 'de una actualización sin estilo'}; compila otra vez` : other ? `Hay uno ${other.kind === 'native' ? 'nativo' : 'clásico'} de v${other.version}; para v${launcherVersion()} (${launcherKind() === 'native' ? 'nativo' : 'clásico'}) compila otra vez` : 'Genera el instalador (unos minutos)')),
         connector(!!build),
         step(3, { done: !!build && build.sent, current: canSend },
             h('button', { class: `btn ${canSend ? 'primary' : ''} big`, disabled: busy || !canSend, onclick: sendLauncher }, withIcon('send', 'Enviar')),
@@ -1443,6 +1456,53 @@ function launcherVersion() {
     return state.launcherChoice === 'same' ? info.version : info.next[state.launcherChoice]
 }
 
+/**
+ * The compiled installer, if it is the one the choices above describe: same version, same kind and, until it is sent, the same style
+ * (a build made for Oleaje is not the build for a normal update of the same number).
+ */
+function matchingBuild() {
+    const info = state.launcher
+    const build = info && info.build
+    if (!build || build.version !== launcherVersion() || build.kind !== launcherKind()) return null
+    return build.sent || (build.style || null) === (state.launcherStyle || null) ? build : null
+}
+
+function styleName(id) {
+    const style = state.launcher && (state.launcher.styles || []).find((s) => s.id === id)
+    return style ? style.name : id
+}
+
+/** A style's release notes, with the version they will go out in. */
+function styleNotes(style) {
+    return (style.notes || '').replace(/\{version\}/g, launcherVersion())
+}
+
+/**
+ * Picks a style from Pendientes (or none): its notes fill "Qué cambia" unless the author already wrote something of their own there,
+ * and a style is something new, so the version moves to "Menor" when it was on "Parche".
+ */
+function chooseStyle(id) {
+    const info = state.launcher
+    const style = id && (info.styles || []).find((s) => s.id === id)
+    const untouched = !state.notes.trim() || state.notes === state.styleNotes
+    state.launcherStyle = style ? style.id : null
+    if (style && state.launcherChoice === 'patch') state.launcherChoice = 'minor'
+    state.styleNotes = style ? styleNotes(style) : ''
+    if (untouched) state.notes = state.styleNotes
+    renderLauncher()
+    renderPipeline()
+    renderStatus()
+}
+
+/** The version changed: notes that came from a style follow it (they name the version in their title). */
+function refreshStyleNotes() {
+    const style = state.launcherStyle && (state.launcher.styles || []).find((s) => s.id === state.launcherStyle)
+    if (!style) return
+    const fresh = styleNotes(style)
+    if (state.notes === state.styleNotes) state.notes = fresh
+    state.styleNotes = fresh
+}
+
 /** Which installer is built: the native (WPF) launcher or the classic (Electron) one. Defaults to what the last build was, or native. */
 function launcherKind() {
     const info = state.launcher
@@ -1466,10 +1526,10 @@ function renderLauncher() {
 
     const choice = (id, title, detail) => h('button', {
         class: 'choice', role: 'radio', 'aria-checked': String(state.launcherChoice === id),
-        onclick: () => { state.launcherChoice = id; renderLauncher(); renderPipeline() }
+        onclick: () => { state.launcherChoice = id; refreshStyleNotes(); renderLauncher(); renderPipeline() }
     }, h('b', {}, id === 'same' ? info.version : info.next[id]), h('span', {}, `${title} · ${detail}`))
 
-    const chosen = info.build && info.build.version === launcherVersion() && info.build.kind === launcherKind() ? info.build : null
+    const chosen = matchingBuild()
     // players are offered a version only when it is higher than the one they have, which is the published one
     const notOffered = (() => {
         const published = (info.latestTag || '').replace(/^v/, '').split('.').map(Number)
@@ -1490,6 +1550,7 @@ function renderLauncher() {
                 capsule('Publicada en GitHub', info.latestTag || '-'),
                 capsule('Sin subir', String(info.dirty), info.dirty > 0 ? 'archivos modificados' : 'nada pendiente'),
                 capsule('Se publicará', `v${launcherVersion()}`))),
+        pendingStyles(info),
         h('section', { class: 'module' },
             h('div', { class: 'module-head' }, h('h2', {}, 'Versión nueva')),
             h('p', { class: 'muted' }, 'Cuánto cambia el número decide cómo se presenta la actualización.'),
@@ -1518,10 +1579,40 @@ function renderLauncher() {
     ].filter(Boolean))
 }
 
+/**
+ * Pendientes: every style of the launcher that is not out yet, each one its own update. Picking one fills "Qué cambia"; Compilar switches
+ * it on in that installer and Enviar publishes it. Styles still being made are shown but cannot be picked.
+ */
+function pendingStyles(info) {
+    const list = (info.styles || []).filter((s) => s.status !== 'base')
+    if (list.length === 0) return null
+    const pending = list.filter((s) => s.status !== 'published')
+    const out = list.filter((s) => s.status === 'published')
+    const stateText = (s) => s.status === 'ready' ? 'Listo para subir' : s.status === 'compiled' ? `En el instalador v${s.releasedIn}, falta enviarlo` : 'En preparación'
+    const card = (s) => h('button', {
+        class: 'choice style-choice', role: 'radio', 'aria-checked': String(state.launcherStyle === s.id), disabled: s.status === 'preparing',
+        style: `--swatch:${s.accent || 'var(--accent)'}`,
+        title: s.status === 'preparing' ? 'Este estilo todavía se está preparando en el launcher' : s.summary,
+        onclick: () => chooseStyle(state.launcherStyle === s.id ? null : s.id)
+    }, h('b', {}, h('i', { 'aria-hidden': 'true' }), s.name), h('span', {}, s.summary), h('span', { class: `state ${s.status}` }, stateText(s)))
+    const chosen = state.launcherStyle && list.find((s) => s.id === state.launcherStyle)
+    return h('section', { class: 'module span2' },
+        h('div', { class: 'module-head' }, h('h2', {}, 'Pendientes'), h('span', { class: 'chip tnum' }, `${pending.filter((s) => s.status !== 'preparing').length} listos · ${out.length} publicados`)),
+        h('p', { class: 'muted' }, 'Los estilos del launcher salen de uno en uno, cada uno como su propia actualización. Elige uno: se rellena “Qué cambia” y solo queda Compilar y Enviar. Pulsa otra vez para quitarlo.'),
+        pending.length
+            ? h('div', { class: 'style-choices', role: 'radiogroup', 'aria-label': 'Estilo que sale en esta versión', style: 'margin-top:14px' }, ...pending.map(card))
+            : h('p', { class: 'note' }, icon('checkCircle'), 'Todos los estilos ya están publicados.'),
+        chosen && launcherKind() !== 'native' ? h('p', { class: 'note' }, icon('alert'), 'Los estilos solo existen en el launcher nativo: elige el instalador Nativo abajo.') : null,
+        out.length ? h('p', { class: 'muted', style: 'margin-top:12px;font-size:12px' }, `Ya publicados: ${out.map((s) => `${s.name} (v${s.releasedIn})`).join(', ')}.`) : null)
+}
+
 function compileLauncher() {
     const version = launcherVersion()
-    runJob(`Compilar el launcher ${version}`, '/api/jobs/compile-launcher', { version, notes: state.notes, kind: launcherKind() }, () => {
-        showBanner('ok', `Instalador v${version} listo. Cierra esto y pulsa “Enviar” para publicarlo.`)
+    const style = state.launcherStyle
+    runJob(`Compilar el launcher ${version}${style ? ` con el estilo ${styleName(style)}` : ''}`, '/api/jobs/compile-launcher', { version, notes: state.notes, kind: launcherKind(), style }, () => {
+        // the code now carries that number: from here on it is "La misma", otherwise the page would offer the NEXT bump and hide Enviar
+        state.launcherChoice = 'same'
+        showBanner('ok', `Instalador v${version} listo${style ? ` con el estilo ${styleName(style)}` : ''}. Cierra esto y pulsa “Enviar” para publicarlo.`)
     })
 }
 
@@ -1530,6 +1621,8 @@ function sendLauncher() {
     const migrating = build.kind === 'native' && state.launcher.migrates
     if (!confirm(`¿Publicar el launcher v${build.version}? Los jugadores lo recibirán como actualización.${migrating ? '\n\nQuienes tengan el launcher viejo (Electron) se pasarán al nativo: se les instala el nuevo y se les quita el viejo.' : ''}`)) return
     runJob(`Enviar el launcher v${build.version}`, '/api/jobs/send-launcher', { notes: state.notes }, (result) => {
+        // the style is out: Pendientes starts clean for the next one
+        if (build.style) { state.launcherStyle = null; state.styleNotes = ''; state.notes = '' }
         showBanner('ok', 'Publicado. El launcher de los jugadores se actualizará solo.', result && result.url ? { icon: 'external', label: 'Ver en GitHub', run: () => window.open(result.url, '_blank') } : null)
     })
 }

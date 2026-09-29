@@ -53,6 +53,9 @@ public partial class HomeView : UserControl
 
     public event Action? OpenSettings;
 
+    /// <summary>Set by the window when the screen is only being dressed in another style: no entrance then.</summary>
+    public bool SkipEntrance { get; init; }
+
     public HomeView()
     {
         InitializeComponent();
@@ -68,7 +71,8 @@ public partial class HomeView : UserControl
                 foreach (var part in EntranceParts()) part.Opacity = 0;
                 SplashLayer.WhenRevealing(Entrance);
             }
-            else Entrance();
+            else if (!SkipEntrance) Entrance();
+            else _entranceAt = Environment.TickCount64;   // rebuilt in another style: it is simply there, under the crossfade
             Refresh(); RefreshBanner(); _status.Start(); _ = _l.RefreshStatusAsync();
             LivingField.NextAction = PlayButton;   // the main action glows in the modpack's accent
             LivingField.Quiet.Add(Hero);           // dots stay faint behind the title and the facts
@@ -272,9 +276,11 @@ public partial class HomeView : UserControl
     {
         var ms = animate ? 180 : 0;
         // the "off" fill is the paper colour at zero opacity, so it fades in and out through the paper colour and never through a grey
-        Motion.Tint(card.Back, on ? ColorOf("PaperColor") : Color.FromArgb(0, 0xF1, 0xEF, 0xE8), ms);
-        Motion.Tint(card.NameInk, on ? ColorOf("BgColor") : ColorOf("PaperColor"), ms);
-        Motion.Tint(card.MetaInk, on ? ColorOf("PaperInkColor") : ColorOf("Paper3Color"), ms);
+        // the colours are the style's (Themes/Looks): the base style's chosen card is paper with dark ink
+        var paper = ColorOf("CardOnColor");
+        Motion.Tint(card.Back, on ? paper : Color.FromArgb(0, paper.R, paper.G, paper.B), ms);
+        Motion.Tint(card.NameInk, on ? ColorOf("CardOnInkColor") : ColorOf("CardOffInkColor"), ms);
+        Motion.Tint(card.MetaInk, on ? ColorOf("CardOnMetaColor") : ColorOf("CardOffMetaColor"), ms);
     }
 
     private void RebuildRail()

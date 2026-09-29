@@ -32,6 +32,7 @@ internal static class FieldGovernor
     public static void Evaluate(Window? window)
     {
         Reason = Decide(window);
+        Styles.StyleTheme.SetMoving(Allowed);   // a style's moving foil (Celestial's title and Play) follows the same rule as the background
     }
 
     private static string Decide(Window? window)

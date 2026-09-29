@@ -63,12 +63,58 @@ internal static class NativeSettings
 
     public static void SaveRetired() => Save();
 
+    private static string? _style;
+
+    /// <summary>
+    /// The interface's style (Ajustes > Launcher > Estilo): "actual" by default. It lives here, not in the engine's preferences, because the
+    /// window is dressed in it before the engine has started. An id this build does not offer falls back to the base style (StyleCatalog).
+    /// </summary>
+    public static string Style
+    {
+        get => _style ??= ReadString("style") ?? "actual";
+        set { _style = value; Save(); }
+    }
+
+    private static bool? _packAccent;
+
+    /// <summary>Whether the modpack's own colour wins over the style's (on by default). Off: every style keeps its own colour.</summary>
+    public static bool PackAccent
+    {
+        get
+        {
+            if (_packAccent is { } cached) return cached;
+            var value = true;
+            try
+            {
+                if (File.Exists(FilePath))
+                {
+                    using var doc = JsonDocument.Parse(File.ReadAllText(FilePath));
+                    if (doc.RootElement.TryGetProperty("packAccent", out var p) && p.ValueKind is JsonValueKind.False) value = false;
+                }
+            }
+            catch (Exception) { /* a broken file is the default */ }
+            return (_packAccent = value).Value;
+        }
+        set { _packAccent = value; Save(); }
+    }
+
+    private static string? ReadString(string key)
+    {
+        try
+        {
+            if (!File.Exists(FilePath)) return null;
+            using var doc = JsonDocument.Parse(File.ReadAllText(FilePath));
+            return doc.RootElement.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+        }
+        catch (Exception) { return null; }
+    }
+
     private static void Save()
     {
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(new { splash = Splash, retired = Retired.ToArray() }));
+            File.WriteAllText(FilePath, JsonSerializer.Serialize(new { splash = Splash, retired = Retired.ToArray(), style = Style, packAccent = PackAccent }));
         }
         catch (Exception) { /* not saved: it lasts until the launcher closes */ }
     }

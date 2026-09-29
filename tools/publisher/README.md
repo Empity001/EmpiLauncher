@@ -40,6 +40,18 @@ no queda nada consumiendo recursos en segundo plano.
 3. **Enviar** sube el código, crea el Release `vX.Y.Z` con el instalador, su `.blockmap` y
    `latest.yml` (lo que necesita la actualización automática) y borra los instaladores viejos de `dist/`.
 
+### Pendientes: los estilos, de uno en uno
+
+Los estilos del launcher (Ajustes > Launcher > Estilo) salen cada uno como su propia actualización. La lista está en
+`native/src/EmpiLauncher.App/Styles/styles.json`: cada estilo tiene su nombre, su descripción, sus notas de versión y dos marcas:
+`ported` (el launcher ya sabe dibujarlo) y `releasedIn` (la versión que lo encendió, o `null` si sigue pendiente). El launcher solo
+ofrece el estilo base y los que tienen `releasedIn`.
+
+En la pestaña Launcher, **Pendientes** muestra los que faltan: «Listo para subir» o «En preparación» (este no se puede elegir).
+Eliges uno, se rellena «Qué cambia» con sus notas (con el número de versión puesto) y la versión pasa a **Menor**; luego
+**Compilar** (escribe su `releasedIn` antes de construir el instalador) y **Enviar**. Si compilas otra cosa sin enviar, el estilo
+vuelve a Pendientes solo; si la compilación falla, `styles.json` queda como estaba. Pulsar otra vez un estilo lo quita.
+
 ## Avisos: publicar sin tocar modpacks ni launcher
 
 La pestaña **Avisos** controla lo que ven los jugadores, **sin compilar ni enviar nada más**: tiene su propio botón **Publicar avisos**, que solo sube

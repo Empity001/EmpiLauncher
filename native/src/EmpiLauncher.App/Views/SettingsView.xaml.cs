@@ -27,6 +27,13 @@ public partial class SettingsView : UserControl
     /// <summary>A tab finished loading: the window may schedule a memory trim.</summary>
     public event Action? TabLoaded;
 
+    /// <summary>The tab on screen, and how far it is scrolled: a change of style rebuilds this screen and puts both back.</summary>
+    public string CurrentTab => _current?.Id ?? "account";
+    public double ScrollOffset => Scroller.VerticalOffset;
+    private double? _restoreOffset;
+
+    public SettingsView(string initialTab, double restoreOffset) : this(initialTab) => _restoreOffset = restoreOffset;
+
     public SettingsView(string initialTab = "account")
     {
         InitializeComponent();
@@ -42,9 +49,9 @@ public partial class SettingsView : UserControl
         Loaded += async (_, _) =>
         {
             LivingField.Quiet.Add(Header);
-            // the screen arrives: the header settles in and the title tears once (the same glitch the Publisher plays on a new selection)
-            Motion.Rise(Header, 0, 220, 8);
-            Motion.Tear(TitleText);
+            // the screen arrives: the header settles in and the title tears once (the same glitch the Publisher plays on a new selection);
+            // not when it is only being dressed in another style
+            if (_restoreOffset == null) { Motion.Rise(Header, 0, 220, 8); Motion.Tear(TitleText); }
             await ShowAsync(tabs.First(t => t.Id == initialTab));
         };
         Unloaded += (_, _) => LivingField.Quiet.Remove(Header);
@@ -65,7 +72,14 @@ public partial class SettingsView : UserControl
         if (token == _loadToken)
         {
             tab.Root.Opacity = 1;
-            Motion.Reveal(Motion.ChildrenOf(tab.Root), 40, 0, 220, 8);
+            if (_restoreOffset is { } offset)
+            {
+                // rebuilt in another style: the page comes back where the player was, without replaying its entrance
+                _restoreOffset = null;
+                Scroller.UpdateLayout();
+                Scroller.ScrollToVerticalOffset(offset);
+            }
+            else Motion.Reveal(Motion.ChildrenOf(tab.Root), 40, 0, 220, 8);
         }
         try { await load; }
         catch (Exception ex)

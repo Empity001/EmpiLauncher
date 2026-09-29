@@ -4,8 +4,8 @@
         xmlns:views="clr-namespace:EmpiLauncher.App.Views"
         Title="Empi Launcher" Width="1120" Height="700" MinWidth="940" MinHeight="620"
         WindowStyle="None" ResizeMode="CanResize" WindowStartupLocation="CenterScreen"
-        Background="{StaticResource WellBrush}" Foreground="{StaticResource PaperBrush}"
-        FontFamily="{StaticResource BodyFont}" FontSize="14" UseLayoutRounding="True" TextOptions.TextFormattingMode="Ideal">
+        Background="{DynamicResource WellBrush}" Foreground="{DynamicResource PaperBrush}"
+        FontFamily="{DynamicResource BodyFont}" FontSize="14" UseLayoutRounding="True" TextOptions.TextFormattingMode="Ideal">
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="52" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
@@ -18,22 +18,25 @@
 
         <!-- title bar (above the modpack picture and the dot field, which span both rows) -->
         <Grid Margin="24,0,10,0" Panel.ZIndex="10">
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="EMPI" Style="{StaticResource DisplayText}" FontSize="19" FontWeight="ExtraBold"/>
-                <Border Style="{StaticResource Pill}" Margin="14,0,0,0" Padding="9,2"><TextBlock x:Name="ChannelLabel" Text="NATIVO" Style="{StaticResource LabelText}" FontSize="10.5"/></Border>
-                <Button x:Name="UpdateButton" Style="{StaticResource PrimaryButton}" Margin="12,0,0,0" Padding="12,4" FontSize="11" Visibility="Collapsed"
+            <StackPanel x:Name="TitleLeft" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="EMPI" Style="{DynamicResource DisplayText}" FontSize="19" FontWeight="ExtraBold"/>
+                <Border Style="{DynamicResource Pill}" Margin="14,0,0,0" Padding="9,2"><TextBlock x:Name="ChannelLabel" Text="NATIVO" Style="{DynamicResource LabelText}" FontSize="10.5"/></Border>
+                <Button x:Name="UpdateButton" Style="{DynamicResource PrimaryButton}" Margin="12,0,0,0" Padding="12,4" FontSize="11" Visibility="Collapsed"
                         WindowChrome.IsHitTestVisibleInChrome="True" AutomationProperties.Name="Actualización disponible"/>
             </StackPanel>
             <!-- the three window buttons sit in a small box of their own, so the dots behind never blur them together -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
             <!-- general notices: the megaphone (filled in by the code: it is the same icon the modpack's speech bubble is) -->
             <ContentControl x:Name="MegaHost" Margin="0,0,12,0" Visibility="Collapsed" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True" IsTabStop="False"/>
-            <Border VerticalAlignment="Center" Background="#F20E0F11" BorderBrush="{StaticResource HairStrongBrush}" BorderThickness="1"
+            <!-- "ver solo el fondo": the interface steps aside so the style's background is seen whole (see MainWindow.SetBackgroundOnly) -->
+            <Button x:Name="BackgroundOnlyButton" Style="{DynamicResource IconButton}" Content="&#xE890;" Width="34" Height="34" Margin="0,0,8,0" FontSize="15"
+                    WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Ver solo el fondo" AutomationProperties.Name="Ver solo el fondo"/>
+            <Border x:Name="WindowButtons" VerticalAlignment="Center" Background="{DynamicResource ChromeBoxBrush}" BorderBrush="{DynamicResource HairStrongBrush}" BorderThickness="1"
                     CornerRadius="16" Padding="3,2" WindowChrome.IsHitTestVisibleInChrome="True">
                 <StackPanel Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
-                    <Button x:Name="MinButton" Style="{StaticResource IconButton}" Content="&#xE921;" Width="38" Height="28" ToolTip="Minimizar" AutomationProperties.Name="Minimizar"/>
-                    <Button x:Name="MaxButton" Style="{StaticResource IconButton}" Content="&#xE922;" Width="38" Height="28" ToolTip="Maximizar" AutomationProperties.Name="Maximizar"/>
-                    <Button x:Name="CloseButton" Style="{StaticResource IconButton}" Content="&#xE8BB;" Width="38" Height="28" ToolTip="Cerrar" AutomationProperties.Name="Cerrar"/>
+                    <Button x:Name="MinButton" Style="{DynamicResource IconButton}" Content="&#xE921;" Width="38" Height="28" ToolTip="Minimizar" AutomationProperties.Name="Minimizar"/>
+                    <Button x:Name="MaxButton" Style="{DynamicResource IconButton}" Content="&#xE922;" Width="38" Height="28" ToolTip="Maximizar" AutomationProperties.Name="Maximizar"/>
+                    <Button x:Name="CloseButton" Style="{DynamicResource IconButton}" Content="&#xE8BB;" Width="38" Height="28" ToolTip="Cerrar" AutomationProperties.Name="Cerrar"/>
                 </StackPanel>
             </Border>
             </StackPanel>
@@ -42,18 +45,20 @@
         <!-- the selected modpack's picture (a small still preview made by the engine), then its scrim -->
         <Image x:Name="Backdrop" Grid.RowSpan="2" Stretch="UniformToFill" Visibility="Collapsed" IsHitTestVisible="False"
                RenderOptions.BitmapScalingMode="LowQuality"/>
-        <Rectangle x:Name="BackdropScrim" Grid.RowSpan="2" Fill="{StaticResource BackdropScrim}" Visibility="Collapsed" IsHitTestVisible="False"/>
+        <Rectangle x:Name="BackdropScrim" Grid.RowSpan="2" Fill="{DynamicResource BackdropScrim}" Visibility="Collapsed" IsHitTestVisible="False"/>
 
-        <!-- decoration behind everything: the halftone ground, one lattice of dots; still unless the FieldGovernor allows it to move -->
-        <views:LivingField x:Name="Field" Grid.Row="0" Grid.RowSpan="2"/>
+        <!-- decoration behind everything: the style's background (the halftone field for the base style); still unless the FieldGovernor allows it to move -->
+        <views:StyleHost x:Name="Field" Grid.Row="0" Grid.RowSpan="2"/>
 
         <ContentPresenter x:Name="ViewHost" Grid.Row="1"/>
+        <!-- a change of style: a picture of the interface as it was, fading out over the rebuilt one -->
+        <Image x:Name="StyleSnapshot" Grid.Row="1" Visibility="Collapsed" IsHitTestVisible="False" Stretch="None" HorizontalAlignment="Left" VerticalAlignment="Top"/>
 
         <!-- the screenshot viewer lives here while it is open -->
         <Grid x:Name="ViewerLayer" Grid.RowSpan="2"/>
 
         <!-- on opening: what is waiting to be read, in a few seconds, and gone -->
-        <Border x:Name="NoticePopup" Grid.Row="1" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,24,0" Style="{StaticResource Module}"
+        <Border x:Name="NoticePopup" Grid.Row="1" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,24,0" Style="{DynamicResource Module}"
                 Background="#F218181C" Padding="18,9" Cursor="Hand" AutomationProperties.Name="Tienes avisos sin leer. Pulsa para abrirlos">
             <StackPanel x:Name="NoticePopupBody" Orientation="Horizontal"/>
         </Border>
@@ -70,28 +75,28 @@
 
         <!-- toast: short messages that do not need an answer -->
         <Border x:Name="Toast" Grid.Row="1" Visibility="Collapsed" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,110" MaxWidth="620"
-                Style="{StaticResource Module}" Background="#F218181C" Padding="18,12">
+                Style="{DynamicResource Module}" Background="#F218181C" Padding="18,12">
             <DockPanel>
-                <Button x:Name="ToastClose" DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE711;" Width="30" Height="30" FontSize="11" Margin="12,0,0,0" AutomationProperties.Name="Cerrar aviso"/>
-                <TextBlock x:Name="ToastText" Style="{StaticResource BodyText}" VerticalAlignment="Center"/>
+                <Button x:Name="ToastClose" DockPanel.Dock="Right" Style="{DynamicResource IconButton}" Content="&#xE711;" Width="30" Height="30" FontSize="11" Margin="12,0,0,0" AutomationProperties.Name="Cerrar aviso"/>
+                <TextBlock x:Name="ToastText" Style="{DynamicResource BodyText}" VerticalAlignment="Center"/>
             </DockPanel>
         </Border>
 
         <!-- dialog: a question or a failure that needs an answer -->
         <Grid x:Name="DialogLayer" Grid.RowSpan="2" Visibility="Collapsed" Background="#B3060607">
-            <Border x:Name="DialogPanel" Style="{StaticResource Module}" Background="#FF111114" Width="480" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="28,24">
+            <Border x:Name="DialogPanel" Style="{DynamicResource Module}" Background="#FF111114" Width="480" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="28,24">
                 <Grid>
                 <!-- a halftone cloud behind a dialog that waits for work (the update, the Microsoft window): it drifts with the progress -->
                 <Image x:Name="DialogCloud" Visibility="Collapsed" Width="250" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-14,-10" Opacity="0.3"
                        IsHitTestVisible="False" Stretch="Uniform"><Image.RenderTransform><TranslateTransform x:Name="DialogCloudShift"/></Image.RenderTransform></Image>
                 <StackPanel>
-                    <TextBlock x:Name="DialogTitle" Style="{StaticResource DisplayText}" FontSize="24" TextWrapping="Wrap" TextTrimming="None"/>
-                    <TextBlock x:Name="DialogMessage" Style="{StaticResource BodyText}" Foreground="{StaticResource Paper2Brush}" Margin="0,12,0,0"/>
+                    <TextBlock x:Name="DialogTitle" Style="{DynamicResource DisplayText}" FontSize="24" TextWrapping="Wrap" TextTrimming="None"/>
+                    <TextBlock x:Name="DialogMessage" Style="{DynamicResource BodyText}" Foreground="{DynamicResource Paper2Brush}" Margin="0,12,0,0"/>
                     <!-- only used when the dialog asks for a name (playing without an account) -->
-                    <TextBox x:Name="DialogInput" Style="{StaticResource InputBox}" Visibility="Collapsed" Margin="0,18,0,0" MaxLength="16"
+                    <TextBox x:Name="DialogInput" Style="{DynamicResource InputBox}" Visibility="Collapsed" Margin="0,18,0,0" MaxLength="16"
                              AutomationProperties.Name="Nombre para jugar sin conexión"/>
-                    <TextBlock x:Name="DialogHint" Style="{StaticResource CaptionText}" Visibility="Collapsed" Margin="4,8,0,0" TextWrapping="Wrap"/>
-                    <Button x:Name="DialogLink" Style="{StaticResource GhostButton}" Visibility="Collapsed" HorizontalAlignment="Left" Margin="0,12,0,0" Padding="14,6"/>
+                    <TextBlock x:Name="DialogHint" Style="{DynamicResource CaptionText}" Visibility="Collapsed" Margin="4,8,0,0" TextWrapping="Wrap"/>
+                    <Button x:Name="DialogLink" Style="{DynamicResource GhostButton}" Visibility="Collapsed" HorizontalAlignment="Left" Margin="0,12,0,0" Padding="14,6"/>
                     <!-- a skin's preview (96x192, drawn by the engine), shown as its pixels -->
                     <Image x:Name="DialogImage" Visibility="Collapsed" Width="90" Height="180" Stretch="Uniform" HorizontalAlignment="Left" Margin="4,14,0,0" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
                     <WrapPanel x:Name="DialogButtons" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0"/>

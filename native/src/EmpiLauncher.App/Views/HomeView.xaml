@@ -33,7 +33,7 @@
                 <!-- the modpack's own logo when it has one (a small still preview from the engine); the dotted name otherwise -->
                 <Image x:Name="PackBanner" Visibility="Collapsed" Stretch="Uniform" HorizontalAlignment="Left" MaxHeight="190" MaxWidth="440"
                        RenderOptions.BitmapScalingMode="HighQuality"/>
-                <TextBlock x:Name="PackTitle" Style="{StaticResource DisplayText}" FontSize="46" TextWrapping="Wrap" TextTrimming="None" LineHeight="50"/>
+                <TextBlock x:Name="PackTitle" Style="{StaticResource DisplayText}" Foreground="{DynamicResource TitleBrush}" FontSize="46" TextWrapping="Wrap" TextTrimming="None" LineHeight="50"/>
                 <TextBlock x:Name="PackDescription" Style="{StaticResource BodyText}" Foreground="{StaticResource Paper2Brush}" Margin="0,12,0,0" MaxWidth="560" HorizontalAlignment="Left"/>
 
                 <!-- what the author says about a modpack that is closed, not out yet or retired -->
@@ -67,7 +67,7 @@
             </StackPanel>
 
             <!-- the dock: account, settings and the main action -->
-            <Border x:Name="Dock" Grid.Row="1" CornerRadius="{StaticResource RadiusDock}" Background="#F20E0F11" BorderBrush="{StaticResource HairBrush}" BorderThickness="1" Padding="14,12">
+            <Border x:Name="Dock" Grid.Row="1" CornerRadius="{StaticResource RadiusDock}" Background="{DynamicResource DockBrush}" BorderBrush="{DynamicResource DockEdgeBrush}" BorderThickness="1" Padding="14,12">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -105,7 +105,7 @@
                                         <Border.RenderTransform><ScaleTransform x:Name="PlayFillScale" ScaleX="0"/></Border.RenderTransform>
                                     </Border>
                                     <TextBlock x:Name="PlayLabel" Style="{StaticResource DisplayText}" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                               Foreground="{DynamicResource AccentInkBrush}"/>
+                                               Foreground="{DynamicResource PlayInkBrush}"/>
                                 </Grid>
                             </Button>
                           </Grid>

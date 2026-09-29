@@ -1,0 +1,80 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- CELESTIAL: holographic stickers on a violet-black sky. Paper turns a lilac white, surfaces are smoked violet glass with a foil edge,
+         shapes are rounder and the type is Bahnschrift. Only what differs from Themes/Theme.xaml is here; the moving foil brushes are made
+         in code (Styles/StyleTheme.cs: HoloTextBrush, HoloFillBrush). -->
+
+    <Color x:Key="WellColor">#07060c</Color>
+    <Color x:Key="BgColor">#0c0914</Color>
+    <Color x:Key="SurfaceColor">#120e1d</Color>
+    <Color x:Key="Surface2Color">#1a1528</Color>
+    <Color x:Key="Surface3Color">#241d36</Color>
+    <Color x:Key="LineColor">#2a2340</Color>
+    <Color x:Key="LineStrongColor">#433a5e</Color>
+    <Color x:Key="PaperColor">#f6f1ff</Color>
+    <Color x:Key="Paper2Color">#bdb3d6</Color>
+    <Color x:Key="Paper3Color">#8f87aa</Color>
+    <Color x:Key="PaperInkColor">#3c3152</Color>
+
+    <SolidColorBrush x:Key="WellBrush" Color="#07060c"/>
+    <SolidColorBrush x:Key="BgBrush" Color="#0c0914"/>
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#120e1d"/>
+    <SolidColorBrush x:Key="Surface2Brush" Color="#1a1528"/>
+    <SolidColorBrush x:Key="Surface3Brush" Color="#241d36"/>
+    <SolidColorBrush x:Key="LineBrush" Color="#2a2340"/>
+    <SolidColorBrush x:Key="LineStrongBrush" Color="#433a5e"/>
+    <SolidColorBrush x:Key="PaperBrush" Color="#f6f1ff"/>
+    <SolidColorBrush x:Key="Paper2Brush" Color="#bdb3d6"/>
+    <SolidColorBrush x:Key="Paper3Brush" Color="#8f87aa"/>
+    <SolidColorBrush x:Key="PaperInkBrush" Color="#3c3152"/>
+    <SolidColorBrush x:Key="ModuleBrush" Color="#A60C0914"/>
+    <SolidColorBrush x:Key="HairBrush" Color="#26E6D6FF"/>
+    <SolidColorBrush x:Key="HairStrongBrush" Color="#47E6D6FF"/>
+    <SolidColorBrush x:Key="TintBrush" Color="#0FFFFFFF"/>
+    <SolidColorBrush x:Key="TintHoverBrush" Color="#24FFFFFF"/>
+    <SolidColorBrush x:Key="DockBrush" Color="#D90A0812"/>
+    <SolidColorBrush x:Key="ChromeBoxBrush" Color="#D90A0812"/>
+
+    <!-- the foil edge of every surface: pink, cyan, lilac and butter at a little over half strength -->
+    <LinearGradientBrush x:Key="HoloEdgeBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#8Cffb3e6" Offset="0"/>
+        <GradientStop Color="#8Cb3f0ff" Offset="0.34"/>
+        <GradientStop Color="#8Cd9b3ff" Offset="0.67"/>
+        <GradientStop Color="#8Cfff2b3" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="HoloEdgeStrongBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#D9ffb3e6" Offset="0"/>
+        <GradientStop Color="#D9b3f0ff" Offset="0.34"/>
+        <GradientStop Color="#D9d9b3ff" Offset="0.67"/>
+        <GradientStop Color="#D9fff2b3" Offset="1"/>
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="DockEdgeBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#8Cffb3e6" Offset="0"/>
+        <GradientStop Color="#8Cb3f0ff" Offset="0.34"/>
+        <GradientStop Color="#8Cd9b3ff" Offset="0.67"/>
+        <GradientStop Color="#8Cfff2b3" Offset="1"/>
+    </LinearGradientBrush>
+
+    <!-- the chosen card of the rail is a pale foil sticker -->
+    <Color x:Key="CardOnColor">#ece2ff</Color>
+    <Color x:Key="CardOnInkColor">#1a0f24</Color>
+    <Color x:Key="CardOnMetaColor">#5a4c72</Color>
+    <Color x:Key="CardOffInkColor">#f6f1ff</Color>
+    <Color x:Key="CardOffMetaColor">#8f87aa</Color>
+
+    <LinearGradientBrush x:Key="BackdropScrim" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#F507060c" Offset="0"/>
+        <GradientStop Color="#9907060c" Offset="0.5"/>
+        <GradientStop Color="#EB07060c" Offset="1"/>
+    </LinearGradientBrush>
+
+    <FontFamily x:Key="DisplayFont">Bahnschrift, Segoe UI Variable Display, Segoe UI</FontFamily>
+    <FontFamily x:Key="MonoFont">Bahnschrift, Segoe UI Variable Text, Segoe UI</FontFamily>
+    <FontFamily x:Key="BodyFont">Segoe UI Variable Text, Segoe UI</FontFamily>
+
+    <CornerRadius x:Key="RadiusInput">14</CornerRadius>
+    <CornerRadius x:Key="RadiusTile">18</CornerRadius>
+    <CornerRadius x:Key="RadiusModule">26</CornerRadius>
+    <CornerRadius x:Key="RadiusDock">30</CornerRadius>
+</ResourceDictionary>

@@ -5,6 +5,7 @@ const { capture, runNode } = require('./exec')
 const git = require('./git')
 const gh = require('./gh')
 const { loadState, saveState } = require('./config')
+const styles = require('./styles')
 
 const MB = 1024 * 1024
 
@@ -79,6 +80,8 @@ async function info(config) {
     const kind = (state && state.kind) || defaultKind(config)
     // Every release before the native one was a classic one; after the first native release it is remembered here.
     const lastSentKind = loadState().lastSentKind || (latestTag ? 'classic' : null)
+    let styleList = []
+    try { styleList = styles.list(config, unsentStyle(state)) } catch { /* a broken styles.json only hides Pendientes */ }
     return {
         kinds: availableKinds(config),
         kind,
@@ -87,12 +90,17 @@ async function info(config) {
         next: { patch: bump(pkg.version, 'patch'), minor: bump(pkg.version, 'minor'), major: bump(pkg.version, 'major') },
         latestTag,
         dirty,
-        build: build ? { version: build.version, name: path.basename(build.exe), size: build.size, at: state.at, notes: state.notes, sent: !!state.sentAt, kind: state.kind || 'classic' } : null
+        styles: styleList,
+        build: build ? { version: build.version, name: path.basename(build.exe), size: build.size, at: state.at, notes: state.notes, sent: !!state.sentAt, kind: state.kind || 'classic', style: state.style || null } : null
     }
 }
 
+/** The style of a compiled installer that was not sent: it is switched on in styles.json but no player has it yet. */
+function unsentStyle(build) {
+    return build && !build.sentAt && build.style ? build.style : null
+}
+
 async function compile(config, options, log, step) {
-    const repo = config.launcherRepoPath
     const current = readPackage(config).version
     const version = options.version ? String(options.version).trim() : current
     if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error('La version debe verse como 2.6.0.')
@@ -109,6 +117,29 @@ async function compile(config, options, log, step) {
     if (!KINDS[kind]) throw new Error(`Tipo de instalador desconocido: ${kind}.`)
     if (!KINDS[kind](config)) throw new Error(kind === 'native' ? 'Falta native/build/build.mjs en la carpeta del launcher.' : 'Faltan las dependencias del launcher. Corre "npm install" en su carpeta una vez.')
 
+    // A style from Pendientes is switched on in styles.json BEFORE the build, so the installer carries it; one left in an unsent build goes back.
+    const style = options.style ? String(options.style) : null
+    const manifestFile = styles.manifestPath(config)
+    const manifestBefore = fs.existsSync(manifestFile) ? fs.readFileSync(manifestFile, 'utf8') : null
+    styles.prepare(config, { style, version, unsentStyle: unsentStyle(loadState().launcherBuild), kind }, log)
+    try {
+        await build(config, kind, version, log, step)
+        step('Comprobando el instalador')
+        const built = readBuild(config, version)
+        if (!built) throw new Error('La compilacion termino pero no encuentro el instalador de esa version.')
+        log(`Instalador listo: ${path.basename(built.exe)} (${(built.size / MB).toFixed(0)} MB)`)
+    } catch (err) {
+        // no installer came out: styles.json goes back to how it was, so a failed build never leaves a style switched on
+        if (manifestBefore != null) fs.writeFileSync(manifestFile, manifestBefore, 'utf8')
+        throw err
+    }
+
+    saveState({ launcherBuild: { version, kind, at: new Date().toISOString(), notes: options.notes || '', style } })
+    return { version, kind, style }
+}
+
+async function build(config, kind, version, log, step) {
+    const repo = config.launcherRepoPath
     if (kind === 'native') {
         step('Construyendo el instalador nativo (tarda unos minutos)')
         // build.mjs prints "==> [n] what it is doing" for each stage: those become the job's steps, the rest is the log.
@@ -123,14 +154,6 @@ async function compile(config, options, log, step) {
             env: { CSC_IDENTITY_AUTO_DISCOVERY: 'false' }
         }, log)
     }
-
-    step('Comprobando el instalador')
-    const build = readBuild(config, version)
-    if (!build) throw new Error('La compilacion termino pero no encuentro el instalador de esa version.')
-    log(`Instalador listo: ${path.basename(build.exe)} (${(build.size / MB).toFixed(0)} MB)`)
-
-    saveState({ launcherBuild: { version, kind, at: new Date().toISOString(), notes: options.notes || '' } })
-    return { version, kind }
 }
 
 async function send(config, options, log, step) {

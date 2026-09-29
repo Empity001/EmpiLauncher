@@ -6,6 +6,8 @@
     <!-- the halftone cloud and the glitch stripes: the same art the Publisher wears -->
     <Resource Include="Assets\Art\cloud.png" />
     <Resource Include="Assets\Art\tear.png" />
+    <!-- the styles of the interface and which of them are switched on (the Publisher's "Pendientes" writes it) -->
+    <Resource Include="Styles\styles.json" />
   </ItemGroup>
 
   <PropertyGroup>

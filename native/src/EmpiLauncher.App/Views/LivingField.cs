@@ -25,8 +25,33 @@ namespace EmpiLauncher.App.Views;
 /// It measures its own frame cost and thins the lattice, and in the end stops, if the machine cannot afford it. The FieldGovernor
 /// decides whether it may move at all; when it may not, the still frame is drawn once.
 /// </summary>
-internal sealed class LivingField : Grid
+internal sealed class LivingField : Grid, StyleHost.ILayer
 {
+    // ---- as the base style of StyleHost ---------------------------------------------------------------------------------
+
+    public FrameworkElement View => this;
+    public double ArriveSeconds => 1.5;
+    public double Ease(double raw) => raw * raw * (3 - 2 * raw);
+
+    private bool _arrivalRing;
+    private readonly LinearGradientBrush _sweep = new() { StartPoint = new Point(0, 1), EndPoint = new Point(1, 0) };
+
+    /// <summary>
+    /// Coming back: the dots are printed again from the bottom-left plate toward the top-right one, a soft diagonal edge sweeping over
+    /// what was there, and the plate sends one ring out as it starts.
+    /// </summary>
+    public void SetReveal(double progress)
+    {
+        if (progress >= 1) { OpacityMask = null; _arrivalRing = false; return; }
+        if (!_arrivalRing && progress > 0.01) { _arrivalRing = true; Burst(new Point(ActualWidth * 0.08, ActualHeight * 0.9), accent: true); }
+        var edge = progress * 1.35 - 0.2;
+        _sweep.GradientStops.Clear();
+        _sweep.GradientStops.Add(new GradientStop(Colors.Black, 0));
+        _sweep.GradientStops.Add(new GradientStop(Colors.Black, Math.Clamp(edge, 0, 1)));
+        _sweep.GradientStops.Add(new GradientStop(Colors.Transparent, Math.Clamp(edge + 0.18, 0, 1)));
+        OpacityMask = _sweep;
+    }
+
     private const double StillTime = 7.3;
     private const double AmbientMs = 125, InteractiveMs = 41;
 
@@ -318,12 +343,11 @@ internal sealed class LivingField : Grid
     }
 
     /// <summary>The control under the pointer, if it is one the player can act on (or a card): that is what gets contoured.</summary>
-    private static object? _moduleStyle, _tileStyle;
-
     private static FrameworkElement? FindHot(DependencyObject? d)
     {
-        var module = _moduleStyle ??= Application.Current.TryFindResource("Module");
-        var tile = _tileStyle ??= Application.Current.TryFindResource("Tile");
+        // looked up each time: a change of style (StyleTheme) replaces these styles with new ones
+        var module = Application.Current.TryFindResource("Module");
+        var tile = Application.Current.TryFindResource("Tile");
         while (d != null)
         {
             if (d is ButtonBase or TextBox or Slider or Selector) return (FrameworkElement)d;

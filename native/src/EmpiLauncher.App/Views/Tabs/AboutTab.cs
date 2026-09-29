@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using EmpiLauncher.App.Services;
+using EmpiLauncher.App.Styles;
 using EmpiLauncher.App.Themes;
 using EmpiLauncher.Ipc;
 
@@ -28,6 +29,7 @@ internal sealed class AboutTab : SettingsTab
         Root.Children.Clear();
         var config = _l.Config!;
 
+        Root.Children.Add(StyleSection());
         Root.Children.Add(UpdatesSection(config));
 
         var launcher = Ui.Section("Launcher", out var l);
@@ -163,12 +165,106 @@ internal sealed class AboutTab : SettingsTab
         return panel;
     }
 
+    // ---- the style -----------------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// The styles this launcher offers (StyleCatalog.Available: the base one and each one an update switched on), the switch between the
+    /// modpack's colour and the style's, and "ver solo el fondo". Picking a style dresses the whole window at once (MainWindow.ChangeStyle).
+    /// </summary>
+    private FrameworkElement StyleSection()
+    {
+        var main = (MainWindow)Application.Current.MainWindow;
+        var section = Ui.Section("Estilo", out var body, "Cambia el fondo y toda la interfaz: letras, formas y colores. Lo que dice cada texto no cambia.");
+        var cards = new WrapPanel { Margin = new Thickness(0, 6, 0, 4) };
+        foreach (var style in StyleCatalog.Available)
+        {
+            var id = style.Id;
+            cards.Children.Add(StyleCard(style, id == StyleTheme.Current, () => main.ChangeStyle(id)));
+        }
+        body.Children.Add(cards);
+        body.Children.Add(Ui.Row("Usar el color del modpack", "Encendido, cada modpack pinta el launcher con su propio color. Apagado, manda siempre el color del estilo.",
+            Ui.Switch(NativeSettings.PackAccent, main.SetPackAccent, "Usar el color del modpack")));
+        body.Children.Add(Ui.Row("Ver solo el fondo", "El ojo de arriba a la derecha esconde toda la interfaz para mirar el fondo entero. Con el ratón quieto unos segundos se van también los botones; al moverlo vuelven. El ojo, o Esc, trae la interfaz de vuelta.",
+            Ui.Button("Probar ahora", () => main.SetBackgroundOnly(true), "GhostButton", 18)));
+        return section;
+    }
+
+    /// <summary>One style: a small sample of it, its name and what it is like. The one in use is outlined.</summary>
+    private static Button StyleCard(StyleInfo style, bool chosen, Action pick)
+    {
+        var sample = new Border { Height = 58, CornerRadius = new CornerRadius(10), Background = Sample(style), Margin = new Thickness(0, 0, 0, 10), ClipToBounds = true };
+        var name = Ui.Text(style.Name, "BodyText");
+        name.FontWeight = FontWeights.SemiBold;
+        var head = new DockPanel();
+        if (chosen)
+        {
+            var inUse = Ui.Text("EN USO", "LabelText", null, 10.5);
+            inUse.VerticalAlignment = VerticalAlignment.Center;
+            DockPanel.SetDock(inUse, Dock.Right);
+            head.Children.Add(inUse);
+        }
+        head.Children.Add(name);
+        var summary = Ui.Text(style.Summary, "CaptionText");
+        summary.Margin = new Thickness(0, 4, 0, 0);
+        var face = new Border
+        {
+            Style = (Style)Application.Current.FindResource("Tile"), Width = 196, MinHeight = 158, Padding = new Thickness(12),
+            BorderThickness = new Thickness(chosen ? 2 : 1), BorderBrush = Ui.Res(chosen ? "PaperBrush" : "HairBrush"),
+            Child = new StackPanel { Children = { sample, head, summary } }
+        };
+        var button = new Button { Style = (Style)Application.Current.FindResource("BareButton"), Content = face, Margin = new Thickness(0, 0, 10, 10), Cursor = System.Windows.Input.Cursors.Hand };
+        System.Windows.Automation.AutomationProperties.SetName(button, "Estilo " + style.Name + (chosen ? ", en uso" : ""));
+        button.Click += (_, _) => pick();
+        return button;
+    }
+
+    /// <summary>A few square centimetres of the style: the dots of the base one, the foil light of Celestial, the colour of the others.</summary>
+    private static Brush Sample(StyleInfo style)
+    {
+        var group = new DrawingGroup();
+        var box = new Rect(0, 0, 172, 58);
+        switch (style.Id)
+        {
+            case "celestial":
+                group.Children.Add(new GeometryDrawing(new SolidColorBrush(Color.FromRgb(0x07, 0x06, 0x0c)), null, new RectangleGeometry(box)));
+                foreach (var (x, y, rx, color) in new[] { (130.0, 14.0, 70.0, "#ff8fd0"), (60.0, 46.0, 60.0, "#7fe3ff"), (160.0, 52.0, 50.0, "#c9a3ff") })
+                {
+                    var glow = new RadialGradientBrush { Center = new Point(0.5, 0.5), GradientOrigin = new Point(0.5, 0.5) };
+                    glow.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(color), 0));
+                    glow.GradientStops.Add(new GradientStop(Colors.Transparent, 1));
+                    group.Children.Add(new GeometryDrawing(glow, null, new EllipseGeometry(new Point(x, y), rx, rx * 0.45)));
+                }
+                var rnd = new Random(3);
+                for (var i = 0; i < 26; i++)
+                    group.Children.Add(new GeometryDrawing(Brushes.White, null, new EllipseGeometry(new Point(rnd.NextDouble() * 172, rnd.NextDouble() * 58), 0.8, 0.8)));
+                break;
+            case StyleCatalog.Base:
+                group.Children.Add(new GeometryDrawing(new SolidColorBrush(Color.FromRgb(0x0b, 0x0b, 0x0d)), null, new RectangleGeometry(box)));
+                for (var row = 0; row < 7; row++)
+                    for (var col = 0; col < 20; col++)
+                    {
+                        var x = col * 9 + (row % 2) * 4.5; var y = 4 + row * 8;
+                        var tone = Math.Max(0, 1 - Math.Sqrt(Math.Pow(x / 60.0, 2) + Math.Pow((58 - y) / 40.0, 2)));
+                        var r = 0.7 + 2.6 * tone;
+                        group.Children.Add(new GeometryDrawing(new SolidColorBrush(tone > 0.55 ? style.Accent : Color.FromRgb(0x64, 0x63, 0x5f)), null, new EllipseGeometry(new Point(x, y), r, r)));
+                    }
+                break;
+            default:
+                group.Children.Add(new GeometryDrawing(new SolidColorBrush(style.Accent), null, new RectangleGeometry(box)));
+                break;
+        }
+        group.Freeze();
+        return new DrawingBrush(group) { Stretch = Stretch.UniformToFill };
+    }
+
     // ---- the living background ---------------------------------------------------------------------------------------
 
     /// <summary>The living background: three choices, its colour and, always visible, whether it is moving right now and why not if it is not.</summary>
     private FrameworkElement FieldSection()
     {
-        var section = Ui.Section("Fondo vivo", out var body, "Puntos de fondo que se mueven despacio y se acercan al puntero, con el color del modpack.");
+        var section = Ui.Section("Fondo", out var body, StyleTheme.Current == StyleCatalog.Base
+            ? "Puntos de fondo que se mueven despacio y se acercan al puntero, con el color del modpack."
+            : "El fondo del estilo que elegiste: se mueve despacio y responde al puntero y a los clics.");
         var status = Ui.Text("", "CaptionText");
 
         void Refresh()
@@ -187,12 +283,14 @@ internal sealed class AboutTab : SettingsTab
             pill.Checked += async (_, _) => { await _l.SetFieldModeAsync(mode); Refresh(); };
             row.Children.Add(pill);
         }
-        body.Children.Add(Ui.Row("Campo de puntos", "Automático sigue en marcha mientras descargas o actualizas y solo se queda quieto si algo importa más: Minecraft abierto, poca memoria, modo de rendimiento. Siempre no se apaga por eso.", track));
+        body.Children.Add(Ui.Row("Movimiento", "Automático sigue en marcha mientras descargas o actualizas y solo se queda quieto si algo importa más: Minecraft abierto, poca memoria, modo de rendimiento. Siempre no se apaga por eso.", track));
         Refresh();
         status.Margin = new Thickness(0, 4, 0, 0);
         body.Children.Add(status);
-        body.Children.Add(Ui.Row("Color de los puntos y las ondas", "El gris es el de siempre. Elige uno de la lista o crea el tuyo. Cuando una onda del color del modpack se cruza con la tuya, los puntos se mezclan.", DotColorChoice()));
-        body.Children.Add(Ui.Row("Intensidad del fondo", "Baja el porcentaje para un fondo más calmado. Los puntos y las ondas se ven más tenues, sin cambiar cómo se mueven.", DotOpacityChoice()));
+        // the dots' own colour belongs to the base style's field; the other styles bring their own palette
+        if (StyleTheme.Current == StyleCatalog.Base)
+            body.Children.Add(Ui.Row("Color de los puntos y las ondas", "El gris es el de siempre. Elige uno de la lista o crea el tuyo. Cuando una onda del color del modpack se cruza con la tuya, los puntos se mezclan.", DotColorChoice()));
+        body.Children.Add(Ui.Row("Intensidad del fondo", "Baja el porcentaje para un fondo más calmado. Se ve más tenue, sin cambiar cómo se mueve.", DotOpacityChoice()));
         return section;
     }
 

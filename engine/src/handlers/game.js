@@ -16,6 +16,8 @@
  *   game.exit      { code, signal, stopped }
  *   pack.status    { ...pack status }                      what the launch button should offer
  *   distro.refreshed { ...distribution }                   the index was re-read during a launch
+ *
+ * Requests: stats.playtime { serverId? } -> { days: [{ date, weekday, seconds }] (the last 7, oldest first), totalSeconds, playing }
  */
 const path = require('path')
 const childProcess = require('child_process')
@@ -31,6 +33,7 @@ const { createJavaScan } = require('../lib/javascan')
 const javaReq = require('../lib/javareq')
 const { startSkinServer } = require('../lib/skinserver')
 const fsSync = require('fs')
+const { createPlaytime } = require('../lib/playtime')
 
 const GAME_LAUNCH_REGEX = /^\[.+\]: (?:MinecraftForge .+ Initialized|ModLauncher .+ starting: .+|Loading Minecraft .+ with Fabric Loader .+)$/
 const MIN_LINGER = 5000
@@ -82,6 +85,8 @@ function register(handlers, state) {
 
     const core = () => ensureCore(state)
     const log = () => state.log
+    // time played per modpack and day: from the game's process starting to its closing (lib/playtime.js)
+    const playtime = state.playtime = createPlaytime(() => path.join(core().ConfigManager.getLauncherDirectory(), 'native-playtime.json'))
     const pack = () => (packState ??= createPackState({ ...core(), PackIntegrity: require(path.join(state.appJs, 'packintegrity')), log: state.log }))
     const appVersion = () => require('electron').app.getVersion()
 
@@ -555,6 +560,7 @@ function register(handlers, state) {
             game.proc = child
             game.stopRequested = false
             state.keepAlive.add('game')
+            playtime.start(game.serverId)
 
             // build() has just put the pack's mods into the instance's mods folder (Forge/NeoForge 1.20.3+), after the integrity
             // manifest was written. Record what the launcher itself placed, or the next check reports every mod as "added".
@@ -593,6 +599,7 @@ function register(handlers, state) {
             finalized.add(child)
         }
         log().info(`Restoring launcher after Minecraft ${source}.`)
+        playtime.stop()
         stopSkinServer()
         if (game.fallbackTimer != null) { clearTimeout(game.fallbackTimer); game.fallbackTimer = null }
         if (child == null || game.proc === child) game.proc = null
@@ -652,6 +659,7 @@ function register(handlers, state) {
     // ---- methods ------------------------------------------------------------------------------------------------------
 
     handlers.set('game.status', async () => ({ phase: game.phase, mode: game.mode, serverId: game.serverId, pid: game.proc?.pid ?? null, pendingJava: game.pendingJava }))
+    handlers.set('stats.playtime', async ({ serverId } = {}) => playtime.summary(typeof serverId === 'string' && serverId ? serverId : null, 7))
 
     handlers.set('pack.status', async ({ id } = {}) => {
         const server = id ? (await core().DistroAPI.getDistribution()).getServerById(id) : (await currentServer()).server

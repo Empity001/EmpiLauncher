@@ -51,6 +51,19 @@
         <GradientStop Color="#EB060607" Offset="1"/>
     </LinearGradientBrush>
 
+    <!-- What a style may dress differently (Themes/Looks/<style>.tokens.xaml writes over these; see Styles/StyleTheme.cs):
+         the modpack's name, the Play label's ink, the dock, the box of the window buttons and the chosen card of the rail. -->
+    <SolidColorBrush x:Key="TitleBrush" Color="#f1efe8"/>
+    <SolidColorBrush x:Key="PlayInkBrush" Color="#16030c"/>
+    <SolidColorBrush x:Key="DockBrush" Color="#F20E0F11"/>
+    <SolidColorBrush x:Key="DockEdgeBrush" Color="#1AF1EFE8"/>
+    <SolidColorBrush x:Key="ChromeBoxBrush" Color="#F20E0F11"/>
+    <Color x:Key="CardOnColor">#f1efe8</Color>
+    <Color x:Key="CardOnInkColor">#0b0b0d</Color>
+    <Color x:Key="CardOnMetaColor">#47473f</Color>
+    <Color x:Key="CardOffInkColor">#f1efe8</Color>
+    <Color x:Key="CardOffMetaColor">#8b8b81</Color>
+
     <!-- The one accent. App code replaces these two when the selected modpack brings its own colour. -->
     <SolidColorBrush x:Key="AccentBrush" Color="#ff3d8b"/>
     <SolidColorBrush x:Key="AccentInkBrush" Color="#16030c"/>

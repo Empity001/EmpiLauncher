@@ -15,6 +15,19 @@ public partial class App : Application
         TaskScheduler.UnobservedTaskException += (_, e) => { Log("task", e.Exception); e.SetObserved(); };
     }
 
+    /// <summary>The window is dressed in the player's style from its first frame (the engine is not needed for that: NativeSettings).</summary>
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
+        try
+        {
+            var style = Styles.StyleCatalog.Get(Services.NativeSettings.Style).Id;
+            if (style != Styles.StyleCatalog.Base) Styles.StyleTheme.Apply(style);
+            Services.Launcher.RefreshAccent();
+        }
+        catch (Exception ex) { Log("style at start", ex); }
+    }
+
     public static void Log(string where, Exception? ex)
     {
         try

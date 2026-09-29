@@ -31,6 +31,17 @@ function findModule(server, names) {
     return flatten(server.modules).find((m) => { const p = relPath(m); return wanted.some((n) => p === n || p.endsWith('/' + n)) }) || null
 }
 
+const MOD_TYPES = new Set(['ForgeMod', 'FabricMod', 'LiteMod'])
+
+/** How many mods the modpack brings and which loader runs them (what the interface's styles show as facts; nothing is downloaded for it). */
+function describeContents(server) {
+    const all = flatten(server.modules).map((m) => m.rawModule || m)
+    const mods = all.filter((m) => MOD_TYPES.has(m.type)).length
+    const base = all.find((m) => m.type === 'Fabric' || m.type === 'Forge' || m.type === 'ForgeHosted')
+    const loader = !base ? 'Vanilla' : base.type === 'Fabric' ? 'Fabric' : /neoforge/i.test(String(base.id || '')) ? 'NeoForge' : 'Forge'
+    return { mods, loader }
+}
+
 function isWhitelisted(raw) {
     return [raw.whitelist, raw.meta?.whitelist, raw.metadata?.whitelist, raw.serverMeta?.whitelist].some((v) => v === true || String(v).toLowerCase() === 'true')
 }
@@ -62,6 +73,7 @@ function describeServer(ConfigManager, server, everyRaw = []) {
         // it lists other modpacks as its profiles / it is one of another modpack's profiles (the interface shows it inside that one)
         profiles: profilesLib.describe(raw, everyRaw),
         profileOf: profilesLib.hostOf(raw, everyRaw),
+        ...describeContents(server),
         visuals
     }
 }

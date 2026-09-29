@@ -1,0 +1,117 @@
+using System.IO;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
+using EmpiLauncher.App.Themes;
+using EmpiLauncher.App.Views;
+using EmpiLauncher.App.Views.Styles;
+
+namespace EmpiLauncher.App.Styles;
+
+/// <summary>Which background each style draws. A style that is listed but has no drawing in this build is never offered.</summary>
+internal static class StyleFactory
+{
+    public static bool CanDraw(string id) => id is "actual" or "celestial";
+
+    public static StyleHost.ILayer Create(string id) => id switch
+    {
+        "celestial" => new CelestialField(),
+        _ => new LivingField()
+    };
+}
+
+/// <summary>
+/// Dresses the whole interface in a style. The resources are rebuilt in three layers: Themes/Theme.xaml (the tokens every style starts from)
+/// with the style's own tokens written over it (Themes/Looks/&lt;id&gt;.tokens.xaml), then Themes/Controls.xaml (every control's shape, which
+/// reads those tokens), then the style's own control shapes (Themes/Looks/&lt;id&gt;.controls.xaml). The views already on screen keep what they
+/// were built with, so the window rebuilds them after a change (MainWindow.ChangeStyle), under a crossfade.
+/// </summary>
+internal static class StyleTheme
+{
+    public static string Current { get; private set; } = StyleCatalog.Base;
+
+    /// <summary>The ink of the Play button's label when the style paints the button itself (null: the ink that reads on the accent).</summary>
+    public static Color? PlayInk { get; private set; }
+
+    public static void Apply(string id)
+    {
+        var app = Application.Current;
+        var style = StyleCatalog.Get(id);
+        var theme = Load("Themes/Theme.xaml") ?? new ResourceDictionary();
+        PlayInk = null;
+        if (style.Id != StyleCatalog.Base && Load($"Themes/Looks/{style.Id}.tokens.xaml") is { } tokens)
+            foreach (var key in tokens.Keys) theme[key] = tokens[key];
+        Extras(style.Id, theme);
+
+        var merged = app.Resources.MergedDictionaries;
+        merged.Clear();
+        merged.Add(theme);
+        if (Load("Themes/Controls.xaml") is { } controls) merged.Add(controls);
+        if (style.Id != StyleCatalog.Base && Load($"Themes/Looks/{style.Id}.controls.xaml") is { } shapes) merged.Add(shapes);
+        Current = style.Id;
+    }
+
+    private static ResourceDictionary? Load(string path)
+    {
+        try { return new ResourceDictionary { Source = new Uri($"pack://application:,,,/{path}") }; }
+        catch (Exception ex) when (ex is IOException or System.Windows.Markup.XamlParseException) { App.Log("style " + path, ex); return null; }
+    }
+
+    /// <summary>What a style needs made in code: brushes that move (a XAML resource cannot hold a running animation).</summary>
+    private static void Extras(string id, ResourceDictionary theme)
+    {
+        if (id != "celestial") return;
+        // holographic foil on the title and the Play button: it holds still and now and then a sheen passes over it (see Shine)
+        theme["HoloTextBrush"] = Holo(["#ffffff", "#ffd6f2", "#c9f3ff", "#e6d3ff", "#fff6c9", "#ffffff"]);
+        theme["HoloFillBrush"] = Holo(["#ffd6f2", "#c9f3ff", "#e6d3ff", "#fff6c9", "#ffd6f2"]);
+        theme["TitleBrush"] = theme["HoloTextBrush"];
+        PlayInk = Color.FromRgb(0x24, 0x14, 0x33);
+        StartShine();
+    }
+
+    // The sheen: every ten seconds the foil's bands slide one width along, in 2.4 s. Between sheens nothing ticks, so the interface (kept
+    // as a texture by the window) is not drawn again for it. A foil that drifted all the time cost 3 to 4 % of a core more.
+    private static readonly List<TranslateTransform> Sheens = [];
+    private static readonly System.Windows.Threading.DispatcherTimer ShineTimer = new() { Interval = TimeSpan.FromSeconds(10) };
+    private static bool _moving = true, _shineWired;
+
+    private static LinearGradientBrush Holo(string[] colors)
+    {
+        var brush = new LinearGradientBrush { StartPoint = new Point(0, 0.2), EndPoint = new Point(1, 0.8), SpreadMethod = GradientSpreadMethod.Repeat, MappingMode = BrushMappingMode.RelativeToBoundingBox };
+        for (var i = 0; i < colors.Length; i++) brush.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(colors[i]), (double)i / (colors.Length - 1)));
+        var shift = new TranslateTransform();
+        brush.RelativeTransform = shift;
+        if (Sheens.Count > 8) Sheens.RemoveRange(0, Sheens.Count - 8);   // brushes of styles that are gone
+        Sheens.Add(shift);
+        return brush;
+    }
+
+    private static void StartShine()
+    {
+        if (!_shineWired) { _shineWired = true; ShineTimer.Tick += (_, _) => Shine(); }
+        if (_moving && Motion.Enabled) ShineTimer.Start();
+    }
+
+    private static void Shine()
+    {
+        if (!_moving || !Motion.Enabled || Current != "celestial") { ShineTimer.Stop(); return; }
+        foreach (var shift in Sheens)
+        {
+            var from = shift.X % 1;
+            var pass = new DoubleAnimation(from, from - 1, TimeSpan.FromSeconds(2.4)) { EasingFunction = Motion.InOut };
+            Timeline.SetDesiredFrameRate(pass, 30);
+            shift.BeginAnimation(TranslateTransform.XProperty, pass);
+        }
+    }
+
+    /// <summary>
+    /// The sheen only passes while the background may move (FieldGovernor): a hidden or idle launcher, or one next to a running game,
+    /// keeps its foil still.
+    /// </summary>
+    public static void SetMoving(bool moving)
+    {
+        if (moving == _moving) return;
+        _moving = moving;
+        if (moving && Current == "celestial" && Motion.Enabled) ShineTimer.Start(); else ShineTimer.Stop();
+    }
+}
