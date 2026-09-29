@@ -1,0 +1,73 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- WORDS: blackout poetry. The interface is the ink: black panels, paper-coloured text, a book serif (Sitka, in Windows) in italics for
+         display, labels in small capitals, sentence case, and what is chosen cut out in paper (the chosen card, the tags, Jugar). The field
+         lays marker ink under the title bar and under the modpack's text. -->
+
+    <Color x:Key="WellColor">#0f0d0b</Color>
+    <!-- the ink that reads on paper (a chosen tab's label, a paper button): the page itself is drawn by the field -->
+    <Color x:Key="BgColor">#15120f</Color>
+    <Color x:Key="SurfaceColor">#15120f</Color>
+    <Color x:Key="Surface2Color">#1f1b17</Color>
+    <Color x:Key="Surface3Color">#2a251f</Color>
+    <Color x:Key="LineColor">#3a342c</Color>
+    <Color x:Key="LineStrongColor">#5a5044</Color>
+    <Color x:Key="PaperColor">#ece3cf</Color>
+    <Color x:Key="Paper2Color">#b8ad97</Color>
+    <Color x:Key="Paper3Color">#8f8573</Color>
+    <Color x:Key="PaperInkColor">#15120f</Color>
+
+    <SolidColorBrush x:Key="WellBrush" Color="#0f0d0b"/>
+    <SolidColorBrush x:Key="BgBrush" Color="#15120f"/>
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#15120f"/>
+    <SolidColorBrush x:Key="Surface2Brush" Color="#1f1b17"/>
+    <SolidColorBrush x:Key="Surface3Brush" Color="#2a251f"/>
+    <SolidColorBrush x:Key="LineBrush" Color="#3a342c"/>
+    <SolidColorBrush x:Key="LineStrongBrush" Color="#5a5044"/>
+    <SolidColorBrush x:Key="PaperBrush" Color="#ece3cf"/>
+    <SolidColorBrush x:Key="Paper2Brush" Color="#b8ad97"/>
+    <SolidColorBrush x:Key="Paper3Brush" Color="#8f8573"/>
+    <SolidColorBrush x:Key="PaperInkBrush" Color="#15120f"/>
+    <SolidColorBrush x:Key="ModuleBrush" Color="#15120f"/>
+    <SolidColorBrush x:Key="HairBrush" Color="#24ece3cf"/>
+    <SolidColorBrush x:Key="HairStrongBrush" Color="#47ece3cf"/>
+    <SolidColorBrush x:Key="TintBrush" Color="#14ece3cf"/>
+    <SolidColorBrush x:Key="TintHoverBrush" Color="#24ece3cf"/>
+    <SolidColorBrush x:Key="DockBrush" Color="#15120f"/>
+    <SolidColorBrush x:Key="DockEdgeBrush" Color="#00000000"/>
+    <SolidColorBrush x:Key="ChromeInkBrush" Color="#ece3cf"/>
+    <SolidColorBrush x:Key="ChromeBoxBrush" Color="#15120f"/>
+    <SolidColorBrush x:Key="ChromeBoxEdgeBrush" Color="#47ece3cf"/>
+    <SolidColorBrush x:Key="TitleBrush" Color="#ece3cf"/>
+    <SolidColorBrush x:Key="InputBrush" Color="#1f1b17"/>
+    <SolidColorBrush x:Key="TrackBrush" Color="#33ece3cf"/>
+    <SolidColorBrush x:Key="DialogBrush" Color="#15120f"/>
+    <SolidColorBrush x:Key="PanelBrush" Color="#15120f"/>
+    <SolidColorBrush x:Key="TabsBrush" Color="#15120f"/>
+    <SolidColorBrush x:Key="DangerBrush" Color="#e0735a"/>
+    <SolidColorBrush x:Key="WarnBrush" Color="#e0b25a"/>
+    <SolidColorBrush x:Key="OkBrush" Color="#8fc48a"/>
+
+    <Color x:Key="CardOnColor">#ece3cf</Color>
+    <Color x:Key="CardOnInkColor">#15120f</Color>
+    <Color x:Key="CardOnMetaColor">#5a5044</Color>
+    <Color x:Key="CardOffInkColor">#ece3cf</Color>
+    <Color x:Key="CardOffMetaColor">#8f8573</Color>
+
+    <LinearGradientBrush x:Key="BackdropScrim" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#F2ece3cf" Offset="0"/>
+        <GradientStop Color="#B3ece3cf" Offset="0.5"/>
+        <GradientStop Color="#EBece3cf" Offset="1"/>
+    </LinearGradientBrush>
+
+    <FontFamily x:Key="DisplayFont">Sitka Display, Palatino Linotype, Book Antiqua, Georgia</FontFamily>
+    <FontFamily x:Key="MonoFont">Sitka Text, Palatino Linotype, Book Antiqua, Georgia</FontFamily>
+    <FontFamily x:Key="BodyFont">Sitka Text, Palatino Linotype, Book Antiqua, Georgia</FontFamily>
+
+    <CornerRadius x:Key="RadiusInput">0</CornerRadius>
+    <CornerRadius x:Key="RadiusTile">0</CornerRadius>
+    <CornerRadius x:Key="RadiusModule">3</CornerRadius>
+    <CornerRadius x:Key="RadiusDock">3</CornerRadius>
+    <CornerRadius x:Key="RadiusPlay">0</CornerRadius>
+    <CornerRadius x:Key="RadiusChromeBox">0</CornerRadius>
+</ResourceDictionary>

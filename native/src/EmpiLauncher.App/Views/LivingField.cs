@@ -75,6 +75,8 @@ internal sealed class LivingField : Grid, StyleHost.ILayer
     public static FrameworkElement? NextAction { get; set; }
     /// <summary>Areas where text lives: dots stay faint there so nothing is ever hard to read.</summary>
     public static readonly List<FrameworkElement> Quiet = [];
+    /// <summary>Panels that hide the background completely (the rail, the dock): a style keeps what must be seen (Words' poem) out from under them.</summary>
+    public static readonly List<FrameworkElement> Covers = [];
 
     private readonly Layer _baseLayer = new(cached: true), _liveLayer = new(cached: false);
     private readonly DispatcherTimer _gate = new() { Interval = TimeSpan.FromSeconds(2) };

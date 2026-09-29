@@ -79,6 +79,7 @@ public partial class HomeView : UserControl
             LivingField.NextAction = PlayButton;   // the main action glows in the modpack's accent
             // dots stay faint behind the title and the facts: behind each of them, not the whole width of the column (the backgrounds use the room left)
             foreach (var part in QuietParts()) LivingField.Quiet.Add(part);
+            LivingField.Covers.Add(RailModule); LivingField.Covers.Add(Dock);
         };
         Unloaded += (_, _) =>
         {
@@ -88,6 +89,7 @@ public partial class HomeView : UserControl
             if (_flyout != null) _flyout.IsOpen = false;
             if (ReferenceEquals(LivingField.NextAction, PlayButton)) LivingField.NextAction = null;
             foreach (var part in QuietParts()) LivingField.Quiet.Remove(part);
+            LivingField.Covers.Remove(RailModule); LivingField.Covers.Remove(Dock);
         };
         // Players online: only asked while the window is in front, once every 90 s. A hidden launcher does not poll the network.
         _status.Tick += (_, _) =>
@@ -190,13 +192,18 @@ public partial class HomeView : UserControl
         SyncBannerAnimation();
     }
 
-    private bool _punk;
+    private bool _punk, _words;
     private string? _titleShown;
 
-    /// <summary>What a style changes in this view beyond its resources: Punk cuts the title out of magazines and prints the description on a black strip.</summary>
+    /// <summary>
+    /// What a style changes in this view beyond its resources: Punk cuts the title out of magazines and prints the description on a black
+    /// strip; Words cuts each word of the title out of the page and writes the description in italics.
+    /// </summary>
     private void DressForStyle()
     {
-        _punk = global::EmpiLauncher.App.Styles.StyleTheme.Current == "punk";
+        var style = global::EmpiLauncher.App.Styles.StyleTheme.Current;
+        _punk = style == "punk"; _words = style == "words";
+        if (_words) { PackTitle.LineHeight = double.NaN; PackDescription.FontStyle = FontStyles.Italic; return; }
         if (!_punk) return;
         PackTitle.LineHeight = double.NaN;
         PackDescription.Background = new SolidColorBrush(Color.FromRgb(0x14, 0x12, 0x14));
@@ -204,14 +211,14 @@ public partial class HomeView : UserControl
         PackDescription.Padding = new Thickness(9, 4, 9, 5);
     }
 
-    /// <summary>The modpack's name as the title (in Punk, a ransom note: Views/Styles/PunkField.Ransom). Only redone when the name changes.</summary>
+    /// <summary>The modpack's name as the title (in Punk a ransom note, in Words paper cut-outs: Views/Styles). Only redone when the name changes.</summary>
     private void SetTitle(string text)
     {
         if (text == _titleShown) return;
         _titleShown = text;
-        if (!_punk) { PackTitle.Text = text; return; }
+        if (!_punk && !_words) { PackTitle.Text = text; return; }
         PackTitle.Inlines.Clear();
-        foreach (var letter in Styles.PunkField.Ransom(text)) PackTitle.Inlines.Add(letter);
+        foreach (var piece in _punk ? Styles.PunkField.Ransom(text) : Styles.WordsField.KeptWords(text)) PackTitle.Inlines.Add(piece);
         System.Windows.Automation.AutomationProperties.SetName(PackTitle, text);
     }
 

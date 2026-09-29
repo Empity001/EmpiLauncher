@@ -97,7 +97,7 @@
       "name": "Words",
       "summary": "Una página de libro tachada con marcador. Lo que queda es un poema que dice la verdad.",
       "accent": "#d6344d",
-      "ported": false,
+      "ported": true,
       "releasedIn": null,
       "notes": "# Empi Launcher {version}: nuevo estilo Words\n\n## Estilos (nuevo)\n- Nuevo estilo **Words**: el fondo es una página de libro tachada con marcador, como en la poesía de tachones. Lo que queda sin tachar forma un poema corto.\n- El poema no es de adorno: dice lo que pasa de verdad. Qué modpack te espera, cuántos mods trae, cuánto va de la descarga o que estás jugando. Cuando algo cambia, la página se vuelve a escribir y el marcador la tacha otra vez.\n- Pasa el puntero sobre la tinta para leer lo que hay debajo. Cada clic deja trazos de pluma alrededor.\n- Llega inundando la ventana de tinta y revelando la página renglón por renglón.\n- Cambia toda la interfaz, no solo el fondo: letras de libro, recortes de papel y tinta, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
     }

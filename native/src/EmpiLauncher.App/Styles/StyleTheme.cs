@@ -11,7 +11,7 @@ namespace EmpiLauncher.App.Styles;
 /// <summary>Which background each style draws. A style that is listed but has no drawing in this build is never offered.</summary>
 internal static class StyleFactory
 {
-    public static bool CanDraw(string id) => id is "actual" or "celestial" or "minimal" or "shell" or "explorer" or "remember" or "punk";
+    public static bool CanDraw(string id) => id is "actual" or "celestial" or "minimal" or "shell" or "explorer" or "remember" or "punk" or "words";
 
     public static StyleHost.ILayer Create(string id) => id switch
     {
@@ -21,6 +21,7 @@ internal static class StyleFactory
         "explorer" => new ExplorerField(),
         "remember" => new RememberField(),
         "punk" => new PunkField(),
+        "words" => new WordsField(),
         _ => new LivingField()
     };
 }
@@ -84,6 +85,7 @@ internal static class StyleTheme
     private static void Extras(string id, ResourceDictionary theme)
     {
         if (id == "explorer") { PlayInk = Colors.White; return; }   // white on its green Play
+        if (id == "words") { PlayInk = Color.FromRgb(0x15, 0x12, 0x0f); return; }   // ink on its paper Play
         if (id != "celestial") return;
         // holographic foil on the title and the Play button: it holds still and now and then a sheen passes over it (see Shine)
         Foil(theme, sweep: false);

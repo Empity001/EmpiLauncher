@@ -286,6 +286,16 @@ internal sealed class AboutTab : SettingsTab
                 Paint(group, "#7a2f25", roof, "#3a2418", 1.2);
                 Paint(group, "#f6dc8a", new RectangleGeometry(new Rect(110, 30, 6, 6)));
                 break;
+            case "words":
+                Paint(group, "#ece3cf", new RectangleGeometry(box));
+                for (var line = 0; line < 5; line++)
+                    for (var bar = 0; bar < 3; bar++)
+                    {
+                        var x = 8 + bar * 56 + (line * 13 % 9); var w = 30 + (line * 7 + bar * 11) % 20;
+                        if (line == 2 && bar == 1) { Say(group, "espera", "Sitka Text, Georgia", 10, "#2b2620", x, 23); Paint(group, null, new EllipseGeometry(new Point(x + 16, 30), 22, 9), style.Accent, 1.2); continue; }
+                        Paint(group, "#15120f", new RectangleGeometry(new Rect(x, 6 + line * 10, w, 7), 2, 2));
+                    }
+                break;
             case "punk":
                 Paint(group, "#e4dfd3", new RectangleGeometry(box));
                 Paint(group, style.Accent, Torn(12, 6, 110, 40, 3));
