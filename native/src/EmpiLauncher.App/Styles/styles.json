@@ -17,7 +17,7 @@
       "summary": "Holográfico: brillos de colores, destellos y estrellas que flotan.",
       "accent": "#6fd6ff",
       "ported": true,
-      "releasedIn": null,
+      "releasedIn": "3.7.0",
       "notes": "# Empi Launcher {version}: nuevo estilo Celestial\n\n## Estilos (nuevo)\n- Nuevo estilo **Celestial**: el fondo se vuelve holográfico, con brillos de colores que se mueven despacio, destellos que parpadean y estrellas de papel metalizado que flotan. Al hacer clic sale un pequeño fuego artificial.\n- Llega como una lluvia de estrellas fugaces desde la esquina de arriba.\n- Cambia toda la interfaz, no solo el fondo: letras, formas y colores siguen al estilo, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
     },
     {
