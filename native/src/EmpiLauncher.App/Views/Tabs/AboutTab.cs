@@ -218,7 +218,7 @@ internal sealed class AboutTab : SettingsTab
         return button;
     }
 
-    /// <summary>A few square centimetres of the style: the dots of the base one, the foil light of Celestial, the colour of the others.</summary>
+    /// <summary>A few square centimetres of the style, drawn small: its ground, its shapes and its colour (the ones not drawn yet show their colour).</summary>
     private static Brush Sample(StyleInfo style)
     {
         var group = new DrawingGroup();
@@ -249,12 +249,94 @@ internal sealed class AboutTab : SettingsTab
                         group.Children.Add(new GeometryDrawing(new SolidColorBrush(tone > 0.55 ? style.Accent : Color.FromRgb(0x64, 0x63, 0x5f)), null, new EllipseGeometry(new Point(x, y), r, r)));
                     }
                 break;
+            case "minimal":
+                Paint(group, "#0c0c0d", new RectangleGeometry(box));
+                Paint(group, "#18181b", new RectangleGeometry(new Rect(10, 9, 70, 40), 6, 6), "#2a2a2e");
+                Paint(group, "#18181b", new RectangleGeometry(new Rect(88, 9, 74, 40), 6, 6), "#2a2a2e");
+                Paint(group, null, new EllipseGeometry(new Point(45, 29), 12, 12), "#2a2a2e", 3);
+                Paint(group, null, Arc(45, 29, 12, 0.7), style.Accent, 3);
+                for (var i = 0; i < 7; i++) { var h = 6 + 22 * Math.Abs(Math.Sin(i * 1.7 + 1)); Paint(group, i == 5 ? style.Accent : Color.FromRgb(0x3f, 0x3f, 0x46), new RectangleGeometry(new Rect(96 + i * 9, 43 - h, 5, h), 1.5, 1.5)); }
+                break;
+            case "shell":
+                Paint(group, "#0d0c0b", new RectangleGeometry(box));
+                for (var x = 0; x < 172; x += 12) Paint(group, "#1b1916", new RectangleGeometry(new Rect(x, 0, 1, 58)));
+                for (var y = 0; y < 58; y += 12) Paint(group, "#1b1916", new RectangleGeometry(new Rect(0, y, 172, 1)));
+                Say(group, "> empi --jugar", "Cascadia Mono, Consolas", 9, "#d9d4c7", 10, 10);
+                Say(group, "[OK] 118 mods", "Cascadia Mono, Consolas", 9, "#77736a", 10, 24);
+                Paint(group, style.Accent, new RectangleGeometry(new Rect(10, 40, 6, 10)));
+                Paint(group, null, new RectangleGeometry(new Rect(122, 14, 26, 26)), style.Accent, 1.5);
+                Paint(group, null, new RectangleGeometry(new Rect(132, 6, 26, 26)), style.Accent, 1);
+                break;
+            case "explorer":
+                var sky = new LinearGradientBrush(Color.FromRgb(0x2f, 0x6c, 0xd8), Color.FromRgb(0xbf, 0xdc, 0xff), 90);
+                group.Children.Add(new GeometryDrawing(sky, null, new RectangleGeometry(box)));
+                for (var row = 0; row < 3; row++) for (var col = 0; col < 12; col++) if ((row + col) % 2 == 0) Paint(group, "#1a1a1a", new RectangleGeometry(new Rect(col * 15 - row * 3, 40 + row * 6, 15 + row * 2, 6)));
+                Paint(group, "#0055ea", new RectangleGeometry(new Rect(50, 10, 76, 34), 4, 4));
+                Paint(group, "#ece9d8", new RectangleGeometry(new Rect(52.5, 20, 71, 22)));
+                Paint(group, "#e0553a", new RectangleGeometry(new Rect(114, 12.5, 8, 6), 1.5, 1.5));
+                Paint(group, "#5cd05c", new RectangleGeometry(new Rect(58, 32, 36, 6), 2, 2));
+                break;
+            case "remember":
+                Paint(group, "#8fa3d8", new RectangleGeometry(box));
+                for (var i = 0; i < 40; i++) Paint(group, null, new LineGeometry(new Point(i * 5, 0), new Point(i * 5 - 14, 40)), "#b7a6d8", 1);
+                Paint(group, "#f07a3a", new EllipseGeometry(new Point(140, 14), 8, 8));
+                Paint(group, "#2f7a42", new EllipseGeometry(new Point(86, 88), 120, 46));
+                Paint(group, "#c9503e", new RectangleGeometry(new Rect(106, 26, 22, 18)), "#3a2418", 1.2);
+                var roof = new PathGeometry([new PathFigure(new Point(103, 27), [new PolyLineSegment([new Point(117, 15), new Point(131, 27)], true)], true)]);
+                Paint(group, "#7a2f25", roof, "#3a2418", 1.2);
+                Paint(group, "#f6dc8a", new RectangleGeometry(new Rect(110, 30, 6, 6)));
+                break;
+            case "punk":
+                Paint(group, "#e4dfd3", new RectangleGeometry(box));
+                Paint(group, style.Accent, Torn(12, 6, 110, 40, 3));
+                Paint(group, "#141214", Torn(104, 26, 64, 36, 5));
+                var x0 = 20.0;
+                foreach (var (ch, fill, ink) in new[] { ("P", "#141214", "#ffffff"), ("U", "#f1ece2", "#141214"), ("N", "#ffffff", "#141214"), ("K", "#d8d2c4", "#141214") })
+                {
+                    Paint(group, fill, new RectangleGeometry(new Rect(x0, 16, 16, 20)));
+                    Say(group, ch, "Impact", 16, ink, x0 + 3, 16);
+                    x0 += 19;
+                }
+                break;
             default:
                 group.Children.Add(new GeometryDrawing(new SolidColorBrush(style.Accent), null, new RectangleGeometry(box)));
                 break;
         }
+        group.ClipGeometry = new RectangleGeometry(box);   // what reaches past the sample (a glow, a hill) must not change its framing
         group.Freeze();
         return new DrawingBrush(group) { Stretch = Stretch.UniformToFill };
+    }
+
+    private static void Paint(DrawingGroup group, string? fill, Geometry shape, string? stroke = null, double width = 1) =>
+        group.Children.Add(new GeometryDrawing(fill == null ? null : new SolidColorBrush((Color)ColorConverter.ConvertFromString(fill)),
+            stroke == null ? null : new Pen(new SolidColorBrush((Color)ColorConverter.ConvertFromString(stroke)), width), shape));
+
+    private static void Paint(DrawingGroup group, Color? fill, Geometry shape, Color? stroke = null, double width = 1) =>
+        group.Children.Add(new GeometryDrawing(fill is { } f ? new SolidColorBrush(f) : null, stroke is { } s ? new Pen(new SolidColorBrush(s), width) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round } : null, shape));
+
+    private static void Say(DrawingGroup group, string text, string family, double size, string color, double x, double y)
+    {
+        var shaped = new FormattedText(text, System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface(family), size, Brushes.Black, 1.0);
+        Paint(group, color, shaped.BuildGeometry(new Point(x, y)));
+    }
+
+    /// <summary>Part of a circle, from the top, clockwise: <paramref name="share"/> of the way round.</summary>
+    private static Geometry Arc(double cx, double cy, double r, double share)
+    {
+        var a = share * Math.Tau - Math.PI / 2;
+        return new PathGeometry([new PathFigure(new Point(cx, cy - r), [new ArcSegment(new Point(cx + Math.Cos(a) * r, cy + Math.Sin(a) * r), new Size(r, r), 0, share > 0.5, SweepDirection.Clockwise, true)], false)]);
+    }
+
+    /// <summary>A small scrap with torn edges, for Punk's sample.</summary>
+    private static Geometry Torn(double x, double y, double w, double h, int seed)
+    {
+        var rnd = new Random(seed);
+        var points = new List<Point>();
+        for (var i = 0.0; i < w; i += 4) points.Add(new Point(x + i, y + rnd.NextDouble() * 2));
+        for (var i = 0.0; i < h; i += 4) points.Add(new Point(x + w - rnd.NextDouble() * 2, y + i));
+        for (var i = w; i > 0; i -= 4) points.Add(new Point(x + i, y + h - rnd.NextDouble() * 2));
+        for (var i = h; i > 0; i -= 4) points.Add(new Point(x + rnd.NextDouble() * 2, y + i));
+        return new PathGeometry([new PathFigure(points[0], [new PolyLineSegment(points.Skip(1), true)], true)]);
     }
 
     // ---- the living background ---------------------------------------------------------------------------------------
