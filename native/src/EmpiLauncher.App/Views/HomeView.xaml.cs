@@ -75,7 +75,8 @@ public partial class HomeView : UserControl
             else _entranceAt = Environment.TickCount64;   // rebuilt in another style: it is simply there, under the crossfade
             Refresh(); RefreshBanner(); _status.Start(); _ = _l.RefreshStatusAsync();
             LivingField.NextAction = PlayButton;   // the main action glows in the modpack's accent
-            LivingField.Quiet.Add(Hero);           // dots stay faint behind the title and the facts
+            // dots stay faint behind the title and the facts: behind each of them, not the whole width of the column (the backgrounds use the room left)
+            foreach (var part in QuietParts()) LivingField.Quiet.Add(part);
         };
         Unloaded += (_, _) =>
         {
@@ -84,7 +85,7 @@ public partial class HomeView : UserControl
             _l.Changed -= OnChanged; _l.GameChanged -= OnGame; _l.ArtChanged -= RefreshBanner; _l.NoticesChanged -= OnChanged; _status.Stop(); _agenda.Stop(); _glass?.Stop(); PackBanner.Source = null; ProgressCloud.Source = null;
             if (_flyout != null) _flyout.IsOpen = false;
             if (ReferenceEquals(LivingField.NextAction, PlayButton)) LivingField.NextAction = null;
-            LivingField.Quiet.Remove(Hero);
+            foreach (var part in QuietParts()) LivingField.Quiet.Remove(part);
         };
         // Players online: only asked while the window is in front, once every 90 s. A hidden launcher does not poll the network.
         _status.Tick += (_, _) =>
@@ -112,6 +113,8 @@ public partial class HomeView : UserControl
     private long _entranceAt;
     private bool _entrancePending;
     private string? _shownPack;
+
+    private FrameworkElement[] QuietParts() => [Pills, PackTitle, PackBanner, PackDescription, AccessNote, FactsModule, RepairButton, ProgressPanel];
 
     private List<UIElement> EntranceParts() => [RailModule, .. HeroParts(), Dock];
 
@@ -569,6 +572,7 @@ public partial class HomeView : UserControl
             _ when _l.Account == null => "INICIAR SESIÓN",
             _ => (_l.Pack?.Action ?? "play") switch { "update" => "ACTUALIZAR", "restore" => "RESTAURAR", _ => "JUGAR" }
         };
+        label = global::EmpiLauncher.App.Styles.StyleTheme.Label(label);   // a style may write it in sentence case ("Jugar")
         PlayLabel.Text = label;
         System.Windows.Automation.AutomationProperties.SetName(PlayButton, label);
         OfflineButton.Visibility = _l.Account == null && !game.Busy && !game.Running ? Visibility.Visible : Visibility.Collapsed;
@@ -591,7 +595,7 @@ public partial class HomeView : UserControl
         else
         {
             PlayButton.ClearValue(BackgroundProperty);
-            PlayLabel.SetResourceReference(TextBlock.ForegroundProperty, "AccentInkBrush");
+            PlayLabel.SetResourceReference(TextBlock.ForegroundProperty, "PlayInkBrush");
             PlayFill.Visibility = Visibility.Collapsed;
             PlayButton.IsHitTestVisible = true;
         }

@@ -1,0 +1,59 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- MINIMAL: a modern app. Flat zinc surfaces with no outlines, one soft radius, Segoe UI Variable for everything (no dot matrix, no
+         mono), sentence case (Styles/StyleTheme.cs: SentenceCase) and the accent used sparingly. -->
+
+    <Color x:Key="WellColor">#0b0b0c</Color>
+    <Color x:Key="BgColor">#0c0c0d</Color>
+    <Color x:Key="SurfaceColor">#141416</Color>
+    <Color x:Key="Surface2Color">#1c1c1f</Color>
+    <Color x:Key="Surface3Color">#232327</Color>
+    <Color x:Key="LineColor">#26262a</Color>
+    <Color x:Key="LineStrongColor">#3a3a40</Color>
+    <Color x:Key="PaperColor">#f4f4f5</Color>
+    <Color x:Key="Paper2Color">#a1a1aa</Color>
+    <Color x:Key="Paper3Color">#71717a</Color>
+    <Color x:Key="PaperInkColor">#3f3f46</Color>
+
+    <SolidColorBrush x:Key="WellBrush" Color="#0b0b0c"/>
+    <SolidColorBrush x:Key="BgBrush" Color="#0c0c0d"/>
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#141416"/>
+    <SolidColorBrush x:Key="Surface2Brush" Color="#1c1c1f"/>
+    <SolidColorBrush x:Key="Surface3Brush" Color="#232327"/>
+    <SolidColorBrush x:Key="LineBrush" Color="#26262a"/>
+    <SolidColorBrush x:Key="LineStrongBrush" Color="#3a3a40"/>
+    <SolidColorBrush x:Key="PaperBrush" Color="#f4f4f5"/>
+    <SolidColorBrush x:Key="Paper2Brush" Color="#a1a1aa"/>
+    <SolidColorBrush x:Key="Paper3Brush" Color="#71717a"/>
+    <SolidColorBrush x:Key="PaperInkBrush" Color="#3f3f46"/>
+    <SolidColorBrush x:Key="ModuleBrush" Color="#F7141416"/>
+    <SolidColorBrush x:Key="HairBrush" Color="#10FFFFFF"/>
+    <SolidColorBrush x:Key="HairStrongBrush" Color="#22FFFFFF"/>
+    <SolidColorBrush x:Key="TintBrush" Color="#0AFFFFFF"/>
+    <SolidColorBrush x:Key="TintHoverBrush" Color="#16FFFFFF"/>
+    <SolidColorBrush x:Key="DockBrush" Color="#F7141416"/>
+    <SolidColorBrush x:Key="DockEdgeBrush" Color="#00000000"/>
+    <SolidColorBrush x:Key="ChromeBoxBrush" Color="#F7141416"/>
+    <SolidColorBrush x:Key="TitleBrush" Color="#f4f4f5"/>
+
+    <Color x:Key="CardOnColor">#232327</Color>
+    <Color x:Key="CardOnInkColor">#f4f4f5</Color>
+    <Color x:Key="CardOnMetaColor">#8a8a93</Color>
+    <Color x:Key="CardOffInkColor">#d4d4d8</Color>
+    <Color x:Key="CardOffMetaColor">#71717a</Color>
+
+    <LinearGradientBrush x:Key="BackdropScrim" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#F50c0c0d" Offset="0"/>
+        <GradientStop Color="#A60c0c0d" Offset="0.5"/>
+        <GradientStop Color="#EB0c0c0d" Offset="1"/>
+    </LinearGradientBrush>
+
+    <FontFamily x:Key="DisplayFont">Segoe UI Variable Display, Segoe UI</FontFamily>
+    <FontFamily x:Key="MonoFont">Segoe UI Variable Text, Segoe UI</FontFamily>
+    <FontFamily x:Key="BodyFont">Segoe UI Variable Text, Segoe UI</FontFamily>
+
+    <CornerRadius x:Key="RadiusInput">14</CornerRadius>
+    <CornerRadius x:Key="RadiusTile">16</CornerRadius>
+    <CornerRadius x:Key="RadiusModule">26</CornerRadius>
+    <CornerRadius x:Key="RadiusDock">28</CornerRadius>
+</ResourceDictionary>

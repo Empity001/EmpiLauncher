@@ -70,7 +70,7 @@
       "name": "Minimal",
       "summary": "Oscuro, limpio y tranquilo, con tarjetas que muestran tu modpack.",
       "accent": "#c8f560",
-      "ported": false,
+      "ported": true,
       "releasedIn": null,
       "notes": "# Empi Launcher {version}: nuevo estilo Minimal\n\n## Estilos (nuevo)\n- Nuevo estilo **Minimal**: fondo oscuro y tranquilo, sin nada que distraiga, con unas pocas tarjetas limpias que muestran tu modpack de verdad: los mods, la memoria asignada, la versión de Minecraft y el loader.\n- Mientras descargas, el anillo de la tarjeta grande muestra el porcentaje.\n- Llega con las tarjetas acomodándose una detrás de otra.\n- Cambia toda la interfaz, no solo el fondo: letras, formas y colores siguen al estilo, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
     },

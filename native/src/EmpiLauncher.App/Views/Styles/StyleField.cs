@@ -89,6 +89,8 @@ internal abstract class StyleField : FrameworkElement, StyleHost.ILayer
     protected void InvalidateBase() => _baseDirty = true;
     /// <summary>Cuts the base drawing too (a style arriving shows its sky only behind its own front).</summary>
     protected void ClipBase(Geometry? clip) { if (!ReferenceEquals(_base.Clip, clip)) _base.Clip = clip; }
+    /// <summary>Fades the base drawing (a style arriving by fading in brings its ground in with it).</summary>
+    protected void FadeBase(double opacity) { if (Math.Abs(_base.Opacity - opacity) > 0.001) _base.Opacity = opacity; }
     protected virtual void Resized() { }
     /// <summary>The machine could not keep up: draw less (fewer particles...). Return false when there is nothing left to drop.</summary>
     protected virtual bool Thin() => false;
@@ -294,4 +296,21 @@ internal abstract class StyleField : FrameworkElement, StyleHost.ILayer
     }
 
     protected static SolidColorBrush Frozen(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
+
+    private readonly Dictionary<string, FormattedText> _texts = [];
+
+    /// <summary>A line of text, shaped once and kept (styles show the same few words frame after frame). Colour and size are part of it.</summary>
+    protected FormattedText Text(string text, string family, double size, Color color, FontWeight? weight = null, FontStyle? style = null)
+    {
+        var w = weight ?? FontWeights.Normal; var st = style ?? FontStyles.Normal;
+        var key = $"{text}\u0001{family}\u0001{size:0.#}\u0001{color}\u0001{w}\u0001{st}";
+        if (_texts.TryGetValue(key, out var shaped)) return shaped;
+        if (_texts.Count > 600) _texts.Clear();
+        shaped = new FormattedText(text, System.Globalization.CultureInfo.GetCultureInfo("es-ES"), FlowDirection.LeftToRight,
+            new Typeface(new FontFamily(family), st, w, FontStretches.Normal), size, Frozen(color), VisualTreeHelper.GetDpi(this).PixelsPerDip);
+        return _texts[key] = shaped;
+    }
+
+    /// <summary>A colour with another opacity (0..1), in 32 steps so the brushes and texts made from it can be kept.</summary>
+    protected static Color Alpha(Color c, double a) => Color.FromArgb((byte)(Math.Round(Math.Clamp(a, 0, 1) * 31) / 31 * 255), c.R, c.G, c.B);
 }

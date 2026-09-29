@@ -11,11 +11,12 @@ namespace EmpiLauncher.App.Styles;
 /// <summary>Which background each style draws. A style that is listed but has no drawing in this build is never offered.</summary>
 internal static class StyleFactory
 {
-    public static bool CanDraw(string id) => id is "actual" or "celestial";
+    public static bool CanDraw(string id) => id is "actual" or "celestial" or "minimal";
 
     public static StyleHost.ILayer Create(string id) => id switch
     {
         "celestial" => new CelestialField(),
+        "minimal" => new MinimalField(),
         _ => new LivingField()
     };
 }
@@ -30,6 +31,17 @@ internal static class StyleTheme
 {
     public static string Current { get; private set; } = StyleCatalog.Base;
 
+    /// <summary>Whether the style writes its labels in sentence case ("Jugar") instead of capitals ("JUGAR").</summary>
+    public static bool SentenceCase { get; private set; }
+
+    /// <summary>A label as the style writes it: capitals stay capitals unless the style asks for sentence case.</summary>
+    public static string Label(string text)
+    {
+        if (!SentenceCase || text.Length == 0) return text;
+        var lower = text.ToLowerInvariant().Replace("java", "Java");
+        return char.ToUpperInvariant(lower[0]) + lower[1..];
+    }
+
     /// <summary>The ink of the Play button's label when the style paints the button itself (null: the ink that reads on the accent).</summary>
     public static Color? PlayInk { get; private set; }
 
@@ -39,6 +51,7 @@ internal static class StyleTheme
         var style = StyleCatalog.Get(id);
         var theme = Load("Themes/Theme.xaml") ?? new ResourceDictionary();
         PlayInk = null;
+        SentenceCase = style.Id is "minimal" or "remember" or "words" or "explorer";
         if (style.Id != StyleCatalog.Base && Load($"Themes/Looks/{style.Id}.tokens.xaml") is { } tokens)
             foreach (var key in tokens.Keys) theme[key] = tokens[key];
         Extras(style.Id, theme);

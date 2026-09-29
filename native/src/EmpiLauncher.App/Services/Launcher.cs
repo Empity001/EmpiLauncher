@@ -479,6 +479,14 @@ public sealed class Launcher : IAsyncDisposable
         catch (Exception) { return new OfflinePreview(false, "No se pudo comprobar el nombre. Inténtalo de nuevo.", name, null, null); }
     }
 
+    /// <summary>Time played in the last seven days and in all, for one modpack (or all of them). Null when the engine cannot say.</summary>
+    public async Task<PlaytimeResult?> PlaytimeAsync(string? serverId)
+    {
+        if (!Connected) return null;
+        try { return await Client.CallAsync<PlaytimeResult>("stats.playtime", new { serverId }, TimeSpan.FromSeconds(5)); }
+        catch (Exception ex) when (ex is EngineException or TimeoutException or InvalidOperationException) { return null; }
+    }
+
     /// <summary>Plays without an account under this name (creating the offline player, or renaming it). Returns the reason it was refused, or null.</summary>
     public async Task<string?> UseOfflineAsync(string name)
     {
