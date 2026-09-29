@@ -14,8 +14,9 @@ namespace EmpiLauncher.App.Views.Styles;
 /// What is real: four callouts pinned to it with leader lines (Minecraft, loader, mods, version), and while a download runs, a thin arc
 /// around it that fills with the download. It arrives as a circle opening from the object outward.
 ///
-/// Cost: the ground is the base; a frame is two polylines per ring (the side facing you and the side behind), a few offset strokes of
-/// them, and during the tunnel a couple of dozen dotted circles. Eight frames a second while nothing happens (it turns slowly).
+/// Cost: the ground is the base; a frame is the rings as polylines sorted into seven shades of depth (a few offset strokes of the
+/// nearest for the fringe). The tunnel and the lines are the same rings, so every change of shape is a morph and never a fade. Eight
+/// frames a second while nothing happens (it turns slowly).
 /// </summary>
 internal sealed class CoreField : StyleField
 {
@@ -65,7 +66,6 @@ internal sealed class CoreField : StyleField
     // development builds only: EMPI_CORE_AT=<seconds> starts the cycle there (to look at, or measure, one form at a time)
     private static readonly double _startAt = double.TryParse(Environment.GetEnvironmentVariable("EMPI_CORE_AT"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var at) ? at - 20 : 0;
 #endif
-    private bool _tunnelOn = true;
 
     // ---- where it sits: in the room right of the modpack's text ----------------------------------------------------------------
 
@@ -97,6 +97,13 @@ internal sealed class CoreField : StyleField
 
     // ---- a frame ----------------------------------------------------------------------------------------------------------------
 
+    // every scene is the same N rings of M+1 points on the screen, each point with a depth: so any shape can turn into any other
+    private readonly double[] _ax = new double[N * (M + 1)], _ay = new double[N * (M + 1)], _az = new double[N * (M + 1)];
+    private readonly double[] _bx = new double[N * (M + 1)], _by = new double[N * (M + 1)], _bz = new double[N * (M + 1)];
+
+    private static bool IsForm(string scene) => scene is not ("tunnel" or "lines");
+    private static double DotsOf(string scene) => scene is "dotted" or "tunnel" ? 1 : 0;
+
     protected override void Render(DrawingContext dc, double dt)
     {
         var before = (_cx, _cy, _size);
@@ -114,18 +121,33 @@ internal sealed class CoreField : StyleField
         _tiltX += ((Pointer.Y - _cy) / H * 0.7 * PointerAmp - _tiltX) * Math.Min(1, dt * 3);
         _tiltY += ((Pointer.X - _cx) / W * 0.9 * PointerAmp - _tiltY) * Math.Min(1, dt * 3);
 
-        // where in the cycle: scene A, the next one B, and how far the morph between them has gone
+        // where in the cycle: scene A, the next one B, and how far the change between them has gone
         var k = t / Cycle; var ai = (int)Math.Floor(k) % Scenes.Length; string A = Scenes[ai], Bn = Scenes[(ai + 1) % Scenes.Length];
-        var local = (k - Math.Floor(k)) * Cycle; var b = Smooth((local - Hold) / Morph);
-        double scale = 1, alpha = 1, drawOn = 1, melt = 0, dots = 0, tun = 0, tunR = 1, lin = 0, sink = 1;
-        var showObj = false;
-        var meltHold = Smooth((local - 1.2) / 4.3);
-        var isForm = A is not ("tunnel" or "lines") && Bn is not ("tunnel" or "lines");
-        if (isForm) { SetForms(A, Bn, b, t); showObj = true; if (A == "disc") melt = meltHold; }
-        else if (A == "disc") { SetForms("disc", "disc", 0, t); showObj = true; melt = meltHold * (1 - b); scale = 1 + 4.5 * b * b; alpha = 1 - b; dots = b; tun = b; tunR = 0.25 + 0.75 * b; }
-        else if (A == "tunnel") { tun = 1 - b; tunR = 1 - 0.95 * b; lin = b; sink = 1 + 5 * (1 - b); }
-        else if (A == "lines") { lin = 1 - b; sink = 1 + 7 * b; if (b > 0) { SetForms("slinky", "slinky", 0, t); showObj = true; scale = 0.15 + 0.85 * b; alpha = b; drawOn = b; } }
-        if (Reveal < 1) drawOn = Math.Min(drawOn, Reveal);
+        var local = (k - Math.Floor(k)) * Cycle; var raw = Math.Clamp((local - Hold) / Morph, 0, 1);
+        var melt = A == "disc" ? Smooth((local - 1.2) / 4.3) * (1 - Smooth(raw)) : 0;
+        if (IsForm(A) && IsForm(Bn))
+        {
+            // between two objects: the rings' own parameters turn into the next ones, in three dimensions
+            SetForms(A, Bn, Smooth(raw), t);
+            Project(t, melt, pulse, _px, _py, _pz);
+        }
+        else
+        {
+            // to or from the tunnel or the lines: every point of every ring travels to its place in the next shape, in a wave that runs
+            // ring after ring and along each ring, so the disc opens into the tunnel, the tunnel unrolls into lines, the lines coil into
+            // the slinky: nothing fades, every stroke becomes the next one
+            Scene(A, t, melt, pulse, _ax, _ay, _az);
+            if (raw > 0) Scene(Bn, t, 0, pulse, _bx, _by, _bz);
+            for (var i = 0; i < N; i++)
+                for (var m = 0; m <= M; m++)
+                {
+                    var n = i * (M + 1) + m;
+                    var w = raw > 0 ? Smooth(raw * 1.6 - (double)i / N * 0.35 - (double)m / M * 0.25) : 0;
+                    _px[n] = _ax[n] + (_bx[n] - _ax[n]) * w; _py[n] = _ay[n] + (_by[n] - _ay[n]) * w; _pz[n] = _az[n] + (_bz[n] - _az[n]) * w;
+                }
+        }
+        var dots = DotsOf(A) + (DotsOf(Bn) - DotsOf(A)) * Smooth(raw);
+        var drawOn = Reveal < 1 ? Reveal : 1;
 
         // arriving: a circle opens from the core outward
         var arriving = Reveal < 1; var maxR = Math.Sqrt(W * W + H * H) + 80; var R = Reveal * maxR;
@@ -136,11 +158,9 @@ internal sealed class CoreField : StyleField
         }
         else ClipBase(null);
 
-        if (_tunnelOn && tun > 0.002) Tunnel(dc, tun, tunR);
-        if (lin > 0.002) Lines(dc, lin, sink);
-        if (tun > 0.002 || lin > 0.002) Veil(dc);
-        if (showObj) Object(dc, t, scale, alpha, drawOn, melt, dots, pulse);
-        Callouts(dc, alpha * (showObj ? 1 : 0.6));
+        if (!IsForm(A) || raw > 0 && !IsForm(Bn)) Veil(dc);
+        DrawRings(dc, drawOn, dots);
+        Callouts(dc, 1);
         Progress(dc);
 
         // contour ripples from clicks
@@ -190,14 +210,22 @@ internal sealed class CoreField : StyleField
         }
     }
 
-    /// <summary>The rings, projected: the side facing you in light, the side behind it faint, with a red and a cyan fringe either side.</summary>
-    private void Object(DrawingContext dc, double t, double scaleK, double alpha, double drawOn, double melt, double dotsK, double pulse)
+    /// <summary>One scene's points: an object (its rings projected), the tunnel or the lines.</summary>
+    private void Scene(string scene, double t, double melt, double pulse, double[] x, double[] y, double[] z)
+    {
+        if (IsForm(scene)) { SetForms(scene, scene, 0, t); Project(t, melt, pulse, x, y, z); }
+        else if (scene == "tunnel") Tunnel(t, x, y, z);
+        else Lines(x, y, z);
+    }
+
+    /// <summary>The object's rings in three dimensions, turned, seen through a camera; the depth kept for the shading.</summary>
+    private void Project(double t, double melt, double pulse, double[] px, double[] py, double[] pz)
     {
         double cam = _par[7], swing = _par[8];
         var yaw = swing * (0.62 * Math.Sin(t * 0.11) + 0.28 * Math.Sin(t * 0.047)) + _tiltY * swing;
         var pitch = swing * (0.32 + 0.12 * Math.Sin(t * 0.21)) + _tiltX;
         double cyw = Math.Cos(yaw), syw = Math.Sin(yaw), cp = Math.Cos(pitch), sp = Math.Sin(pitch);
-        var scale = _size * scaleK * (1 + 0.025 * Math.Sin(t * 0.9) + pulse);
+        var scale = _size * (1 + 0.025 * Math.Sin(t * 0.9) + pulse);
         for (var i = 0; i < N; i++)
         {
             var b = i * Par;
@@ -221,147 +249,131 @@ internal sealed class CoreField : StyleField
                     if (d > 0) { Y += melt * scale * (0.2 * d + 0.07 * Math.Sin(X * 0.045 + t * 3 + d * 7) * d); X += melt * scale * 0.025 * Math.Sin(Y * 0.08 + t * 2.4) * d; }
                 }
                 var n = i * (M + 1) + m;
-                _px[n] = X; _py[n] = Y; _pz[n] = z2;
+                px[n] = X; py[n] = Y; pz[n] = z2;
             }
         }
-        var dots = Math.Min(1, _par[9] + dotsK);
-        var lw = 1.1 + 1.3 * dots;
-        // in the dotted forms every short stroke shrinks toward its start until it is a dot
-        var shrink = dots > 0.001 ? 0.01 + 99.99 * Math.Pow(1 - dots, 3) : double.PositiveInfinity;
-        // the side facing you in full; the faint strokes (the side behind, the red and cyan fringe) with every other point: WPF's render
-        // thread tessellates each stroke on the processor, and those three passes cost as much as the rest together at full detail
-        var front = Rings(drawOn, 1, true, shrink, lw);
-        var frontCoarse = double.IsInfinity(shrink) ? Rings(drawOn, 2, true, shrink, lw) : front;
-        var back = Rings(drawOn, double.IsInfinity(shrink) ? 2 : 1, false, shrink, lw * 0.9);
-        void Draw(Geometry g, Color c, double a, double width) => dc.DrawGeometry(double.IsInfinity(shrink) ? null : B(Alpha(c, a)), P(Alpha(c, a), width), g);
-        Draw(back, Light, 0.22 * alpha, lw * 0.9);
-        dc.PushTransform(new TranslateTransform(-1.2, 0)); Draw(frontCoarse, Red, 0.28 * alpha, lw); dc.Pop();
-        dc.PushTransform(new TranslateTransform(1.2, 0)); Draw(frontCoarse, Cyan, 0.28 * alpha, lw); dc.Pop();
-        Draw(front, Light, 0.85 * alpha, lw);
     }
 
     /// <summary>
-    /// One side of the rings, every <paramref name="step"/>-th point: polylines, or, in the dotted forms, each segment cut to
-    /// <paramref name="shrink"/> px from its start, and once that is under a pixel and a half, a small filled square instead (drawn in the
-    /// same call: the squares are filled and not stroked, the short strokes are stroked and not filled).
+    /// The tunnel: the rings as circles spaced wider and wider, drifting outward toward you (the far, small ones dim, the near ones bright),
+    /// the inner ones leaning toward the pointer. Its clock starts when the disc starts to open, so the rings keep who they are all the
+    /// way from the disc to the lines.
     /// </summary>
-    private StreamGeometry Rings(double drawOn, int step, bool wantFront, double shrink, double width)
+    private void Tunnel(double t, double[] x, double[] y, double[] z)
     {
-        var g = new StreamGeometry();
-        var dotted = !double.IsInfinity(shrink);
-        var half = width * 0.55;
-        using (var s = g.Open())
-            for (var i = 0; i < N; i++)
-            {
-                var upto = (int)Math.Floor(Math.Clamp(drawOn * 1.7 - (double)i / N * 0.7, 0, 1) * M);
-                var open = false;
-                for (var m = 0; m + step <= upto; m += step)
-                {
-                    var n = i * (M + 1) + m;
-                    var isFront = _pz[n] + _pz[n + step] > -0.1;
-                    if (isFront != wantFront) { open = false; continue; }
-                    var a = new Point(_px[n], _py[n]); var b = new Point(_px[n + step], _py[n + step]);
-                    if (!dotted)
-                    {
-                        if (!open) { s.BeginFigure(a, false, false); open = true; }
-                        s.LineTo(b, true, true);
-                        continue;
-                    }
-                    var along = b - a; var length = along.Length;
-                    if (shrink >= 1.5 && length > 0.01)
-                    {
-                        s.BeginFigure(a, false, false);
-                        s.LineTo(a + along * Math.Min(1, shrink / length), true, true);
-                    }
-                    else
-                    {
-                        s.BeginFigure(new Point(a.X - half, a.Y - half), true, true);
-                        s.PolyLineTo([new Point(a.X + half, a.Y - half), new Point(a.X + half, a.Y + half), new Point(a.X - half, a.Y + half)], false, false);
-                    }
-                }
-            }
-        g.Freeze();
-        return g;
-    }
-
-    /// <summary>A tunnel of dotted rings that keeps coming toward you: each ring one dotted circle, the dots growing as they come.</summary>
-    private void Tunnel(DrawingContext dc, double amount, double tr)
-    {
-        const double k = 0.105;
-        tr = Math.Max(tr, 0.02);
+        var loop = Scenes.Length * Cycle;
+        var since = ((t % loop) + loop) % loop - (Array.IndexOf(Scenes, "disc") * Cycle + Hold);
+        if (since < 0) since += loop;
         var lean = new Vector((Pointer.X - _cx) * 0.14 * PointerAmp, (Pointer.Y - _cy) * 0.14 * PointerAmp);
-        var reach = Math.Sqrt(W * W + H * H);
-        var first = (int)Math.Floor(Math.Log(20 / tr / 16) / k - T * 0.7) - 1;
-        for (var id = first; id < first + 46; id++)   // enough rings to reach the corners; the loop stops at the first one past them
+        for (var i = 0; i < N; i++)
         {
-            var rc = 16 * Math.Exp((id + 0.5 + T * 0.7) * k);
-            var r = rc * tr;
-            if (r < 20) continue;
-            if (r > reach) break;
-            var fade = Smooth(r / 40) * (r > 100 ? 1 - 0.4 * Smooth((r - 100) / 900) : 1) * amount;
-            if (fade < 0.02) continue;
+            var ii = i + since * 0.1;
+            var r = 18 * Math.Exp(0.155 * ii);   // from a pinhole out past the corners of the window
             var pull = 1 / (1 + r / 160);
-            double x = _cx + lean.X * pull, y = _cy + lean.Y * pull, reachR = r * RingImageSize / RingRadius / 2;
-            // every ring is the same picture of a dotted circle, scaled and turned: the dots spread out and grow as it comes, and the
-            // graphics card does all of it (drawing them as dashes made the processor tessellate thousands of dots a frame)
-            dc.PushOpacity(0.9 * fade);
-            dc.PushTransform(new RotateTransform(id * 37 % 360, x, y));
-            dc.DrawImage(RingImage(), new Rect(x - reachR, y - reachR, reachR * 2, reachR * 2));
-            dc.Pop(); dc.Pop();
-        }
-    }
-
-    private const int RingImageSize = 512;
-    private const double RingRadius = 248;
-    private static ImageSource? _ring;
-
-    private static ImageSource RingImage()
-    {
-        if (_ring != null) return _ring;
-        var v = new DrawingVisual();
-        using (var g = v.RenderOpen())
-        {
-            var dot = Frozen(Light);
-            for (var i = 0; i < 150; i++)
+            double cx = _cx + lean.X * pull, cy = _cy + lean.Y * pull;
+            var depth = -1 + 2 * Smooth((r - 20) / 520);
+            for (var m = 0; m <= M; m++)
             {
-                var a = i / 150.0 * Math.Tau;
-                g.DrawEllipse(dot, null, new Point(RingImageSize / 2.0 + Math.Cos(a) * RingRadius, RingImageSize / 2.0 + Math.Sin(a) * RingRadius), 2.4, 2.4);
+                var th = (double)m / M * Math.Tau + ii * 0.37;
+                var n = i * (M + 1) + m;
+                x[n] = cx + Math.Cos(th) * r; y[n] = cy + Math.Sin(th) * r; z[n] = depth;
             }
         }
-        var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(RingImageSize, RingImageSize, 96, 96, PixelFormats.Pbgra32);
-        bitmap.Render(v); bitmap.Freeze();
-        return _ring = bitmap;
     }
 
     /// <summary>Lines across the window, closer toward the top, pulled down into a well at the core and pushed aside by the pointer.</summary>
-    private void Lines(DrawingContext dc, double amount, double sink)
+    private void Lines(double[] x, double[] y, double[] z)
     {
-        const int count = 46;
-        var pen = P(Alpha(Light, 0.5 * amount), 1);
-        var g = new StreamGeometry();
-        using (var s = g.Open())
-            for (var n = 0; n < count; n++)
+        for (var i = 0; i < N; i++)
+        {
+            var phi = 4 + i * (40.0 / (N - 1));
+            var baseY = (Math.Pow(phi / 46, 4.0 / 3) - 0.02) * H;
+            var depth = -0.8 + 1.6 * i / (N - 1);
+            for (var m = 0; m <= M; m++)
             {
-                var phi = n + 0.5;
-                var baseY = (Math.Pow(phi / 46, 4.0 / 3) - 0.02) * H;
-                var spacing = (Math.Pow((phi + 1) / 46, 4.0 / 3) - Math.Pow(phi / 46, 4.0 / 3)) * H;
-                if (spacing < 3) continue;   // where lines get too dense to draw, they are left out instead of shimmering
-                for (var x = -10.0; x <= W + 10; x += 20)
+                var xx = -20 + (W + 40) * m / M;
+                var yy = baseY;
+                for (var it = 0; it < 4; it++)
                 {
-                    var y = baseY;
-                    for (var it = 0; it < 4; it++)
-                    {
-                        var dw = Math.Sqrt((x - _cx) * (x - _cx) + (y - _cy) * (y - _cy));
-                        var dp = Math.Sqrt((x - Pointer.X) * (x - Pointer.X) + (y - Pointer.Y) * (y - Pointer.Y));
-                        var target = phi - sink * 5.5 * Math.Exp(-dw / 150) + PointerAmp * 2.2 * Math.Exp(-dp / 110);
-                        y = (Math.Pow(Math.Max(0, target) / 46, 4.0 / 3) - 0.02) * H * 0.5 + y * 0.5;
-                    }
-                    if (x < -9) s.BeginFigure(new Point(x, y), false, false); else s.LineTo(new Point(x, y), true, true);
+                    var dw = Math.Sqrt((xx - _cx) * (xx - _cx) + (yy - _cy) * (yy - _cy));
+                    var dp = Math.Sqrt((xx - Pointer.X) * (xx - Pointer.X) + (yy - Pointer.Y) * (yy - Pointer.Y));
+                    var target = phi - 5.5 * Math.Exp(-dw / 150) + PointerAmp * 2.2 * Math.Exp(-dp / 110);
+                    yy = (Math.Pow(Math.Max(0, target) / 46, 4.0 / 3) - 0.02) * H * 0.5 + yy * 0.5;
+                }
+                var n = i * (M + 1) + m;
+                x[n] = xx; y[n] = yy; z[n] = depth;
+            }
+        }
+    }
+
+    private const int Shades = 7;
+
+    /// <summary>
+    /// The rings, shaded by depth: each stroke goes into one of seven shades from far (faint, thin) to near (bright, a little heavier),
+    /// so the object reads as a volume that turns, with no line where "front" stops and "back" starts. The nearest shades carry the
+    /// lens's red and cyan fringe. In the dotted forms every short stroke shrinks toward its start until it is a small filled square.
+    /// </summary>
+    private void DrawRings(DrawingContext dc, double drawOn, double dots)
+    {
+        var lw = 1.1 + 1.3 * dots;
+        var shrink = dots > 0.001 ? 0.01 + 99.99 * Math.Pow(1 - dots, 3) : double.PositiveInfinity;
+        var dotted = !double.IsInfinity(shrink);
+        var geometries = new StreamGeometry[Shades];
+        var contexts = new StreamGeometryContext[Shades];
+        for (var s = 0; s < Shades; s++) { geometries[s] = new StreamGeometry(); contexts[s] = geometries[s].Open(); }
+        for (var i = 0; i < N; i++)
+        {
+            var upto = (int)Math.Floor(Math.Clamp(drawOn * 1.7 - (double)i / N * 0.7, 0, 1) * M);
+            var last = -1;
+            for (var m = 0; m < upto; m++)
+            {
+                var n = i * (M + 1) + m;
+                var shade = Math.Clamp((int)(Smooth((_pz[n] + _pz[n + 1]) / 2 / 1.8 + 0.5) * Shades), 0, Shades - 1);
+                var s = contexts[shade];
+                var a = new Point(_px[n], _py[n]); var b = new Point(_px[n + 1], _py[n + 1]);
+                if (!dotted)
+                {
+                    // the stroke continues in the same figure while it stays in the same shade; a new shade starts where the last ended
+                    if (shade != last) { s.BeginFigure(a, false, false); last = shade; }
+                    s.LineTo(b, true, true);
+                    continue;
+                }
+                var along = b - a; var length = along.Length;
+                if (shrink >= 1.5 && length > 0.01) { s.BeginFigure(a, false, false); s.LineTo(a + along * Math.Min(1, shrink / length), true, true); }
+                else
+                {
+                    var half = lw * (0.45 + 0.25 * shade / (Shades - 1.0));
+                    Dot(s, a, half);
+                    // long segments (the big rings of the tunnel) get more dots between their ends, so a ring stays a ring of dots
+                    var extra = (int)Math.Min(4, length / 26);
+                    for (var q = 1; q <= extra; q++) Dot(s, a + along * (q / (extra + 1.0)), half);
                 }
             }
-        g.Freeze();
-        dc.DrawGeometry(null, pen, g);
+        }
+        for (var s = 0; s < Shades; s++) { contexts[s].Close(); geometries[s].Freeze(); }
+        for (var s = 0; s < Shades; s++)
+        {
+            var near = s / (Shades - 1.0);
+            var a = 0.12 + 0.78 * near * near;
+            var width = lw * (0.75 + 0.4 * near);
+            if (near > 0.6)
+            {
+                var fringe = 0.3 * (near - 0.6) / 0.4;
+                dc.PushTransform(new TranslateTransform(-1.2, 0)); Stroke(dc, geometries[s], Red, fringe, width, dotted); dc.Pop();
+                dc.PushTransform(new TranslateTransform(1.2, 0)); Stroke(dc, geometries[s], Cyan, fringe, width, dotted); dc.Pop();
+            }
+            Stroke(dc, geometries[s], Light, a, width, dotted);
+        }
     }
+
+    private static void Dot(StreamGeometryContext s, Point p, double half)
+    {
+        s.BeginFigure(new Point(p.X - half, p.Y - half), true, true);
+        s.PolyLineTo([new Point(p.X + half, p.Y - half), new Point(p.X + half, p.Y + half), new Point(p.X - half, p.Y + half)], false, false);
+    }
+
+    private void Stroke(DrawingContext dc, Geometry g, Color c, double a, double width, bool dotted) =>
+        dc.DrawGeometry(dotted ? B(Alpha(c, a)) : null, P(Alpha(c, a), width), g);
 
     /// <summary>The tunnel and the lines cover the whole window: behind the modpack's text they are dimmed, so it reads.</summary>
     private void Veil(DrawingContext dc)
@@ -427,11 +439,5 @@ internal sealed class CoreField : StyleField
         dc.DrawGeometry(null, P(Accent, 2), arc);
         var label = Text($"{game.Percent}%", Mono, 11, Accent, FontWeights.SemiBold);
         dc.DrawText(label, new Point(_cx + Math.Cos(a) * (r + 12) - label.Width / 2, _cy + Math.Sin(a) * (r + 12) - label.Height / 2));
-    }
-
-    protected override bool Thin()
-    {
-        if (_tunnelOn) { _tunnelOn = false; return true; }
-        return false;
     }
 }
