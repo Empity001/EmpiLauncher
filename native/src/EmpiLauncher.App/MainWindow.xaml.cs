@@ -134,7 +134,11 @@ public partial class MainWindow : Window
         if (appearing && SplashLayer.Playing) { SplashLayer.WhenRevealing(OnUpdateChanged); return; }
         UpdateButton.Visibility = update == null ? Visibility.Collapsed : Visibility.Visible;
         if (update != null) UpdateButton.Content = $"NUEVA VERSIÓN {update.Version}";
-        if (appearing) Motion.Pop(UpdateButton, new Point(0, 0.5), 240, 0.9);   // news: it arrives, it does not just appear
+        if (appearing)
+        {
+            Motion.Pop(UpdateButton, new Point(0, 0.5), 240, 0.9);   // news: it arrives, it does not just appear
+            ShowUpdateDialog();   // and it is announced right away, not just left as a pill someone has to notice
+        }
     }
 
     /// <summary>The question "install the new version now?" (also reachable from the About tab).</summary>
