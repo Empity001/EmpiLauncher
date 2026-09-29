@@ -286,6 +286,17 @@ internal sealed class AboutTab : SettingsTab
                 Paint(group, "#7a2f25", roof, "#3a2418", 1.2);
                 Paint(group, "#f6dc8a", new RectangleGeometry(new Rect(110, 30, 6, 6)));
                 break;
+            case "core":
+                Paint(group, "#050506", new RectangleGeometry(box));
+                for (var ring = 0; ring < 9; ring++)
+                {
+                    var ry = 3 + 20 * Math.Sin((ring + 0.5) / 9 * Math.PI);
+                    Paint(group, null, new EllipseGeometry(new Point(118, 7 + ring * 5.5), ry * 1.2, ry * 0.32), "#c8f1ede0", 0.7);
+                }
+                Paint(group, style.Accent, new EllipseGeometry(new Point(82, 16), 1.6, 1.6));
+                Paint(group, null, new LineGeometry(new Point(40, 12), new Point(82, 16)), "#73f1ede0", 0.6);
+                Say(group, "MODS", "Cascadia Mono, Consolas", 6, "#b9b5a9", 14, 6);
+                break;
             case "words":
                 Paint(group, "#ece3cf", new RectangleGeometry(box));
                 for (var line = 0; line < 5; line++)

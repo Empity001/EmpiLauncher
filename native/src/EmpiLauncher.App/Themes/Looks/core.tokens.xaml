@@ -1,0 +1,52 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- CORE: a lab plate. Near-black, warm white hairlines, light display type, a monospace for everything measured, panels as thin
+         frames with almost square corners, and Jugar as an outlined label rather than a filled button. -->
+
+    <Color x:Key="WellColor">#030304</Color>
+    <Color x:Key="BgColor">#050506</Color>
+    <Color x:Key="SurfaceColor">#0a0a0b</Color>
+    <Color x:Key="Surface2Color">#111112</Color>
+    <Color x:Key="Surface3Color">#19191a</Color>
+    <Color x:Key="PaperColor">#f1ede0</Color>
+    <Color x:Key="Paper2Color">#b9b5a9</Color>
+    <Color x:Key="Paper3Color">#86837a</Color>
+
+    <SolidColorBrush x:Key="WellBrush" Color="#030304"/>
+    <SolidColorBrush x:Key="BgBrush" Color="#050506"/>
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#0a0a0b"/>
+    <SolidColorBrush x:Key="Surface2Brush" Color="#111112"/>
+    <SolidColorBrush x:Key="Surface3Brush" Color="#19191a"/>
+    <SolidColorBrush x:Key="PaperBrush" Color="#f1ede0"/>
+    <SolidColorBrush x:Key="Paper2Brush" Color="#b9b5a9"/>
+    <SolidColorBrush x:Key="Paper3Brush" Color="#86837a"/>
+    <SolidColorBrush x:Key="ModuleBrush" Color="#8C050506"/>
+    <SolidColorBrush x:Key="HairBrush" Color="#1Ff1ede0"/>
+    <SolidColorBrush x:Key="HairStrongBrush" Color="#33f1ede0"/>
+    <SolidColorBrush x:Key="DockBrush" Color="#8C050506"/>
+    <SolidColorBrush x:Key="DockEdgeBrush" Color="#33f1ede0"/>
+    <SolidColorBrush x:Key="ChromeBoxBrush" Color="#8C050506"/>
+    <SolidColorBrush x:Key="ChromeBoxEdgeBrush" Color="#33f1ede0"/>
+    <SolidColorBrush x:Key="ChromeInkBrush" Color="#f1ede0"/>
+    <SolidColorBrush x:Key="TitleBrush" Color="#f1ede0"/>
+    <SolidColorBrush x:Key="DialogBrush" Color="#0c0c0d"/>
+    <SolidColorBrush x:Key="PanelBrush" Color="#0c0c0d"/>
+    <SolidColorBrush x:Key="TabsBrush" Color="#CC050506"/>
+
+    <Color x:Key="CardOnColor">#24f1ede0</Color>
+    <Color x:Key="CardOnInkColor">#f1ede0</Color>
+    <Color x:Key="CardOnMetaColor">#b9b5a9</Color>
+    <Color x:Key="CardOffInkColor">#d8d4c8</Color>
+    <Color x:Key="CardOffMetaColor">#86837a</Color>
+
+    <FontFamily x:Key="DisplayFont">Segoe UI Light, Segoe UI</FontFamily>
+    <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas</FontFamily>
+    <FontFamily x:Key="BodyFont">Segoe UI</FontFamily>
+
+    <CornerRadius x:Key="RadiusInput">2</CornerRadius>
+    <CornerRadius x:Key="RadiusTile">2</CornerRadius>
+    <CornerRadius x:Key="RadiusModule">2</CornerRadius>
+    <CornerRadius x:Key="RadiusDock">2</CornerRadius>
+    <CornerRadius x:Key="RadiusPlay">2</CornerRadius>
+    <CornerRadius x:Key="RadiusChromeBox">2</CornerRadius>
+</ResourceDictionary>

@@ -43,7 +43,7 @@
       "name": "Core",
       "summary": "Anillos de líneas finas que cambian de forma, y campos de líneas por toda la ventana.",
       "accent": "#8fd3ff",
-      "ported": false,
+      "ported": true,
       "releasedIn": null,
       "notes": "# Empi Launcher {version}: nuevo estilo Core\n\n## Estilos (nuevo)\n- Nuevo estilo **Core**: un núcleo de anillos de líneas finas que va cambiando de forma (resorte, esfera, rombo, dona, curvas de nivel) y campos de líneas y puntos que ocupan toda la ventana. Se inclina hacia el puntero y cada clic manda ondas por las líneas.\n- Pequeñas anotaciones técnicas acompañan al núcleo con los datos reales del modpack.\n- Llega como un iris de líneas concéntricas mientras los anillos se dibujan solos.\n- Cambia toda la interfaz, no solo el fondo: letras, formas y colores siguen al estilo, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
     },
