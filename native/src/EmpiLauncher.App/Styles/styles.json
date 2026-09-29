@@ -88,7 +88,7 @@
       "name": "Punk",
       "summary": "Collage de fotocopias, letras recortadas y spray.",
       "accent": "#ff4fa3",
-      "ported": false,
+      "ported": true,
       "releasedIn": null,
       "notes": "# Empi Launcher {version}: nuevo estilo Punk\n\n## Estilos (nuevo)\n- Nuevo estilo **Punk**: un collage de fotocopias con recortes rotos que se mueven cuadro a cuadro, letras recortadas como de nota de secuestro y spray.\n- El póster y las palabras recortadas usan los datos reales del modpack (su nombre, su versión de Minecraft y sus mods), y tu nombre de jugador sale como grafiti.\n- Cada clic deja una mancha de spray que chorrea.\n- Llega pegando hojas rotas una encima de otra.\n- Cambia toda la interfaz, no solo el fondo: letras, formas y colores siguen al estilo, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
     },

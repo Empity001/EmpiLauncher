@@ -11,7 +11,7 @@ namespace EmpiLauncher.App.Styles;
 /// <summary>Which background each style draws. A style that is listed but has no drawing in this build is never offered.</summary>
 internal static class StyleFactory
 {
-    public static bool CanDraw(string id) => id is "actual" or "celestial" or "minimal" or "shell" or "explorer" or "remember";
+    public static bool CanDraw(string id) => id is "actual" or "celestial" or "minimal" or "shell" or "explorer" or "remember" or "punk";
 
     public static StyleHost.ILayer Create(string id) => id switch
     {
@@ -20,6 +20,7 @@ internal static class StyleFactory
         "shell" => new ShellField(),
         "explorer" => new ExplorerField(),
         "remember" => new RememberField(),
+        "punk" => new PunkField(),
         _ => new LivingField()
     };
 }
@@ -49,12 +50,16 @@ internal static class StyleTheme
     /// <summary>The ink of the Play button's label when the style paints the button itself (null: the ink that reads on the accent).</summary>
     public static Color? PlayInk { get; private set; }
 
+    /// <summary>The Play label is written in the accent itself (Punk's black button), kept readable by Launcher.RefreshAccent.</summary>
+    public static bool PlayInkIsAccent { get; private set; }
+
     public static void Apply(string id)
     {
         var app = Application.Current;
         var style = StyleCatalog.Get(id);
         var theme = Load("Themes/Theme.xaml") ?? new ResourceDictionary();
         PlayInk = null;
+        PlayInkIsAccent = style.Id == "punk";
         SentenceCase = style.Id is "minimal" or "remember" or "words" or "explorer";
         if (style.Id != StyleCatalog.Base && Load($"Themes/Looks/{style.Id}.tokens.xaml") is { } tokens)
             foreach (var key in tokens.Keys) theme[key] = tokens[key];

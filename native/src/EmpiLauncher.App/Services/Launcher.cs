@@ -336,7 +336,8 @@ public sealed class Launcher : IAsyncDisposable
         res["AccentInkBrush"] = Frozen(ink);
         res["AccentSoftBrush"] = Frozen(Color.FromArgb(0x29, color.R, color.G, color.B));
         // the Play label reads on the accent, unless the style paints the button itself (Celestial's foil)
-        res["PlayInkBrush"] = Frozen(Styles.StyleTheme.PlayInk ?? ink);
+        // (Punk writes it in the accent on black: a very dark accent would vanish there, so that one gets paper)
+        res["PlayInkBrush"] = Frozen(Styles.StyleTheme.PlayInkIsAccent ? (lum > 0.1 ? color : paper) : Styles.StyleTheme.PlayInk ?? ink);
         AccentChanged?.Invoke();
     }
 

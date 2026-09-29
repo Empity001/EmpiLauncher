@@ -59,6 +59,7 @@ public partial class HomeView : UserControl
     public HomeView()
     {
         InitializeComponent();
+        DressForStyle();
         Loaded += (_, _) =>
         {
             _l.PrefsChanged += SyncBannerAnimation;
@@ -189,6 +190,31 @@ public partial class HomeView : UserControl
         SyncBannerAnimation();
     }
 
+    private bool _punk;
+    private string? _titleShown;
+
+    /// <summary>What a style changes in this view beyond its resources: Punk cuts the title out of magazines and prints the description on a black strip.</summary>
+    private void DressForStyle()
+    {
+        _punk = global::EmpiLauncher.App.Styles.StyleTheme.Current == "punk";
+        if (!_punk) return;
+        PackTitle.LineHeight = double.NaN;
+        PackDescription.Background = new SolidColorBrush(Color.FromRgb(0x14, 0x12, 0x14));
+        PackDescription.Foreground = Brushes.White;
+        PackDescription.Padding = new Thickness(9, 4, 9, 5);
+    }
+
+    /// <summary>The modpack's name as the title (in Punk, a ransom note: Views/Styles/PunkField.Ransom). Only redone when the name changes.</summary>
+    private void SetTitle(string text)
+    {
+        if (text == _titleShown) return;
+        _titleShown = text;
+        if (!_punk) { PackTitle.Text = text; return; }
+        PackTitle.Inlines.Clear();
+        foreach (var letter in Styles.PunkField.Ransom(text)) PackTitle.Inlines.Add(letter);
+        System.Windows.Automation.AutomationProperties.SetName(PackTitle, text);
+    }
+
     private void Refresh()
     {
         RebuildRail();
@@ -196,11 +222,13 @@ public partial class HomeView : UserControl
         // modpack selected, which is one of the host's profiles when it has some.
         var host = _l.Host;
         var pack = _l.Selected;
-        PackTitle.Text = host?.Name ?? "Conectando con el motor";
+        SetTitle(host?.Name ?? "Conectando con el motor");
         var described = host?.Profiles?.List.FirstOrDefault(p => p.Id == pack?.Id && !p.Self)?.Description;
-        PackDescription.Text = host == null || pack == null ? ""
+        var description = host == null || pack == null ? ""
             : !string.IsNullOrWhiteSpace(described) ? described
             : string.IsNullOrWhiteSpace(host.Description) ? $"Minecraft {pack.MinecraftVersion}" : host.Description;
+        PackDescription.Text = description;
+        if (_punk) PackDescription.Visibility = description.Length == 0 ? Visibility.Collapsed : Visibility.Visible;   // an empty black strip would be a stray mark
 
         // The chip stays where it is while nothing about the profiles changes: taking it out of the row and putting it back (the engine's news
         // arrive all the time) would close a flyout that is open, which hangs from it.
