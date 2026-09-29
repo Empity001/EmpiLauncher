@@ -11,7 +11,7 @@ namespace EmpiLauncher.App.Styles;
 /// <summary>Which background each style draws. A style that is listed but has no drawing in this build is never offered.</summary>
 internal static class StyleFactory
 {
-    public static bool CanDraw(string id) => id is "actual" or "celestial" or "minimal" or "shell" or "explorer";
+    public static bool CanDraw(string id) => id is "actual" or "celestial" or "minimal" or "shell" or "explorer" or "remember";
 
     public static StyleHost.ILayer Create(string id) => id switch
     {
@@ -19,6 +19,7 @@ internal static class StyleFactory
         "minimal" => new MinimalField(),
         "shell" => new ShellField(),
         "explorer" => new ExplorerField(),
+        "remember" => new RememberField(),
         _ => new LivingField()
     };
 }

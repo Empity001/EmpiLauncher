@@ -89,6 +89,12 @@ internal abstract class StyleField : FrameworkElement, StyleHost.ILayer
     protected void InvalidateBase() => _baseDirty = true;
     /// <summary>Cuts the base drawing too (a style arriving shows its sky only behind its own front).</summary>
     protected void ClipBase(Geometry? clip) { if (!ReferenceEquals(_base.Clip, clip)) _base.Clip = clip; }
+    /// <summary>Shifts the base drawing without drawing it again (a parallax of the whole picture).</summary>
+    protected void MoveBase(double dx, double dy)
+    {
+        if (_base.Transform is TranslateTransform shift) { shift.X = dx; shift.Y = dy; }
+        else _base.Transform = new TranslateTransform(dx, dy);
+    }
     /// <summary>Fades the base drawing (a style arriving by fading in brings its ground in with it).</summary>
     protected void FadeBase(double opacity) { if (Math.Abs(_base.Opacity - opacity) > 0.001) _base.Opacity = opacity; }
     protected virtual void Resized() { }

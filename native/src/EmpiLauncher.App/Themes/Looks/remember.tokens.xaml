@@ -1,0 +1,65 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- REMEMBER: notes on old paper over a crayon drawing. Warm paper surfaces, brown-black pencil ink, handwriting (Ink Free and Segoe
+         Print, both in Windows), pencil outlines with uneven corners, sentence case, and the chosen card marked with a yellow crayon. -->
+
+    <Color x:Key="WellColor">#efe4cd</Color>
+    <Color x:Key="BgColor">#f4ecda</Color>
+    <Color x:Key="SurfaceColor">#f4ecda</Color>
+    <Color x:Key="Surface2Color">#ebe0c8</Color>
+    <Color x:Key="Surface3Color">#e0d3b6</Color>
+    <Color x:Key="LineColor">#c9b99a</Color>
+    <Color x:Key="LineStrongColor">#8a7760</Color>
+    <Color x:Key="PaperColor">#2b2620</Color>
+    <Color x:Key="Paper2Color">#4a4238</Color>
+    <Color x:Key="Paper3Color">#6f6457</Color>
+    <Color x:Key="PaperInkColor">#2b2620</Color>
+
+    <SolidColorBrush x:Key="WellBrush" Color="#efe4cd"/>
+    <SolidColorBrush x:Key="BgBrush" Color="#f4ecda"/>
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#f4ecda"/>
+    <SolidColorBrush x:Key="Surface2Brush" Color="#ebe0c8"/>
+    <SolidColorBrush x:Key="Surface3Brush" Color="#e0d3b6"/>
+    <SolidColorBrush x:Key="LineBrush" Color="#c9b99a"/>
+    <SolidColorBrush x:Key="LineStrongBrush" Color="#8a7760"/>
+    <SolidColorBrush x:Key="PaperBrush" Color="#2b2620"/>
+    <SolidColorBrush x:Key="Paper2Brush" Color="#4a4238"/>
+    <SolidColorBrush x:Key="Paper3Brush" Color="#6f6457"/>
+    <SolidColorBrush x:Key="PaperInkBrush" Color="#2b2620"/>
+    <SolidColorBrush x:Key="ModuleBrush" Color="#F4f4ecda"/>
+    <SolidColorBrush x:Key="HairBrush" Color="#4D2b2620"/>
+    <SolidColorBrush x:Key="HairStrongBrush" Color="#992b2620"/>
+    <SolidColorBrush x:Key="TintBrush" Color="#142b2620"/>
+    <SolidColorBrush x:Key="TintHoverBrush" Color="#262b2620"/>
+    <SolidColorBrush x:Key="DockBrush" Color="#F4f4ecda"/>
+    <SolidColorBrush x:Key="DockEdgeBrush" Color="#992b2620"/>
+    <SolidColorBrush x:Key="ChromeInkBrush" Color="#fbf3e3"/>
+    <SolidColorBrush x:Key="ChromeBoxBrush" Color="#F2f4ecda"/>
+    <SolidColorBrush x:Key="ChromeBoxEdgeBrush" Color="#662b2620"/>
+    <SolidColorBrush x:Key="TitleBrush" Color="#2b2620"/>
+    <SolidColorBrush x:Key="InputBrush" Color="#fffaf0"/>
+    <SolidColorBrush x:Key="TrackBrush" Color="#332b2620"/>
+    <SolidColorBrush x:Key="DialogBrush" Color="#f4ecda"/>
+    <SolidColorBrush x:Key="PanelBrush" Color="#f4ecda"/>
+    <SolidColorBrush x:Key="TabsBrush" Color="#E6f4ecda"/>
+    <SolidColorBrush x:Key="DangerBrush" Color="#b8402c"/>
+    <SolidColorBrush x:Key="WarnBrush" Color="#9a6400"/>
+    <SolidColorBrush x:Key="OkBrush" Color="#2f7a42"/>
+
+    <Color x:Key="CardOnColor">#f6dc8a</Color>
+    <Color x:Key="CardOnInkColor">#2b2620</Color>
+    <Color x:Key="CardOnMetaColor">#5a4a3a</Color>
+    <Color x:Key="CardOffInkColor">#2b2620</Color>
+    <Color x:Key="CardOffMetaColor">#6f6457</Color>
+
+    <FontFamily x:Key="DisplayFont">Ink Free, Segoe Print, Comic Sans MS</FontFamily>
+    <FontFamily x:Key="MonoFont">Ink Free, Segoe Print, Comic Sans MS</FontFamily>
+    <FontFamily x:Key="BodyFont">Segoe Print, Comic Sans MS</FontFamily>
+
+    <CornerRadius x:Key="RadiusInput">10,3,9,4</CornerRadius>
+    <CornerRadius x:Key="RadiusTile">12,4,11,5</CornerRadius>
+    <CornerRadius x:Key="RadiusModule">18,6,16,5</CornerRadius>
+    <CornerRadius x:Key="RadiusDock">18,7,17,6</CornerRadius>
+    <CornerRadius x:Key="RadiusPlay">14</CornerRadius>
+    <CornerRadius x:Key="RadiusChromeBox">14,5,13,6</CornerRadius>
+</ResourceDictionary>

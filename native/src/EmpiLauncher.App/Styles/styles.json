@@ -79,7 +79,7 @@
       "name": "Remember",
       "summary": "Un dibujo viejo en crayón. La casita se construye mientras descargas.",
       "accent": "#e2574c",
-      "ported": false,
+      "ported": true,
       "releasedIn": null,
       "notes": "# Empi Launcher {version}: nuevo estilo Remember\n\n## Estilos (nuevo)\n- Nuevo estilo **Remember**: el launcher se vuelve un dibujo viejo en crayón sobre papel gastado, con una colina, un sol y una casita.\n- La casita se va construyendo mientras se descarga el modpack, al ritmo de la descarga real.\n- Llega como si alguien lo estuviera pintando.\n- Cambia toda la interfaz, no solo el fondo: letras a mano, formas chuecas y colores de crayón, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
     },
