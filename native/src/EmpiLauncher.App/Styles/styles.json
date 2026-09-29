@@ -52,7 +52,7 @@
       "name": "Shell",
       "summary": "Una terminal: cuadritos, paneles y el registro de lo que hace el launcher.",
       "accent": "#ff8a3d",
-      "ported": false,
+      "ported": true,
       "releasedIn": null,
       "notes": "# Empi Launcher {version}: nuevo estilo Shell\n\n## Estilos (nuevo)\n- Nuevo estilo **Shell**: el launcher se vuelve una terminal, con una cuadrícula, cubitos que parpadean y paneles con lecturas.\n- El registro que se escribe solo no es de adorno: muestra lo que el launcher está haciendo de verdad (qué modpack está elegido, qué descarga, cuándo arranca el juego).\n- El puntero lleva una mira con sus coordenadas y cada clic deja ondas de píxeles cuadrados.\n- Llega arrancando como una pantalla vieja, en damero.\n- Cambia toda la interfaz, no solo el fondo: letras, formas y colores siguen al estilo, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
     },

@@ -74,6 +74,7 @@ public partial class HomeView : UserControl
             else if (!SkipEntrance) Entrance();
             else _entranceAt = Environment.TickCount64;   // rebuilt in another style: it is simply there, under the crossfade
             Refresh(); RefreshBanner(); _status.Start(); _ = _l.RefreshStatusAsync();
+            if (TryFindResource("RadiusPlay") is CornerRadius playCorners) PlayClip.RadiusX = PlayClip.RadiusY = playCorners.TopLeft;   // the style's corners
             LivingField.NextAction = PlayButton;   // the main action glows in the modpack's accent
             // dots stay faint behind the title and the facts: behind each of them, not the whole width of the column (the backgrounds use the room left)
             foreach (var part in QuietParts()) LivingField.Quiet.Add(part);

@@ -11,12 +11,13 @@ namespace EmpiLauncher.App.Styles;
 /// <summary>Which background each style draws. A style that is listed but has no drawing in this build is never offered.</summary>
 internal static class StyleFactory
 {
-    public static bool CanDraw(string id) => id is "actual" or "celestial" or "minimal";
+    public static bool CanDraw(string id) => id is "actual" or "celestial" or "minimal" or "shell";
 
     public static StyleHost.ILayer Create(string id) => id switch
     {
         "celestial" => new CelestialField(),
         "minimal" => new MinimalField(),
+        "shell" => new ShellField(),
         _ => new LivingField()
     };
 }
@@ -37,6 +38,7 @@ internal static class StyleTheme
     /// <summary>A label as the style writes it: capitals stay capitals unless the style asks for sentence case.</summary>
     public static string Label(string text)
     {
+        if (Current == "shell") return text + "_";   // a terminal: the label ends in its cursor
         if (!SentenceCase || text.Length == 0) return text;
         var lower = text.ToLowerInvariant().Replace("java", "Java");
         return char.ToUpperInvariant(lower[0]) + lower[1..];

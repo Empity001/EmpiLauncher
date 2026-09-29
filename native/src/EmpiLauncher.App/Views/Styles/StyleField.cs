@@ -297,6 +297,27 @@ internal abstract class StyleField : FrameworkElement, StyleHost.ILayer
 
     protected static SolidColorBrush Frozen(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
 
+    private readonly Dictionary<Color, SolidColorBrush> _brushes = [];
+    private readonly Dictionary<(Color, double), Pen> _pens = [];
+
+    /// <summary>A brush of that colour, made once (with Alpha's 32 steps a style draws from a few hundred brushes, not thousands a second).</summary>
+    protected SolidColorBrush B(Color c)
+    {
+        if (_brushes.TryGetValue(c, out var b)) return b;
+        if (_brushes.Count > 2000) _brushes.Clear();
+        return _brushes[c] = Frozen(c);
+    }
+
+    /// <summary>A pen of that colour and width, made once.</summary>
+    protected Pen P(Color c, double width)
+    {
+        if (_pens.TryGetValue((c, width), out var p)) return p;
+        if (_pens.Count > 2000) _pens.Clear();
+        p = new Pen(B(c), width);
+        p.Freeze();
+        return _pens[(c, width)] = p;
+    }
+
     private readonly Dictionary<string, FormattedText> _texts = [];
 
     /// <summary>A line of text, shaped once and kept (styles show the same few words frame after frame). Colour and size are part of it.</summary>

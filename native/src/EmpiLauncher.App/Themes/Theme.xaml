@@ -79,4 +79,6 @@
     <CornerRadius x:Key="RadiusTile">16</CornerRadius>
     <CornerRadius x:Key="RadiusModule">22</CornerRadius>
     <CornerRadius x:Key="RadiusDock">32</CornerRadius>
+    <!-- the Play button's corners (a style with square shapes squares it too) -->
+    <CornerRadius x:Key="RadiusPlay">26</CornerRadius>
 </ResourceDictionary>
