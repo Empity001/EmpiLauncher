@@ -1,4 +1,5 @@
-# Drives the native launcher through UI Automation and saves window screenshots (PrintWindow: works even if another window is on top).
+# Drives the native launcher through UI Automation and saves window screenshots. A development build draws them itself (EMPI_TEST_SNAP, see
+# MainWindow.WatchTestRequests), which works with the window covered or the screen off; otherwise PrintWindow is used.
 #   shot.ps1 -Exe <EmpiLauncher.App.exe> -OutDir <folder> -Steps "wait:6;shot:home;click:Ajustes;wait:1;shot:settings;click:Java;wait:2;shot:java"
 # Steps: wait:<seconds> | shot:<name> | click:<automation name> | size:<w>x<h> | key:<text to type> | front (keeps the window above everything else) | popups:<name>
 param(
@@ -27,10 +28,13 @@ public static class Win {
     [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr h, int x, int y, int w, int hgt, bool repaint);
     [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
     [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extra);
+    [StructLayout(LayoutKind.Sequential)] public struct PT { public int X, Y; }
+    [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(PT p);
 }
 '@
 
 New-Item -ItemType Directory -Force $OutDir | Out-Null
+$env:EMPI_TEST_SNAP = (Resolve-Path $OutDir).Path
 $proc = Start-Process -FilePath $Exe -PassThru
 $deadline = (Get-Date).AddSeconds(30)
 while ((Get-Date) -lt $deadline) { $proc.Refresh(); if ($proc.MainWindowHandle -ne 0) { break }; Start-Sleep -Milliseconds 100 }
@@ -38,7 +42,19 @@ if ($proc.MainWindowHandle -eq 0) { Write-Error 'no window'; exit 1 }
 $hwnd = $proc.MainWindowHandle
 $root = [System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
 
+# Asks the app for something through EMPI_TEST_SNAP: a picture (no command) or a background click ("burst x y"). False if the app never answered.
+function Ask-App([string] $name, [string] $command) {
+    $req = Join-Path $env:EMPI_TEST_SNAP "$name.req"; $png = Join-Path $env:EMPI_TEST_SNAP "$name.png"
+    if (-not $command -and (Test-Path $png)) { [IO.File]::Delete($png) }
+    Set-Content -Path $req -Value $command -Encoding ascii
+    $deadline = (Get-Date).AddSeconds(6)
+    while ((Get-Date) -lt $deadline) { if ($command) { if (-not (Test-Path $req)) { return $true } } elseif (Test-Path $png) { return $true }; Start-Sleep -Milliseconds 50 }
+    if (Test-Path $req) { [IO.File]::Delete($req) }
+    return $false
+}
+
 function Save-Shot([string] $name) {
+    if (Ask-App $name '') { Write-Host "shot $(Join-Path $OutDir "$name.png") (drawn by the app)"; return }
     $r = New-Object Win+RECT
     [void][Win]::GetWindowRect($hwnd, [ref]$r)
     $w = $r.R - $r.L; $h = $r.B - $r.T
@@ -132,9 +148,15 @@ foreach ($step in $Steps.Split(';')) {
         }
         'front' { [void][Win]::SetWindowPos($hwnd, [IntPtr]::new(-1), 0, 0, 0, 0, 0x0003) }   # HWND_TOPMOST, SWP_NOSIZE | SWP_NOMOVE
         'size'  { $wh = $arg.Split('x'); [void][Win]::MoveWindow($hwnd, 40, 40, [int]$wh[0], [int]$wh[1], $true) }
-        # tap:x,y  a real left click at x,y inside the window (unlike click:, which goes through UI Automation and raises no mouse events)
+        # hit:x,y  a click on the background at x,y, handed to the app (no real mouse: works with the window covered)
+        'hit'   { $xy = $arg.Split(','); if (-not (Ask-App "hit-$([guid]::NewGuid().ToString('N'))" "burst $($xy[0]) $($xy[1])")) { Write-Host 'hit: the app did not answer' } }
+        # tap:x,y  a real left click at x,y inside the window (unlike click:, which goes through UI Automation and raises no mouse events).
+        # Only if the launcher is what is there: with another window on top the click would land in that window.
         'tap'   {
             $xy = $arg.Split(','); $r = New-Object Win+RECT; [void][Win]::GetWindowRect($hwnd, [ref]$r)
+            $pt = New-Object Win+PT; $pt.X = $r.L + [int]$xy[0]; $pt.Y = $r.T + [int]$xy[1]; $owner = [uint32]0
+            [void][Win]::GetWindowThreadProcessId([Win]::WindowFromPoint($pt), [ref]$owner)
+            if ($owner -ne [uint32]$proc.Id) { Write-Host 'tap: skipped, another window covers the launcher there'; break }
             [void][Win]::SetCursorPos($r.L + [int]$xy[0], $r.T + [int]$xy[1]); Start-Sleep -Milliseconds 60
             [Win]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 40; [Win]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero)
         }

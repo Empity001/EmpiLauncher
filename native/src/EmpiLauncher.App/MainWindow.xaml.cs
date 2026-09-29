@@ -26,12 +26,45 @@ public partial class MainWindow : Window
     private bool _dialogOpen;
     private SettingsView? _settings;
 
+#if !EMPI_RELEASE
+    // Tests only, never in the installer (native/tools/shot.ps1 sets EMPI_TEST_SNAP=<folder>): a file <name>.req there asks for a picture of
+    // the window drawn by WPF itself into <name>.png (PrintWindow comes out black while the window is covered or the screen is off), or, if it
+    // says "burst x y", for a click on the background at that point, without taking over the real mouse.
+    private void WatchTestRequests()
+    {
+        var folder = Environment.GetEnvironmentVariable("EMPI_TEST_SNAP");
+        if (string.IsNullOrEmpty(folder) || !System.IO.Directory.Exists(folder)) return;
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+        timer.Tick += (_, _) =>
+        {
+            foreach (var request in System.IO.Directory.GetFiles(folder, "*.req"))
+            {
+                string command;
+                try { command = System.IO.File.ReadAllText(request).Trim(); System.IO.File.Delete(request); } catch (System.IO.IOException) { continue; }
+                if (command.Split(' ', StringSplitOptions.RemoveEmptyEntries) is ["burst", var x, var y]) { Field.Burst(new Point(double.Parse(x, inv), double.Parse(y, inv)), false); continue; }
+                var dpi = VisualTreeHelper.GetDpi(this);
+                var picture = new RenderTargetBitmap((int)Math.Ceiling(ActualWidth * dpi.DpiScaleX), (int)Math.Ceiling(ActualHeight * dpi.DpiScaleY), dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
+                picture.Render(this);
+                var png = new PngBitmapEncoder(); png.Frames.Add(BitmapFrame.Create(picture));
+                var path = System.IO.Path.ChangeExtension(request, ".png");
+                using (var file = System.IO.File.Create(path + ".part")) png.Save(file);
+                System.IO.File.Move(path + ".part", path, overwrite: true);
+            }
+        };
+        timer.Start();
+    }
+#endif
+
     public MainWindow()
     {
         InitializeComponent();
         // The screen is kept as a texture: the background moving under it (every frame, all over the window) then never makes WPF draw
         // the whole interface again, only put the texture back. Measured: the base style 4.1 % -> 2.7 % of one core, Celestial 18 % -> 13 %.
         if (Environment.GetEnvironmentVariable("EMPI_UI_CACHE") != "0") ViewHost.CacheMode = new BitmapCache { EnableClearType = true, SnapsToDevicePixels = true };
+#if !EMPI_RELEASE
+        WatchTestRequests();
+#endif
         MinButton.Click += (_, _) => WindowState = WindowState.Minimized;
         MaxButton.Click += (_, _) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
         CloseButton.Click += (_, _) => Close();
