@@ -7,6 +7,10 @@ namespace EmpiLauncher.App;
 internal static class NativeMethods
 {
     [DllImport("psapi.dll")] internal static extern bool EmptyWorkingSet(nint process);
+
+    [StructLayout(LayoutKind.Sequential)] internal struct POINT { public int X, Y; }
+    /// <summary>Where the pointer is on the screen, in pixels, wherever it is (also over the title bar, which Windows handles, not the window).</summary>
+    [DllImport("user32.dll")] internal static extern bool GetCursorPos(out POINT point);
 }
 
 /// <summary>

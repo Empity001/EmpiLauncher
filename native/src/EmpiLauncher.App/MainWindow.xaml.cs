@@ -71,9 +71,7 @@ public partial class MainWindow : Window
         };
         // "ver solo el fondo": the eye toggles it; the pointer resting (5 s) or leaving the window takes even the buttons away, moving brings them back
         BackgroundOnlyButton.Click += (_, _) => SetBackgroundOnly(!_backgroundOnly);
-        _chromeRest.Tick += (_, _) => { _chromeRest.Stop(); ShowChrome(false); };
-        PreviewMouseMove += (_, _) => { if (!_backgroundOnly) return; ShowChrome(true); _chromeRest.Stop(); _chromeRest.Start(); };
-        MouseLeave += (_, _) => { if (!_backgroundOnly) return; _chromeRest.Stop(); ShowChrome(false); };
+        _zenWatch.Tick += (_, _) => WatchPointer();
         // while the window is in front, EmpiPacks is asked for news every five minutes (a few KB, and nothing when it is hidden)
         _noticeTimer.Tick += async (_, _) => { if (IsActive && WindowState != WindowState.Minimized && _l.Connected && !_l.Game.Busy) await _l.RefreshNoticesAsync(); };
         UpdateButton.Click += (_, _) => ShowUpdateDialog();
@@ -782,7 +780,34 @@ public partial class MainWindow : Window
 
     private bool _backgroundOnly;
     private bool _chromeShown = true;
-    private readonly DispatcherTimer _chromeRest = new() { Interval = TimeSpan.FromSeconds(5) };
+    // The pointer is followed by asking Windows where it is: the title bar is Windows' own area, so the window gets no mouse events there
+    // (and a "mouse left" when the pointer only went up to it), which hid the buttons just as the player reached for the eye.
+    private readonly DispatcherTimer _zenWatch = new() { Interval = TimeSpan.FromMilliseconds(120) };
+    private NativeMethods.POINT _zenLast;
+    private long _zenMovedAt;
+    private const int ZenRestMs = 5000;
+
+    private void WatchPointer()
+    {
+        if (!_backgroundOnly) { _zenWatch.Stop(); return; }
+        if (!NativeMethods.GetCursorPos(out var at)) return;
+        var screen = new Point(at.X, at.Y);
+        Point local;
+        try { local = PointFromScreen(screen); } catch (InvalidOperationException) { return; }
+        var inside = local.X >= 0 && local.Y >= 0 && local.X < ActualWidth && local.Y < ActualHeight && IsVisible && WindowState != WindowState.Minimized;
+        var moved = at.X != _zenLast.X || at.Y != _zenLast.Y;
+        _zenLast = at;
+        if (!inside) { ShowChrome(false); return; }
+        if (moved) { _zenMovedAt = Environment.TickCount64; ShowChrome(true); return; }
+        // resting: the buttons go after a while, unless the pointer is resting on them (it is about to press one)
+        if (Environment.TickCount64 - _zenMovedAt > ZenRestMs && !Over(WindowButtons, local) && !Over(BackgroundOnlyButton, local)) ShowChrome(false);
+    }
+
+    private bool Over(FrameworkElement element, Point local)
+    {
+        try { return element.TransformToAncestor(this).TransformBounds(new Rect(element.RenderSize)).Contains(local); }
+        catch (InvalidOperationException) { return false; }
+    }
 
     /// <summary>
     /// The eye in the title bar. On: the whole interface steps aside (the modpacks, the account, the logo, everything) and only the window's
@@ -814,7 +839,13 @@ public partial class MainWindow : Window
         if (!on && MegaHost.Visibility == Visibility.Hidden) MegaHost.Visibility = Visibility.Visible;
         UpdateMega();
         ShowChrome(true);
-        if (on) { _chromeRest.Stop(); _chromeRest.Start(); } else _chromeRest.Stop();
+        if (on)
+        {
+            _zenMovedAt = Environment.TickCount64;
+            if (NativeMethods.GetCursorPos(out var at)) _zenLast = at;
+            _zenWatch.Start();
+        }
+        else _zenWatch.Stop();
     }
 
     private void ShowChrome(bool shown)
