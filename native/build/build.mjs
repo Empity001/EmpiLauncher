@@ -178,6 +178,8 @@ async function main() {
     const project = path.join(repo, 'native', 'src', 'EmpiLauncher.App', 'EmpiLauncher.App.csproj')
     await run(dotnet, ['publish', project, '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true', '-o', stage,
         `-p:Version=${version}`, `-p:InformationalVersion=${version}`, '-p:DebugType=none', '-p:DebugSymbols=false',
+        // an installer for players: the test-only switches (EMPI_ALL_STYLES...) are not even compiled in (EmpiLauncher.App.csproj: EMPI_RELEASE)
+        '-p:EmpiRelease=true',
         '-p:SatelliteResourceLanguages=en', '-nologo', '-v:minimal'], { env: { DOTNET_CLI_TELEMETRY_OPTOUT: '1', DOTNET_NOLOGO: '1' } })
     // Same file name the classic launcher had, so shortcuts and taskbar pins made for it keep pointing at the launcher.
     fs.renameSync(path.join(stage, 'EmpiLauncher.App.exe'), path.join(stage, 'Empi Launcher.exe'))

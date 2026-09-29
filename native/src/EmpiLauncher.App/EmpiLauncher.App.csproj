@@ -26,4 +26,10 @@
     <!-- Not InvariantGlobalization: WPF's text stack creates CultureInfo("en") and crashes in invariant mode (found the hard way). -->
   </PropertyGroup>
 
+  <!-- The installer players get (native/build/build.mjs passes EmpiRelease=true): switches meant only for testing are left out of it, so a
+       style that has not been released cannot be shown by any setting or variable. -->
+  <PropertyGroup Condition="'$(EmpiRelease)' == 'true'">
+    <DefineConstants>$(DefineConstants);EMPI_RELEASE</DefineConstants>
+  </PropertyGroup>
+
 </Project>

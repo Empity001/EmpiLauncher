@@ -11,8 +11,9 @@ internal sealed record StyleInfo(string Id, string Name, string Summary, Color A
 /// <summary>
 /// The launcher's styles ("estilos"): the background and the whole interface dressed to match. The list is Styles/styles.json, embedded in
 /// the build; the Publisher's "Pendientes" switches a style on by writing the version it comes out in (releasedIn), so every style reaches
-/// players as its own update. A player is offered the base style and the ones switched on that this build can draw. A test run can see every
-/// style that is ready with EMPI_ALL_STYLES=1.
+/// players as its own update. A player is offered the base style and the ones switched on that this build can draw, and nothing else: a
+/// style that is ready but not released cannot be shown by any setting. Only a development build (not the installer, see EMPI_RELEASE in the
+/// .csproj) can show every ready style, with EMPI_ALL_STYLES=1.
 /// </summary>
 internal static class StyleCatalog
 {
@@ -25,7 +26,13 @@ internal static class StyleCatalog
     {
         get
         {
+#if EMPI_RELEASE
+            // the installer players get: only what a release switched on, whatever the environment says
+            const bool everything = false;
+#else
+            // a development build: EMPI_ALL_STYLES=1 shows every style that is ready, to try them before they are released
             var everything = Environment.GetEnvironmentVariable("EMPI_ALL_STYLES") == "1";
+#endif
             return All.Where(s => s.Ported && StyleFactory.CanDraw(s.Id) && (s.Id == Base || s.ReleasedIn != null || everything)).ToList();
         }
     }
