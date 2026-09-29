@@ -42,10 +42,27 @@ public partial class MainWindow : Window
             {
                 string command;
                 try { command = System.IO.File.ReadAllText(request).Trim(); System.IO.File.Delete(request); } catch (System.IO.IOException) { continue; }
-                if (command.Split(' ', StringSplitOptions.RemoveEmptyEntries) is ["burst", var x, var y]) { Field.Burst(new Point(double.Parse(x, inv), double.Parse(y, inv)), false); continue; }
+                var parts = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts is ["burst", var x, var y]) { Field.Burst(new Point(double.Parse(x, inv), double.Parse(y, inv)), false); continue; }
+                // a picture can leave pieces out ("hide:PlayHost,AccessLayer", looked up in the window and in the view on screen), drop the
+                // window's own ground ("bg:none", for a style whose background the capture cannot draw), or be of one piece only ("only:Field")
+                var hidden = new List<(UIElement Element, Visibility Was)>();
+                var ground = Background;
+                FrameworkElement subject = this;
+                foreach (var part in parts)
+                {
+                    if (part.StartsWith("hide:"))
+                        foreach (var name in part[5..].Split(','))
+                            if ((FindName(name) ?? (ViewHost.Content as FrameworkElement)?.FindName(name)) is UIElement element) { hidden.Add((element, element.Visibility)); element.Visibility = Visibility.Hidden; }
+                    if (part == "bg:none") Background = Brushes.Transparent;
+                    if (part.StartsWith("only:") && FindName(part[5..]) is FrameworkElement only) subject = only;
+                }
+                UpdateLayout();
                 var dpi = VisualTreeHelper.GetDpi(this);
-                var picture = new RenderTargetBitmap((int)Math.Ceiling(ActualWidth * dpi.DpiScaleX), (int)Math.Ceiling(ActualHeight * dpi.DpiScaleY), dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
-                picture.Render(this);
+                var picture = new RenderTargetBitmap((int)Math.Ceiling(subject.ActualWidth * dpi.DpiScaleX), (int)Math.Ceiling(subject.ActualHeight * dpi.DpiScaleY), dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
+                picture.Render(subject);
+                foreach (var (element, was) in hidden) element.Visibility = was;
+                Background = ground;
                 var png = new PngBitmapEncoder(); png.Frames.Add(BitmapFrame.Create(picture));
                 var path = System.IO.Path.ChangeExtension(request, ".png");
                 using (var file = System.IO.File.Create(path + ".part")) png.Save(file);

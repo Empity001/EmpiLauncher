@@ -45,10 +45,11 @@ $root = [System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
 # Asks the app for something through EMPI_TEST_SNAP: a picture (no command) or a background click ("burst x y"). False if the app never answered.
 function Ask-App([string] $name, [string] $command) {
     $req = Join-Path $env:EMPI_TEST_SNAP "$name.req"; $png = Join-Path $env:EMPI_TEST_SNAP "$name.png"
-    if (-not $command -and (Test-Path $png)) { [IO.File]::Delete($png) }
+    $picture = -not $command -or $command.StartsWith('snap')
+    if ($picture -and (Test-Path $png)) { [IO.File]::Delete($png) }
     Set-Content -Path $req -Value $command -Encoding ascii
     $deadline = (Get-Date).AddSeconds(6)
-    while ((Get-Date) -lt $deadline) { if ($command) { if (-not (Test-Path $req)) { return $true } } elseif (Test-Path $png) { return $true }; Start-Sleep -Milliseconds 50 }
+    while ((Get-Date) -lt $deadline) { if (-not $picture) { if (-not (Test-Path $req)) { return $true } } elseif (Test-Path $png) { return $true }; Start-Sleep -Milliseconds 50 }
     if (Test-Path $req) { [IO.File]::Delete($req) }
     return $false
 }
@@ -92,6 +93,8 @@ foreach ($step in $Steps.Split(';')) {
     switch ($kind) {
         'wait'  { Start-Sleep -Milliseconds ([int]([double]$arg * 1000)) }
         'shot'  { Save-Shot $arg }
+        # layer:<name>=<options>  a picture drawn by the app with pieces left out: "hide:PlayHost,AccessLayer", "bg:none", "only:Field"
+        'layer' { $ln, $lo = $arg.Split('=', 2); if (Ask-App $ln "snap $lo") { Write-Host "layer $(Join-Path $OutDir "$ln.png")" } else { Write-Host "layer: the app did not answer" } }
         'click' { Click-Named $arg }
         # range:<automation name>=<value>  sets a slider through UI Automation (raises ValueChanged like dragging does)
         'range' {
