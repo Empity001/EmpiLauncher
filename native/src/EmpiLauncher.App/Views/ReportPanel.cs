@@ -81,7 +81,7 @@ internal sealed class ReportPanel : UserControl
         Grid.SetRow(footer, 3);
         root.Children.Add(footer);
 
-        Content = new Border { Style = (Style)FindResource("Module"), Background = new SolidColorBrush(Color.FromRgb(0x11, 0x11, 0x14)), Padding = new Thickness(24, 20, 24, 20), Child = root };
+        Content = new Border { Style = (Style)FindResource("Module"), Background = (Brush)FindResource("DialogBrush"), Padding = new Thickness(24, 20, 24, 20), Child = root };
         MinWidth = 640; MaxWidth = 860; MaxHeight = 720;
     }
 

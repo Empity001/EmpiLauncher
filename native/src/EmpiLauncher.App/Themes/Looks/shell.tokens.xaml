@@ -33,6 +33,7 @@
     <SolidColorBrush x:Key="TintHoverBrush" Color="#1Fd9d4c7"/>
     <SolidColorBrush x:Key="DockBrush" Color="#F20E0D0C"/>
     <SolidColorBrush x:Key="DockEdgeBrush" Color="#47d9d4c7"/>
+    <SolidColorBrush x:Key="ChromeInkBrush" Color="#d9d4c7"/>
     <SolidColorBrush x:Key="ChromeBoxBrush" Color="#F20E0D0C"/>
     <SolidColorBrush x:Key="TitleBrush" Color="#d9d4c7"/>
 

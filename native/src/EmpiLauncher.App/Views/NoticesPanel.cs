@@ -115,7 +115,7 @@ internal sealed class NoticesPanel : UserControl
         Grid.SetRow(_footer, 2);
         root.Children.Add(_footer);
 
-        Content = new Border { Style = (Style)FindResource("Module"), Background = new SolidColorBrush(Color.FromRgb(0x11, 0x11, 0x14)), Padding = new Thickness(24, 20, 24, 20), Child = root };
+        Content = new Border { Style = (Style)FindResource("Module"), Background = (Brush)FindResource("DialogBrush"), Padding = new Thickness(24, 20, 24, 20), Child = root };
         MinWidth = 650; MaxWidth = 940; MaxHeight = 700;   // the panel keeps its width whichever tab is open (units are DIPs, not pixels)
         Loaded += (_, _) => _l.NoticesChanged += Refresh;
         Unloaded += (_, _) => _l.NoticesChanged -= Refresh;

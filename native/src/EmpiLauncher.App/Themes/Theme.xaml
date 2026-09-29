@@ -58,6 +58,16 @@
     <SolidColorBrush x:Key="DockBrush" Color="#F20E0F11"/>
     <SolidColorBrush x:Key="DockEdgeBrush" Color="#1AF1EFE8"/>
     <SolidColorBrush x:Key="ChromeBoxBrush" Color="#F20E0F11"/>
+    <!-- the title bar's own text (EMPI), the corners of the window buttons' box, and surfaces that were fixed dark before styles existed:
+         text boxes, the tracks of switches and sliders, dialogs, floating panels (toast, popups, flyouts) and the settings tabs' strip -->
+    <SolidColorBrush x:Key="ChromeInkBrush" Color="#f1efe8"/>
+    <CornerRadius x:Key="RadiusChromeBox">16</CornerRadius>
+    <SolidColorBrush x:Key="ChromeBoxEdgeBrush" Color="#38F1EFE8"/>
+    <SolidColorBrush x:Key="InputBrush" Color="#9E060607"/>
+    <SolidColorBrush x:Key="TrackBrush" Color="#1AFFFFFF"/>
+    <SolidColorBrush x:Key="DialogBrush" Color="#FF111114"/>
+    <SolidColorBrush x:Key="PanelBrush" Color="#F218181C"/>
+    <SolidColorBrush x:Key="TabsBrush" Color="#B3111215"/>
     <Color x:Key="CardOnColor">#f1efe8</Color>
     <Color x:Key="CardOnInkColor">#0b0b0d</Color>
     <Color x:Key="CardOnMetaColor">#47473f</Color>

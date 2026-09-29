@@ -33,6 +33,7 @@
     <SolidColorBrush x:Key="TintBrush" Color="#0FFFFFFF"/>
     <SolidColorBrush x:Key="TintHoverBrush" Color="#24FFFFFF"/>
     <SolidColorBrush x:Key="DockBrush" Color="#D90A0812"/>
+    <SolidColorBrush x:Key="ChromeInkBrush" Color="#f6f1ff"/>
     <SolidColorBrush x:Key="ChromeBoxBrush" Color="#D90A0812"/>
 
     <!-- the foil edge of every surface: pink, cyan, lilac and butter at a little over half strength -->

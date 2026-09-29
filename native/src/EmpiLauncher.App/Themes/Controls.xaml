@@ -123,6 +123,18 @@
         <Setter Property="FontSize" Value="14"/>
     </Style>
 
+    <!-- the window's own buttons in the title bar: a style may dress them as its era's caption buttons (Themes/Looks) -->
+    <Style x:Key="CaptionButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
+        <Setter Property="Width" Value="38"/>
+        <Setter Property="Height" Value="28"/>
+    </Style>
+    <Style x:Key="CloseCaptionButton" TargetType="Button" BasedOn="{StaticResource CaptionButton}"/>
+    <Style x:Key="EyeButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
+        <Setter Property="Width" Value="34"/>
+        <Setter Property="Height" Value="34"/>
+        <Setter Property="FontSize" Value="15"/>
+    </Style>
+
     <!-- containers -->
     <Style x:Key="Module" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource ModuleBrush}"/>
@@ -248,7 +260,7 @@
                                 </VisualState>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
-                        <Border x:Name="Track" Background="#1AFFFFFF" CornerRadius="12"/>
+                        <Border x:Name="Track" Background="{DynamicResource TrackBrush}" CornerRadius="12"/>
                         <Border x:Name="TrackOn" Background="{DynamicResource AccentBrush}" CornerRadius="12" Opacity="0"/>
                         <Grid x:Name="ThumbHolder" Width="18" Height="18" Margin="3" HorizontalAlignment="Left">
                             <Grid.RenderTransform><TranslateTransform/></Grid.RenderTransform>
@@ -266,7 +278,7 @@
 
     <!-- text box -->
     <Style x:Key="InputBox" TargetType="TextBox">
-        <Setter Property="Background" Value="#9E060607"/>
+        <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
         <Setter Property="Foreground" Value="{StaticResource PaperBrush}"/>
         <Setter Property="CaretBrush" Value="{StaticResource PaperBrush}"/>
         <Setter Property="SelectionBrush" Value="{DynamicResource AccentBrush}"/>
@@ -361,7 +373,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Slider">
                     <Grid VerticalAlignment="Center" Background="Transparent">
-                        <Border Height="6" CornerRadius="3" Background="#1AFFFFFF"/>
+                        <Border Height="6" CornerRadius="3" Background="{DynamicResource TrackBrush}"/>
                         <Track x:Name="PART_Track">
                             <Track.DecreaseRepeatButton>
                                 <RepeatButton Command="Slider.DecreaseLarge" Focusable="False" IsTabStop="False">
@@ -399,7 +411,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="ProgressBar">
                     <Grid>
-                        <Border CornerRadius="3" Background="#1AFFFFFF"/>
+                        <Border CornerRadius="3" Background="{DynamicResource TrackBrush}"/>
                         <Border x:Name="PART_Track"><Border x:Name="PART_Indicator" HorizontalAlignment="Left" CornerRadius="3" Background="{DynamicResource AccentBrush}"/></Border>
                     </Grid>
                 </ControlTemplate>

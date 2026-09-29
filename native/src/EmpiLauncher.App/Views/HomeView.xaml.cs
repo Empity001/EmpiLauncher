@@ -433,7 +433,7 @@ public partial class HomeView : UserControl
         var panel = new Border
         {
             Width = 372, Padding = new Thickness(10, 10, 10, 6), CornerRadius = (CornerRadius)FindResource("RadiusModule"), BorderThickness = new Thickness(1),
-            Background = new SolidColorBrush(Color.FromArgb(0xF5, 0x0E, 0x0F, 0x11)), BorderBrush = Fmt.Res("HairStrongBrush"), Child = list, Opacity = 0
+            Background = Fmt.Res("PanelBrush"), BorderBrush = Fmt.Res("HairStrongBrush"), Child = list, Opacity = 0
         };
         var popup = new Popup { AllowsTransparency = true, StaysOpen = false, PopupAnimation = PopupAnimation.None, Placement = PlacementMode.Bottom, PlacementTarget = anchor, VerticalOffset = 8, Child = panel };
         popup.Closed += (_, _) => _flyoutClosedAt = Environment.TickCount64;

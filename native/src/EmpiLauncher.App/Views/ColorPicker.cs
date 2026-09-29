@@ -35,7 +35,7 @@ internal sealed class ColorPicker : Border
     public ColorPicker(string startHex, string defaultHex, IEnumerable<(string Hex, string Label)> presets)
     {
         _defaultHex = defaultHex;
-        Background = new SolidColorBrush(Color.FromArgb(0xFA, 0x0E, 0x0F, 0x11));
+        Background = (Brush)Application.Current.FindResource("PanelBrush");
         BorderBrush = (Brush)Application.Current.FindResource("HairStrongBrush");
         BorderThickness = new Thickness(1);
         CornerRadius = new CornerRadius(18);

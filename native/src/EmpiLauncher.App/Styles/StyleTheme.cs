@@ -11,13 +11,14 @@ namespace EmpiLauncher.App.Styles;
 /// <summary>Which background each style draws. A style that is listed but has no drawing in this build is never offered.</summary>
 internal static class StyleFactory
 {
-    public static bool CanDraw(string id) => id is "actual" or "celestial" or "minimal" or "shell";
+    public static bool CanDraw(string id) => id is "actual" or "celestial" or "minimal" or "shell" or "explorer";
 
     public static StyleHost.ILayer Create(string id) => id switch
     {
         "celestial" => new CelestialField(),
         "minimal" => new MinimalField(),
         "shell" => new ShellField(),
+        "explorer" => new ExplorerField(),
         _ => new LivingField()
     };
 }
@@ -61,6 +62,7 @@ internal static class StyleTheme
         var merged = app.Resources.MergedDictionaries;
         merged.Clear();
         merged.Add(theme);
+        _theme = theme;
         if (Load("Themes/Controls.xaml") is { } controls) merged.Add(controls);
         if (style.Id != StyleCatalog.Base && Load($"Themes/Looks/{style.Id}.controls.xaml") is { } shapes) merged.Add(shapes);
         Current = style.Id;
@@ -75,29 +77,43 @@ internal static class StyleTheme
     /// <summary>What a style needs made in code: brushes that move (a XAML resource cannot hold a running animation).</summary>
     private static void Extras(string id, ResourceDictionary theme)
     {
+        if (id == "explorer") { PlayInk = Colors.White; return; }   // white on its green Play
         if (id != "celestial") return;
         // holographic foil on the title and the Play button: it holds still and now and then a sheen passes over it (see Shine)
-        theme["HoloTextBrush"] = Holo(["#ffffff", "#ffd6f2", "#c9f3ff", "#e6d3ff", "#fff6c9", "#ffffff"]);
-        theme["HoloFillBrush"] = Holo(["#ffd6f2", "#c9f3ff", "#e6d3ff", "#fff6c9", "#ffd6f2"]);
-        theme["TitleBrush"] = theme["HoloTextBrush"];
+        Foil(theme, sweep: false);
         PlayInk = Color.FromRgb(0x24, 0x14, 0x33);
         StartShine();
     }
 
     // The sheen: every ten seconds the foil's bands slide one width along, in 2.4 s. Between sheens nothing ticks, so the interface (kept
     // as a texture by the window) is not drawn again for it. A foil that drifted all the time cost 3 to 4 % of a core more.
-    private static readonly List<TranslateTransform> Sheens = [];
+    // Each sheen is a new pair of brushes put in place of the old ones (every view points at them through DynamicResource): WPF freezes a
+    // brush sitting still in the resources, and a frozen brush can no longer be animated (3.7.0 logged that every ten seconds).
+    private static readonly string[] FoilText = ["#ffffff", "#ffd6f2", "#c9f3ff", "#e6d3ff", "#fff6c9", "#ffffff"];
+    private static readonly string[] FoilFill = ["#ffd6f2", "#c9f3ff", "#e6d3ff", "#fff6c9", "#ffd6f2"];
     private static readonly System.Windows.Threading.DispatcherTimer ShineTimer = new() { Interval = TimeSpan.FromSeconds(10) };
+    private static ResourceDictionary? _theme;
     private static bool _moving = true, _shineWired;
 
-    private static LinearGradientBrush Holo(string[] colors)
+    private static void Foil(ResourceDictionary theme, bool sweep)
+    {
+        theme["HoloTextBrush"] = Holo(FoilText, sweep);
+        theme["HoloFillBrush"] = Holo(FoilFill, sweep);
+        theme["TitleBrush"] = theme["HoloTextBrush"];
+    }
+
+    private static LinearGradientBrush Holo(string[] colors, bool sweep)
     {
         var brush = new LinearGradientBrush { StartPoint = new Point(0, 0.2), EndPoint = new Point(1, 0.8), SpreadMethod = GradientSpreadMethod.Repeat, MappingMode = BrushMappingMode.RelativeToBoundingBox };
         for (var i = 0; i < colors.Length; i++) brush.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(colors[i]), (double)i / (colors.Length - 1)));
         var shift = new TranslateTransform();
         brush.RelativeTransform = shift;
-        if (Sheens.Count > 8) Sheens.RemoveRange(0, Sheens.Count - 8);   // brushes of styles that are gone
-        Sheens.Add(shift);
+        if (sweep)
+        {
+            var pass = new DoubleAnimation(0, -1, TimeSpan.FromSeconds(2.4)) { EasingFunction = Motion.InOut };
+            Timeline.SetDesiredFrameRate(pass, 30);
+            shift.BeginAnimation(TranslateTransform.XProperty, pass);
+        }
         return brush;
     }
 
@@ -109,14 +125,8 @@ internal static class StyleTheme
 
     private static void Shine()
     {
-        if (!_moving || !Motion.Enabled || Current != "celestial") { ShineTimer.Stop(); return; }
-        foreach (var shift in Sheens)
-        {
-            var from = shift.X % 1;
-            var pass = new DoubleAnimation(from, from - 1, TimeSpan.FromSeconds(2.4)) { EasingFunction = Motion.InOut };
-            Timeline.SetDesiredFrameRate(pass, 30);
-            shift.BeginAnimation(TranslateTransform.XProperty, pass);
-        }
+        if (!_moving || !Motion.Enabled || Current != "celestial" || _theme == null) { ShineTimer.Stop(); return; }
+        Foil(_theme, sweep: true);
     }
 
     /// <summary>

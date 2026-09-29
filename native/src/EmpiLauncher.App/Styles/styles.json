@@ -61,7 +61,7 @@
       "name": "Explorer",
       "summary": "Un escritorio de los 90 que se quedó solo. Ventanas, cielo y nostalgia.",
       "accent": "#3a6edc",
-      "ported": false,
+      "ported": true,
       "releasedIn": null,
       "notes": "# Empi Launcher {version}: nuevo estilo Explorer\n\n## Estilos (nuevo)\n- Nuevo estilo **Explorer**: un escritorio viejo de los 90 que se quedó solo, con cielo, un piso de cuadros que no termina y ventanitas de diálogo.\n- Mientras descargas aparece una ventana de copia de archivos de las de antes, con el progreso real.\n- Llega como una ventana que se abre desde la esquina.\n- Cambia toda la interfaz, no solo el fondo: letras, bordes en relieve y colores siguen al estilo, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
     },
