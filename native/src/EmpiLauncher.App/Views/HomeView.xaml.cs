@@ -192,7 +192,7 @@ public partial class HomeView : UserControl
         SyncBannerAnimation();
     }
 
-    private bool _punk, _words;
+    private bool _punk, _words, _capitals;
     private string? _titleShown;
 
     /// <summary>
@@ -202,7 +202,7 @@ public partial class HomeView : UserControl
     private void DressForStyle()
     {
         var style = global::EmpiLauncher.App.Styles.StyleTheme.Current;
-        _punk = style == "punk"; _words = style == "words";
+        _punk = style == "punk"; _words = style == "words"; _capitals = style == "termico";
         if (_words) { PackTitle.LineHeight = double.NaN; PackDescription.FontStyle = FontStyles.Italic; return; }
         if (!_punk) return;
         PackTitle.LineHeight = double.NaN;
@@ -216,7 +216,7 @@ public partial class HomeView : UserControl
     {
         if (text == _titleShown) return;
         _titleShown = text;
-        if (!_punk && !_words) { PackTitle.Text = text; return; }
+        if (!_punk && !_words) { PackTitle.Text = _capitals ? text.ToUpperInvariant() : text; return; }
         PackTitle.Inlines.Clear();
         foreach (var piece in _punk ? Styles.PunkField.Ransom(text) : Styles.WordsField.KeptWords(text)) PackTitle.Inlines.Add(piece);
         System.Windows.Automation.AutomationProperties.SetName(PackTitle, text);

@@ -286,6 +286,24 @@ internal sealed class AboutTab : SettingsTab
                 Paint(group, "#7a2f25", roof, "#3a2418", 1.2);
                 Paint(group, "#f6dc8a", new RectangleGeometry(new Rect(110, 30, 6, 6)));
                 break;
+            case "oleaje":
+                group.Children.Add(new GeometryDrawing(new LinearGradientBrush(Color.FromRgb(0x02, 0x05, 0x0c), Color.FromRgb(0x0c, 0x22, 0x4a), 20), null, new RectangleGeometry(box)));
+                for (var i = 0; i < 7; i++)
+                {
+                    var y = 6 + i * 8.0;
+                    var wave = new PathGeometry([new PathFigure(new Point(60, y), [new BezierSegment(new Point(90, y - 7), new Point(120, y + 9), new Point(172, y - 2), true)], false)]);
+                    Paint(group, null, wave, i % 3 == 0 ? style.Accent : Color.FromArgb(150, 220, 236, 255), 0.9);
+                }
+                break;
+            case "termico":
+                Paint(group, "#040306", new RectangleGeometry(box));
+                foreach (var (x, y, r, hex) in new[] { (120.0, 30.0, 46.0, "#7c5cff"), (126.0, 28.0, 30.0, "#ff4f9a"), (130.0, 27.0, 17.0, "#ff8a3d"), (132.0, 26.0, 7.0, "#fff3e0") })
+                {
+                    var heat = new RadialGradientBrush((Color)ColorConverter.ConvertFromString(hex), Colors.Transparent);
+                    group.Children.Add(new GeometryDrawing(heat, null, new EllipseGeometry(new Point(x, y), r, r * 0.8)));
+                }
+                Paint(group, null, new RectangleGeometry(new Rect(112, 16, 26, 20)), Color.FromArgb(170, 255, 255, 255), 0.7);
+                break;
             case "core":
                 Paint(group, "#050506", new RectangleGeometry(box));
                 for (var ring = 0; ring < 9; ring++)

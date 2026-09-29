@@ -8,6 +8,8 @@
     <Resource Include="Assets\Art\tear.png" />
     <!-- the styles of the interface and which of them are switched on (the Publisher's "Pendientes" writes it) -->
     <Resource Include="Styles\styles.json" />
+    <!-- the pixel shaders of Oleaje and TÃ©rmico, compiled from the .hlsl beside them by native/tools/compile-shaders.ps1 -->
+    <Resource Include="Styles\Shaders\*.ps" />
   </ItemGroup>
 
   <PropertyGroup>

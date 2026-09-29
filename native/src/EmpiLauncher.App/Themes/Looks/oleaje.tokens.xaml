@@ -1,0 +1,53 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- OLEAJE: glass over deep water. Panels of dark blue glass with a pale edge and big round corners, light display type, cool white
+         text, tags as round pebbles, and Jugar in pale paper with deep blue letters. -->
+
+    <Color x:Key="BgColor">#02050c</Color>
+    <Color x:Key="SurfaceColor">#08101f</Color>
+    <Color x:Key="Surface2Color">#0d1829</Color>
+    <Color x:Key="Surface3Color">#142238</Color>
+    <Color x:Key="PaperColor">#e8f0fb</Color>
+    <Color x:Key="Paper2Color">#a9b8cf</Color>
+    <Color x:Key="Paper3Color">#71819b</Color>
+
+    <SolidColorBrush x:Key="BgBrush" Color="#02050c"/>
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#08101f"/>
+    <SolidColorBrush x:Key="Surface2Brush" Color="#0d1829"/>
+    <SolidColorBrush x:Key="Surface3Brush" Color="#142238"/>
+    <SolidColorBrush x:Key="PaperBrush" Color="#e8f0fb"/>
+    <SolidColorBrush x:Key="Paper2Brush" Color="#a9b8cf"/>
+    <SolidColorBrush x:Key="Paper3Brush" Color="#71819b"/>
+    <SolidColorBrush x:Key="ModuleBrush" Color="#BD060C1A"/>
+    <SolidColorBrush x:Key="HairBrush" Color="#1Fc8e1ff"/>
+    <SolidColorBrush x:Key="HairStrongBrush" Color="#33c8e1ff"/>
+    <SolidColorBrush x:Key="TintBrush" Color="#0Fffffff"/>
+    <SolidColorBrush x:Key="TintHoverBrush" Color="#1Fffffff"/>
+    <SolidColorBrush x:Key="DockBrush" Color="#D6050A16"/>
+    <SolidColorBrush x:Key="DockEdgeBrush" Color="#29c8e1ff"/>
+    <SolidColorBrush x:Key="ChromeBoxBrush" Color="#BD060C1A"/>
+    <SolidColorBrush x:Key="ChromeBoxEdgeBrush" Color="#29c8e1ff"/>
+    <SolidColorBrush x:Key="ChromeInkBrush" Color="#e8f0fb"/>
+    <SolidColorBrush x:Key="TitleBrush" Color="#f4f8ff"/>
+    <SolidColorBrush x:Key="DialogBrush" Color="#0a1426"/>
+    <SolidColorBrush x:Key="PanelBrush" Color="#0a1426"/>
+    <SolidColorBrush x:Key="TabsBrush" Color="#D6050A16"/>
+    <SolidColorBrush x:Key="InputBrush" Color="#0d1829"/>
+
+    <Color x:Key="CardOnColor">#e8f0fb</Color>
+    <Color x:Key="CardOnInkColor">#061229</Color>
+    <Color x:Key="CardOnMetaColor">#3d4c66</Color>
+    <Color x:Key="CardOffInkColor">#e8f0fb</Color>
+    <Color x:Key="CardOffMetaColor">#71819b</Color>
+
+    <FontFamily x:Key="DisplayFont">Segoe UI Light, Segoe UI</FontFamily>
+    <FontFamily x:Key="MonoFont">Segoe UI</FontFamily>
+    <FontFamily x:Key="BodyFont">Segoe UI</FontFamily>
+
+    <CornerRadius x:Key="RadiusInput">14</CornerRadius>
+    <CornerRadius x:Key="RadiusTile">18</CornerRadius>
+    <CornerRadius x:Key="RadiusModule">28</CornerRadius>
+    <CornerRadius x:Key="RadiusDock">28</CornerRadius>
+    <CornerRadius x:Key="RadiusPlay">26</CornerRadius>
+    <CornerRadius x:Key="RadiusChromeBox">16</CornerRadius>
+</ResourceDictionary>

@@ -1,0 +1,57 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- TÉRMICO: a thermal camera's screen. Near-black glass panels edged with the heat gradient (orange, pink, violet), heavy capital
+         display type, a monospace for readings, and Jugar painted in the heat gradient with dark letters. -->
+
+    <Color x:Key="BgColor">#040306</Color>
+    <Color x:Key="SurfaceColor">#0a0810</Color>
+    <Color x:Key="Surface2Color">#120e19</Color>
+    <Color x:Key="Surface3Color">#1b1524</Color>
+    <Color x:Key="PaperColor">#fbf1f5</Color>
+    <Color x:Key="Paper2Color">#c7b6c4</Color>
+    <Color x:Key="Paper3Color">#8d7b8c</Color>
+
+    <SolidColorBrush x:Key="BgBrush" Color="#040306"/>
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#0a0810"/>
+    <SolidColorBrush x:Key="Surface2Brush" Color="#120e19"/>
+    <SolidColorBrush x:Key="Surface3Brush" Color="#1b1524"/>
+    <SolidColorBrush x:Key="PaperBrush" Color="#fbf1f5"/>
+    <SolidColorBrush x:Key="Paper2Brush" Color="#c7b6c4"/>
+    <SolidColorBrush x:Key="Paper3Brush" Color="#8d7b8c"/>
+    <SolidColorBrush x:Key="ModuleBrush" Color="#B308060E"/>
+    <SolidColorBrush x:Key="DockBrush" Color="#DB08060E"/>
+    <LinearGradientBrush x:Key="HeatEdgeBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#ff8a3d" Offset="0"/>
+        <GradientStop Color="#ff4f9a" Offset="0.55"/>
+        <GradientStop Color="#7c5cff" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="DockEdgeBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#ff8a3d" Offset="0"/>
+        <GradientStop Color="#ff4f9a" Offset="0.55"/>
+        <GradientStop Color="#7c5cff" Offset="1"/>
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="ChromeBoxBrush" Color="#B308060E"/>
+    <SolidColorBrush x:Key="ChromeBoxEdgeBrush" Color="#66ff4f9a"/>
+    <SolidColorBrush x:Key="ChromeInkBrush" Color="#fbf1f5"/>
+    <SolidColorBrush x:Key="TitleBrush" Color="#fff7fa"/>
+    <SolidColorBrush x:Key="DialogBrush" Color="#0c0912"/>
+    <SolidColorBrush x:Key="PanelBrush" Color="#0c0912"/>
+    <SolidColorBrush x:Key="TabsBrush" Color="#DB08060E"/>
+
+    <Color x:Key="CardOnColor">#fbf1f5</Color>
+    <Color x:Key="CardOnInkColor">#1a0612</Color>
+    <Color x:Key="CardOnMetaColor">#6a4a5e</Color>
+    <Color x:Key="CardOffInkColor">#fbf1f5</Color>
+    <Color x:Key="CardOffMetaColor">#8d7b8c</Color>
+
+    <FontFamily x:Key="DisplayFont">Segoe UI Black, Segoe UI</FontFamily>
+    <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas</FontFamily>
+    <FontFamily x:Key="BodyFont">Segoe UI</FontFamily>
+
+    <CornerRadius x:Key="RadiusInput">8</CornerRadius>
+    <CornerRadius x:Key="RadiusTile">10</CornerRadius>
+    <CornerRadius x:Key="RadiusModule">16</CornerRadius>
+    <CornerRadius x:Key="RadiusDock">16</CornerRadius>
+    <CornerRadius x:Key="RadiusPlay">14</CornerRadius>
+    <CornerRadius x:Key="RadiusChromeBox">10</CornerRadius>
+</ResourceDictionary>

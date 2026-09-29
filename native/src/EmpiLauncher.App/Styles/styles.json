@@ -25,7 +25,7 @@
       "name": "Oleaje",
       "summary": "Luz bajo el agua, con reflejos que se mueven como el mar.",
       "accent": "#39c6e0",
-      "ported": false,
+      "ported": true,
       "releasedIn": null,
       "notes": "# Empi Launcher {version}: nuevo estilo Oleaje\n\n## Estilos (nuevo)\n- Nuevo estilo **Oleaje**: el fondo es luz vista desde debajo del agua, con reflejos que se mueven como el mar y bordes de color donde la luz se quiebra. Cada clic abre ondas en el agua.\n- El nombre del modpack se ve en el fondo como si estuviera sumergido.\n- Llega como una marea que sube desde abajo.\n- Cambia toda la interfaz, no solo el fondo: letras, formas y colores siguen al estilo, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
     },
@@ -34,7 +34,7 @@
       "name": "Térmico",
       "summary": "Formas líquidas de cámara térmica, con una trama de impresión.",
       "accent": "#ff7a2f",
-      "ported": false,
+      "ported": true,
       "releasedIn": null,
       "notes": "# Empi Launcher {version}: nuevo estilo Térmico\n\n## Estilos (nuevo)\n- Nuevo estilo **Térmico**: formas líquidas como vistas por una cámara térmica, con una trama de impresión y los colores un poco corridos, como un póster.\n- Un visor encima del fondo marca lo que pasa de verdad: la memoria asignada al modpack, sus mods y, mientras descargas, cuánto falta.\n- Llega derritiéndose hacia afuera desde el punto más caliente.\n- Cambia toda la interfaz, no solo el fondo: letras, formas y colores siguen al estilo, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
     },

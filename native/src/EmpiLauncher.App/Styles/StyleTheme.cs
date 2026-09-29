@@ -11,7 +11,8 @@ namespace EmpiLauncher.App.Styles;
 /// <summary>Which background each style draws. A style that is listed but has no drawing in this build is never offered.</summary>
 internal static class StyleFactory
 {
-    public static bool CanDraw(string id) => id is "actual" or "celestial" or "minimal" or "shell" or "explorer" or "remember" or "punk" or "words" or "core";
+    public static bool CanDraw(string id) => id is "actual" or "celestial" or "minimal" or "shell" or "explorer" or "remember" or "punk" or "words" or "core"
+        || id is "oleaje" or "termico" && ShaderField.Supported;   // drawn by a pixel shader: only where the graphics card can run it
 
     public static StyleHost.ILayer Create(string id) => id switch
     {
@@ -23,6 +24,8 @@ internal static class StyleFactory
         "punk" => new PunkField(),
         "words" => new WordsField(),
         "core" => new CoreField(),
+        "oleaje" => new OleajeField(),
+        "termico" => new TermicoField(),
         _ => new LivingField()
     };
 }
@@ -88,6 +91,8 @@ internal static class StyleTheme
         if (id == "explorer") { PlayInk = Colors.White; return; }   // white on its green Play
         if (id == "words") { PlayInk = Color.FromRgb(0x15, 0x12, 0x0f); return; }   // ink on its paper Play
         if (id == "core") { PlayInk = Color.FromRgb(0xf1, 0xed, 0xe0); return; }   // its Play is only an outline
+        if (id == "oleaje") { PlayInk = Color.FromRgb(0x06, 0x12, 0x29); return; }   // deep blue on its pale Play
+        if (id == "termico") { PlayInk = Color.FromRgb(0x1a, 0x06, 0x12); return; }   // dark on its heat gradient
         if (id != "celestial") return;
         // holographic foil on the title and the Play button: it holds still and now and then a sheen passes over it (see Shine)
         Foil(theme, sweep: false);
