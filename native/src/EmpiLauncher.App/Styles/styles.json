@@ -4,7 +4,7 @@
   "styles": [
     {
       "id": "actual",
-      "name": "Actual",
+      "name": "Default",
       "summary": "Puntitos que respiran y ondas al hacer clic. El de siempre.",
       "accent": "#ff3d8b",
       "weight": 18,

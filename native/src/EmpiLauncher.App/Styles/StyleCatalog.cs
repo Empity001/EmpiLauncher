@@ -41,7 +41,7 @@ internal static class StyleCatalog
     /// <summary>The style with that id if it is offered, the base style otherwise.</summary>
     public static StyleInfo Get(string? id) => Available.FirstOrDefault(s => s.Id == id) ?? All.FirstOrDefault(s => s.Id == Base) ?? Fallback;
 
-    private static readonly StyleInfo Fallback = new(Base, "Actual", "", Color.FromRgb(0xff, 0x3d, 0x8b), "#ff3d8b", true, null, 18);
+    private static readonly StyleInfo Fallback = new(Base, "Default", "", Color.FromRgb(0xff, 0x3d, 0x8b), "#ff3d8b", true, null, 18);
 
     private static List<StyleInfo> Load()
     {
