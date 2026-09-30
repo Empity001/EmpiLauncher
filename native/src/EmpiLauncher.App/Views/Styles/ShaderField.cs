@@ -96,21 +96,17 @@ internal abstract class ShaderField : StyleField
             Fx.SetWave(i, i < recent.Count ? new Point4D(recent[i].X / Math.Max(1, W), recent[i].Y / Math.Max(1, H), T - recent[i].T0, recent[i].Weight) : new Point4D());
     }
 
-    /// <summary>
-    /// A small tileable noise picture (64 cells across, smooth between them) for shaders that need noise. It carries a border of 2 texels of
-    /// its own wrapped content (516 across for a 512 tile), so a shader sampling across the tile's edge blends with the right neighbours
-    /// (termico.hlsl's noise()): without it the edge was clamped and the folding heat showed straight cracks.
-    /// </summary>
+    /// <summary>A small tileable noise picture (64 cells across, smooth between them) for shaders that need noise.</summary>
     protected static ImageBrush NoiseBrush()
     {
-        const int tile = 512, pad = 2, size = tile + 2 * pad, cells = 64;
+        const int size = 512, cells = 64;
         static double Lattice(int x, int y) { x = ((x % cells) + cells) % cells; y = ((y % cells) + cells) % cells; var h = Math.Sin(x * 127.1 + y * 311.7) * 43758.5453; return h - Math.Floor(h); }
         static double S(double t) => t * t * t * (t * (t * 6 - 15) + 10);
         var pixels = new byte[size * size];
         for (var y = 0; y < size; y++)
             for (var x = 0; x < size; x++)
             {
-                double fx = ((x - pad + tile) % tile) * (double)cells / tile, fy = ((y - pad + tile) % tile) * (double)cells / tile;
+                double fx = x * (double)cells / size, fy = y * (double)cells / size;
                 int ix = (int)Math.Floor(fx), iy = (int)Math.Floor(fy);
                 double ux = S(fx - ix), uy = S(fy - iy);
                 var top = Lattice(ix, iy) + (Lattice(ix + 1, iy) - Lattice(ix, iy)) * ux;

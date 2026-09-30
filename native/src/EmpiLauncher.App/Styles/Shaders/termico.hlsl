@@ -15,9 +15,9 @@ float4 Reveal : register(c4);   // x: how far the arrival has got, y: 1 while ar
 float4 Waves[12] : register(c8); // x, y, age in s, strength
 
 // value noise from the texture: 64 cells across it, -1..1
-// the texture is 512 texels of noise plus a 2-texel border of its own wrapped content (ShaderField.NoiseBrush): sampling across the tile's edge
-// blends with the right neighbours instead of stopping at the edge, which cracked the heat along straight lines
-float noise(float2 p) { return tex2Dlod(Noise, float4((2.0 + frac(p / 64.0) * 512.0) / 516.0, 0.0, 0.0)).r * 2.0 - 1.0; }
+// value noise from the texture: 64 cells across it, -1..1. The lookup stays between the first and the last texel centres (never in the half
+// texel at the edge, where the sampler reads past the tile): a crossing of the tile's edge then moves by one texel, not by a crack
+float noise(float2 p) { return tex2Dlod(Noise, float4(frac(p / 64.0) * (511.0 / 512.0) + 0.5 / 512.0, 0.0, 0.0)).r * 2.0 - 1.0; }
 
 float fbm(float2 p)
 {
