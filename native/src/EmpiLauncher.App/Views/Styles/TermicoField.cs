@@ -30,6 +30,9 @@ internal sealed class TermicoField : ShaderField
         return bar;
     }
 
+    /// <summary>What Jugar's state says ("MANTENIMIENTO 18:20", "RETIRADO"...), set by its effect (AccessScripts): shown in the readout, never over other text.</summary>
+    internal static string? Note;
+
     public TermicoField() : base("termico", NoiseBrush()) { }
 
     protected override void Render(DrawingContext dc, double dt)
@@ -61,6 +64,7 @@ internal sealed class TermicoField : ShaderField
         {
             string[] lines = [$"MODS {pack.Mods}", $"MC {pack.MinecraftVersion}", $"v{pack.Version}", game.Busy ? $"DESCARGA {game.Percent}%" : "ε 0.95"];
             var y = H - 150.0;
+            if (Note is { Length: > 0 } note) { var n = Text(note, Mono, 11, Colors.White, FontWeights.SemiBold); dc.DrawText(n, new Point(W - 58 - n.Width, y - 20)); }
             foreach (var line in lines) { var t = Text(line, Mono, 11, Mark); dc.DrawText(t, new Point(W - 58 - t.Width, y)); y += 16; }
         }
 

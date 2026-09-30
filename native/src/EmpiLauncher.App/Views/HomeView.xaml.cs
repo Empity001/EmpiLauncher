@@ -81,6 +81,7 @@ public partial class HomeView : UserControl
             foreach (var part in QuietParts()) LivingField.Quiet.Add(part);
             LivingField.Covers.Add(RailModule); LivingField.Covers.Add(Dock);
         };
+        Unloaded += (_, _) => Views.Access.AccessDirector.Release(PlayHost);
         Unloaded += (_, _) =>
         {
             _bannerPlayer?.Dispose(); _bannerPlayer = null;
@@ -727,6 +728,13 @@ public partial class HomeView : UserControl
         // a glass that belongs to another modpack goes away (it will grow back when that one is chosen again and is no longer retired)
         if (_glass != null && _glassFor != id) DropGlass();
 
+        // a style with its own way of showing the state (Views/Access) does it there; the seal and the glass below belong to the base style
+        var styled = Views.Access.AccessDirector.Handles(EmpiLauncher.App.Styles.StyleTheme.Current);
+        if (styled) StyledAccess(access, blocked, id);
+        else
+        {
+        Views.Access.AccessDirector.Clear();
+
         // ---- the seal
         _stamp = null;
         foreach (var old in AccessLayer.Children.OfType<FrameworkElement>().Where(c => c.Tag as string == "stamp").ToList()) AccessLayer.Children.Remove(old);
@@ -783,6 +791,8 @@ public partial class HomeView : UserControl
         }
         else if (_glass == null) PlayHost.Visibility = Visibility.Visible;
 
+        }
+
         // ---- what the author says, and the trash
         TrashButton.Visibility = access.State == "retired" && installed ? Visibility.Visible : Visibility.Collapsed;
         var note = NoteFor(access, installed);
@@ -790,6 +800,30 @@ public partial class HomeView : UserControl
         AccessNote.Visibility = note != null ? Visibility.Visible : Visibility.Collapsed;
         if (note != null) AccessNoteText.Text = note;
         if (noteAppears) Motion.Rise(AccessNote, 60, 240, 8);
+    }
+
+    /// <summary>The state, the style's own way: its effect the first time (for retired, the first time ever), its last pose after that, its way back when a retired modpack returns.</summary>
+    private void StyledAccess(AccessInfo access, bool blocked, string? id)
+    {
+        DropGlass();
+        foreach (var old in AccessLayer.Children.OfType<FrameworkElement>().Where(c => c.Tag as string == "stamp").ToList()) AccessLayer.Children.Remove(old);
+        _stamp = null; _stampKey = "";
+        PlayButton.Opacity = 1;
+        PlayHost.Visibility = Visibility.Visible;
+        var name = _l.Host?.Name ?? _l.Selected?.Name;
+        var state = blocked ? access.State switch { "maintenance" => "maint", "upcoming" => "soon", "retired" => "retired", _ => null } : null;
+        if (state != null && id != null)
+        {
+            var first = state == "retired" && NativeSettings.Retired.Add(id);
+            if (first) NativeSettings.SaveRetired();
+            Views.Access.AccessDirector.Show(PlayHost, access, state, first, id, name, WhenSettled);
+        }
+        else if (id != null && NativeSettings.Retired.Contains(id))
+        {
+            NativeSettings.Retired.Remove(id); NativeSettings.SaveRetired();
+            Views.Access.AccessDirector.Back(PlayHost, access, id, name, WhenSettled);
+        }
+        else Views.Access.AccessDirector.Clear();
     }
 
     private void DropGlass()
