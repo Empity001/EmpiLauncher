@@ -40,31 +40,31 @@ const MIN_LINGER = 5000
 const BUSY = new Set(['launching', 'updating', 'restoring', 'stopping'])
 
 const TEXT = {
-    loadingServer: 'Cargando información del servidor...',
+    loadingServer: 'Cargando la info del servidor...',
     checkingUpdate: 'Buscando cambios del modpack...',
     preparingRestore: 'Preparando la restauración...',
-    protecting: 'Protegiendo tus configuraciones personales...',
+    protecting: 'Guardando tus configuraciones para que no se pierdan...',
     cleaning: 'Preparando la actualización limpia...',
     cleaningRestore: 'Eliminando cambios no permitidos...',
-    wait: 'Espera un momento...',
+    wait: 'Espérame tantito...',
     verifyingInstalled: 'Comprobando archivos instalados...',
     verifyingRestore: 'Comprobando la versión original...',
-    validating: 'Comprobando la integridad de los archivos...',
+    validating: 'Revisando que los archivos estén sanos...',
     comparing: 'Comparando tu instalación con la versión nueva...',
     comparingRestore: 'Comparando con la versión original...',
     downloading: 'Descargando archivos...',
     downloadingUpdate: 'Actualizando archivos del modpack...',
     downloadingRestore: 'Restaurando archivos originales...',
-    recovering: 'Recuperando tus configuraciones personales...',
+    recovering: 'Regresando tus configuraciones a su lugar...',
     preparingLaunch: 'Preparando el inicio...',
-    launching: 'Iniciando el juego...',
-    enjoy: 'Listo. ¡Disfruta del servidor!',
+    launching: 'Abriendo el juego...',
+    enjoy: '¡Listo! A disfrutar ;3',
     checkingJava: 'Comprobando Java...',
     javaPrepare: 'Preparando la descarga de Java...',
     extractingJava: 'Extrayendo Java',
     javaInstalled: 'Java instalado.',
     javaCurrent: 'Ya tienes la última versión de este Java.',
-    searchingJava: 'Buscando Java en el equipo... puede tardar un poco.',
+    searchingJava: 'Buscando Java en tu compu... puede tardar tantito.',
     stopping: 'Deteniendo Minecraft...'
 }
 
@@ -217,7 +217,7 @@ function register(handlers, state) {
                 await downloadJava(server)
             } catch (err) {
                 log().error('Java installation failed.', err)
-                return fail('java', 'No se pudo instalar Java', `${err.message || 'Revisa el registro del launcher para más detalles.'} Puedes instalarlo desde Ajustes > Java.`)
+                return fail('java', 'No se pudo instalar Java', `${err.message || 'Revisa el registro del launcher para ver qué pasó.'} Puedes instalarlo desde Ajustes > Java.`)
             }
             return scanJava(server, { installed: true })
         }
@@ -355,11 +355,11 @@ function register(handlers, state) {
             emit('distro.refreshed', describeDistribution(ConfigManager, distro))
         } catch (err) {
             log().error('Unable to refresh distribution index.', err)
-            return fail('distribution', 'Error grave', 'No se pudo cargar una copia del índice de distribución.')
+            return fail('distribution', 'Algo se rompió', 'No pude cargar la lista de modpacks. Revisa tu internet y vuelve a intentarlo.')
         }
 
         const serv = distro.getServerById(ConfigManager.getSelectedServer())
-        if (serv == null) return fail('distribution', 'Error grave', 'No se pudo cargar una copia del índice de distribución.')
+        if (serv == null) return fail('distribution', 'Algo se rompió', 'No pude cargar la lista de modpacks. Revisa tu internet y vuelve a intentarlo.')
         game.serverId = serv.rawServer.id
 
         if (login) {
@@ -369,7 +369,7 @@ function register(handlers, state) {
 
         // "Who plays" is the offline player when one is in use, otherwise the selected Microsoft account.
         if (login && currentAccount(ConfigManager) == null) {
-            return fail('no_account', 'Cuenta necesaria', 'Inicia sesión con tu cuenta de Minecraft, o elige jugar sin conexión, antes de jugar.')
+            return fail('no_account', 'Falta tu cuenta', 'Inicia sesión con tu cuenta de Minecraft, o escoge jugar sin conexión, y ahora sí a jugar.')
         }
 
         if (await pack().hasInstallation(serv)) {
@@ -378,7 +378,7 @@ function register(handlers, state) {
                 snapshot = await pack().backupPersonalFiles(serv)
             } catch (err) {
                 log().error('Unable to protect personal configuration files before repair.', err)
-                return fail('protect', 'No se pudo preparar la comprobación', 'No se pudieron proteger tus configuraciones personales. No se realizó ningún cambio.')
+                return fail('protect', 'No se pudo preparar la comprobación', 'No pude poner a salvo tus configuraciones, así que no toqué nada.')
             }
         }
         const restoreSnapshot = async (why) => {
@@ -425,7 +425,7 @@ function register(handlers, state) {
             destroyReceiver()
             await restoreSnapshot('validation failure')
             log().error('Error during file validation.', err)
-            return fail('verify', 'Error al verificar los archivos', err.displayable || 'Revisa el registro del launcher para más detalles.')
+            return fail('verify', 'Error al verificar los archivos', err.displayable || 'Revisa el registro del launcher para ver qué pasó.')
         }
 
         if (invalidFileCount > 0) {
@@ -442,7 +442,7 @@ function register(handlers, state) {
                 destroyReceiver()
                 await restoreSnapshot('download failure')
                 log().error('Error during file download.', err)
-                return fail('download', 'Error al descargar archivos', err.displayable || 'Revisa el registro del launcher para más detalles.')
+                return fail('download', 'Error al descargar archivos', err.displayable || 'Revisa el registro del launcher para ver qué pasó.')
             }
         } else {
             log().info('No invalid files, skipping download.')
@@ -490,11 +490,11 @@ function register(handlers, state) {
             versionData = await mojang.getVersionJson()
         } catch (err) {
             log().error('Unable to prepare Minecraft metadata.', err)
-            return fail('metadata', 'Error al iniciar', 'Revisa el registro del launcher para más detalles.')
+            return fail('metadata', 'Error al iniciar', 'Revisa el registro del launcher para ver qué pasó.')
         }
 
         const authUser = currentAccount(ConfigManager)
-        if (authUser == null) return fail('no_account', 'Cuenta necesaria', 'Inicia sesión con tu cuenta de Minecraft, o elige jugar sin conexión, antes de jugar.')
+        if (authUser == null) return fail('no_account', 'Falta tu cuenta', 'Inicia sesión con tu cuenta de Minecraft, o escoge jugar sin conexión, y ahora sí a jugar.')
         log().info(`Sending ${authUser.type === 'offline' ? 'offline player' : 'selected account'} (${authUser.displayName}) to ProcessBuilder.`)
         const pb = new (rt().ProcessBuilder)(serv, versionData, modLoaderData, authUser, appVersion())
         if (authUser.type === 'offline') await attachSkin(pb, authUser, ConfigManager.getLauncherDirectory())
@@ -520,7 +520,7 @@ function register(handlers, state) {
         } catch (err) {
             stopSkinServer()
             log().warn('The skin was not applied.', err)
-            emit('game.notice', { level: 'warning', text: `No se pudo preparar tu skin (${err.message}). Juegas con la skin por defecto.` })
+            emit('game.notice', { level: 'warning', text: `No pude preparar tu skin (${err.message}). Por esta vez juegas con la de siempre.` })
         }
     }
 
@@ -533,7 +533,7 @@ function register(handlers, state) {
                 log().error('Game launch failed, LaunchWrapper was not downloaded properly.')
                 emit('game.failure', {
                     code: 'launchwrapper', title: 'Error al iniciar',
-                    message: 'El archivo principal, LaunchWrapper, no se descargó correctamente. Desactiva temporalmente tu antivirus y vuelve a iniciar el juego.'
+                    message: 'El archivo principal, LaunchWrapper, no se bajó bien. Apaga tantito tu antivirus y vuelve a abrir el juego.'
                 })
             }
         }
@@ -589,7 +589,7 @@ function register(handlers, state) {
             log().error('Error during launch', err)
             game.proc = null
             state.keepAlive.delete('game')
-            return fail('launch', 'Error al iniciar', 'Revisa el registro del launcher para más detalles.')
+            return fail('launch', 'Error al iniciar', 'Revisa el registro del launcher para ver qué pasó.')
         }
     }
 
@@ -688,7 +688,7 @@ function register(handlers, state) {
         if (chosen === 'verify' && (!status.installed || status.action !== 'play')) chosen = status.installed ? status.action : 'update'
         const run = (fn) => Promise.resolve().then(fn).catch((err) => {
             log().error('Unhandled error during launch/update process.', err)
-            fail('unhandled', 'Error al iniciar', 'Revisa el registro del launcher para más detalles.')
+            fail('unhandled', 'Error al iniciar', 'Revisa el registro del launcher para ver qué pasó.')
         })
 
         if (chosen === 'restore') {
@@ -750,7 +750,7 @@ function register(handlers, state) {
                     setPhase('idle')
                 } catch (err) {
                     log().error('Java installation failed.', err)
-                    fail('java', 'Error al instalar Java', err.message || 'Revisa el registro del launcher para más detalles.')
+                    fail('java', 'Error al instalar Java', err.message || 'Revisa el registro del launcher para ver qué pasó.')
                 }
             })
             return { started: true, standalone: true }
@@ -765,7 +765,7 @@ function register(handlers, state) {
                 await scanJava(server)
             } catch (err) {
                 log().error('Java installation failed.', err)
-                fail('java', 'Error al instalar Java', err.message || 'Revisa el registro del launcher para más detalles.')
+                fail('java', 'Error al instalar Java', err.message || 'Revisa el registro del launcher para ver qué pasó.')
             }
         })
         return { started: true }

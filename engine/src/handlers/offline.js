@@ -50,7 +50,7 @@ function register(handlers, state) {
     handlers.set('skin.set', async ({ id, model } = {}) => {
         const { ConfigManager } = ensureCore(state)
         const dir = ConfigManager.getLauncherDirectory()
-        if (!offline.read(dir)) throw new EngineError('no_offline', 'Primero elige jugar sin conexión.')
+        if (!offline.read(dir)) throw new EngineError('no_offline', 'Primero escoge jugar sin conexión.')
         let skin
         try {
             skin = await skins.fetchSkin(dir, String(id))

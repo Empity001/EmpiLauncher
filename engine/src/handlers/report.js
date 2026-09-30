@@ -42,8 +42,8 @@ function register(handlers, state) {
     }
     const mustBeIdle = (id) => {
         const game = state.game
-        if (game && (game.phase !== 'idle' || game.proc != null)) throw new EngineError('busy', 'Termina o cierra Minecraft antes de quitar un modpack.')
-        if (game && game.serverId === id && game.phase !== 'idle') throw new EngineError('busy', 'Ese modpack está en uso.')
+        if (game && (game.phase !== 'idle' || game.proc != null)) throw new EngineError('busy', 'Cierra Minecraft (o espera a que termine) antes de quitar un modpack.')
+        if (game && game.serverId === id && game.phase !== 'idle') throw new EngineError('busy', 'Ese modpack está en uso ahorita.')
     }
 
     let lastSentAt = 0
@@ -75,8 +75,8 @@ function register(handlers, state) {
     handlers.set('report.send', async ({ text, code, note } = {}) => {
         if (typeof text !== 'string' || text.length < 20 || text.length > 400 * 1024) throw new EngineError('bad_report', 'No hay un informe que enviar.')
         const support = state.notices && state.notices.support ? state.notices.support() : null
-        if (!support || !support.service) throw new EngineError('no_support', 'El soporte todavía no está configurado en este launcher. Guarda el informe como archivo y mándalo por otro medio.')
-        if (Date.now() - lastSentAt < 30000) throw new EngineError('too_soon', 'Ya enviaste un informe hace un momento. Espera unos segundos.')
+        if (!support || !support.service) throw new EngineError('no_support', 'Todavía no configuro el soporte en este launcher. Guarda el informe como archivo y mándamelo por otro lado.')
+        if (Date.now() - lastSentAt < 30000) throw new EngineError('too_soon', 'Ya me mandaste un informe hace ratito. Espérame unos segundos.')
         const name = (/^Nombre: (.+)$/m.exec(text) || [])[1] || 'jugador'
         const extra = typeof note === 'string' && note.trim() ? `Nota del jugador: ${note.trim().slice(0, 600)}\n\n` : ''
         const url = process.env.EMPI_ENGINE_TEST === '1' && process.env.EMPI_SUPPORT_URL ? process.env.EMPI_SUPPORT_URL : undefined

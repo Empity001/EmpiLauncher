@@ -39,7 +39,7 @@ function register(handlers, state) {
             return error
         }
         state.log.error('Unhandled error during authentication.', err)
-        const error = new EngineError('auth_failed', 'Ocurrió un error inesperado al iniciar sesión. Inténtalo de nuevo.')
+        const error = new EngineError('auth_failed', 'Algo salió raro al iniciar sesión. Inténtalo otra vez, porfa.')
         error.title = 'Error al iniciar sesión'
         return error
     }
@@ -67,7 +67,7 @@ function register(handlers, state) {
         const { ConfigManager } = ensureCore(state)
         emit('auth.progress', { stage: 'window' })
         const result = await helperResult('login', { electron: state.electron, userDataDir: sessionDir(), clientId: AZURE_CLIENT_ID })
-        if (result.type !== 'result') throw new EngineError('cancelled', 'Cancelaste el inicio de sesión.')
+        if (result.type !== 'result') throw new EngineError('cancelled', 'Cancelaste el inicio de sesión. Aquí te espero cuando quieras.')
 
         // Microsoft answered with an error instead of a code (usually a misconfigured app registration).
         if (Object.prototype.hasOwnProperty.call(result.query, 'error')) {

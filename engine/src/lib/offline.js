@@ -35,8 +35,8 @@ function charValue(ch) {
 function problem(name) {
     const trimmed = String(name ?? '').trim()
     if (trimmed.length < 3) return 'El nombre necesita al menos 3 caracteres.'
-    if (trimmed.length > 16) return 'El nombre puede tener 16 caracteres como máximo.'
-    if (!NAME.test(trimmed)) return 'Solo se permiten letras (sin tildes ni ñ), números y guion bajo.'
+    if (trimmed.length > 16) return 'El nombre puede tener 16 caracteres como mucho.'
+    if (!NAME.test(trimmed)) return 'Nomás se valen letras (sin tildes ni ñ), números y guion bajo.'
     return null
 }
 

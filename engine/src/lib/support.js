@@ -39,7 +39,7 @@ function request(support, { subject, name, text }) {
  */
 async function send(support, report, { fetchImpl = fetch, timeoutMs = 20000, urlOverride } = {}) {
     const built = support && support.service && support.key ? request(support, report) : null
-    if (!built) return { ok: false, reason: 'no_support', message: 'El soporte todavía no está configurado en este launcher.' }
+    if (!built) return { ok: false, reason: 'no_support', message: 'Todavía no configuro el soporte en este launcher.' }
     try {
         const response = await fetchImpl(urlOverride || built.url, {
             method: 'POST',
@@ -52,9 +52,9 @@ async function send(support, report, { fetchImpl = fetch, timeoutMs = 20000, url
         const accepted = response.ok && (answer == null || answer.success !== false) && !(answer && Array.isArray(answer.errors) && answer.errors.length)
         if (accepted) return { ok: true }
         const why = answer && (answer.message || (Array.isArray(answer.errors) && answer.errors[0] && answer.errors[0].message)) || `HTTP ${response.status}`
-        return { ok: false, reason: 'rejected', message: `El servicio de soporte no aceptó el informe (${why}). Guárdalo como archivo y mándalo por otro medio.` }
+        return { ok: false, reason: 'rejected', message: `El soporte no aceptó el informe (${why}). Guárdalo como archivo y mándamelo por otro lado.` }
     } catch (err) {
-        return { ok: false, reason: 'offline', message: 'No se pudo conectar para enviarlo. Revisa tu internet, o guárdalo como archivo y mándalo por otro medio.' }
+        return { ok: false, reason: 'offline', message: 'No pude conectarme para mandarlo. Revisa tu internet, o guárdalo como archivo y mándamelo por otro lado.' }
     }
 }
 

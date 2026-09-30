@@ -100,7 +100,7 @@ async function fetchSkin(launcherDir, id) {
         try {
             response = await fetch(`${imageBase()}/i/${id}.png`, { headers: { 'User-Agent': 'EmpiLauncher' }, signal: AbortSignal.timeout(12000) })
         } catch {
-            throw new Error('No se pudo descargar la skin. Comprueba tu conexión a internet (se necesita una vez).')
+            throw new Error('No pude bajar la skin. Revisa tu conexión a internet (nomás se necesita una vez).')
         }
         if (response.status === 404) throw new Error('NameMC no tiene una skin con ese id.')
         if (!response.ok) throw new Error(`NameMC no respondió bien (HTTP ${response.status}).`)

@@ -116,14 +116,14 @@ function register(handlers, state) {
 
     handlers.set('update.cancel', async () => { abort?.abort(); return { ok: true } })
     handlers.set('update.install', async (_params, ctx) => {
-        if (installing) throw new EngineError('busy', 'La actualización ya está en marcha.')
+        if (installing) throw new EngineError('busy', 'La actualización ya va en camino.')
         // Replacing the program under a running game would close the engine that is holding it.
         if (state.keepAlive.has('game')) throw new EngineError('game_running', 'Cierra Minecraft antes de actualizar el launcher.')
-        if (state.keepAlive.size > 0) throw new EngineError('busy', 'Termina lo que estás haciendo (inicio de sesión) antes de actualizar el launcher.')
+        if (state.keepAlive.size > 0) throw new EngineError('busy', 'Termina de iniciar sesión antes de actualizar el launcher.')
         installing = true
         try {
             const info = await findUpdate()
-            if (!info.available || !info.installer || !info.base) throw new EngineError('no_update', 'No hay una versión nueva del launcher.')
+            if (!info.available || !info.installer || !info.base) throw new EngineError('no_update', 'No hay versión nueva del launcher, ya tienes la última.')
             if (!INSTALLER_NAME.test(info.installer)) throw new EngineError('bad_channel', 'El instalador publicado tiene un nombre que no se acepta.')
             if (!info.sha512) throw new EngineError('bad_channel', 'La versión publicada no trae su huella (sha512); no se instala sin poder comprobarla.')
 
@@ -134,7 +134,7 @@ function register(handlers, state) {
 
             ctx.emit('update.progress', { stage: 'download', received: 0, total: info.size })
             abort = new AbortController()
-            const cancelled = () => new EngineError('cancelled', 'Actualización cancelada.')
+            const cancelled = () => new EngineError('cancelled', 'Actualización cancelada. Cuando quieras la retomamos.')
             let response
             try {
                 response = await fetch(info.base + encodeURIComponent(info.installer), { headers: { 'User-Agent': 'EmpiLauncher' }, redirect: 'follow', signal: abort.signal })
