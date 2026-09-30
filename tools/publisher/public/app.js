@@ -1594,7 +1594,9 @@ function pendingStyles(info) {
         style: `--swatch:${s.accent || 'var(--accent)'}`,
         title: s.status === 'preparing' ? 'Este estilo todavía se está preparando en el launcher' : s.summary,
         onclick: () => chooseStyle(state.launcherStyle === s.id ? null : s.id)
-    }, h('b', {}, h('i', { 'aria-hidden': 'true' }), s.name), h('span', {}, s.summary), h('span', { class: `state ${s.status}` }, stateText(s)))
+    }, h('b', {}, h('i', { 'aria-hidden': 'true' }), s.name), h('span', {}, s.summary),
+        s.weight != null ? h('span', { class: 'weight tnum', title: 'Lo que pesa comparado con los demás estilos, con los FPS de siempre (el launcher lo enseña como un circulito en su tarjeta)' }, h('i', { 'aria-hidden': 'true', style: `--w:${s.weight}` }), `consumo ${s.weight} %`) : null,
+        h('span', { class: `state ${s.status}` }, stateText(s)))
     const chosen = state.launcherStyle && list.find((s) => s.id === state.launcherStyle)
     return h('section', { class: 'module span2' },
         h('div', { class: 'module-head' }, h('h2', {}, 'Pendientes'), h('span', { class: 'chip tnum' }, `${pending.filter((s) => s.status !== 'preparing').length} listos · ${out.length} publicados`)),

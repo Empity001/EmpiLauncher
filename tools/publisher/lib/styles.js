@@ -7,6 +7,7 @@ const path = require('path')
  *
  *   ported      the style's code exists in the native launcher (only then can it be released)
  *   releasedIn  the launcher version that turned it on, or null while it is still pending
+ *   weight      how heavy it is next to the others (1 to 100) at the default frame rates: the launcher shows it as a ring on its card
  *
  * Compiling with a style writes its releasedIn before the installer is built; a compiled build that was never sent gives its style back
  * (releasedIn null again) as soon as something else is compiled, so an abandoned build never switches a style on by accident.
@@ -45,7 +46,7 @@ function list(config, unsentStyle) {
         else if (style.releasedIn && style.id === unsentStyle) status = 'compiled'
         else if (style.releasedIn) status = 'published'
         else status = style.ported ? 'ready' : 'preparing'
-        return { id: style.id, name: style.name, summary: style.summary, accent: style.accent, notes: style.notes || '', releasedIn: style.releasedIn || null, status }
+        return { id: style.id, name: style.name, summary: style.summary, accent: style.accent, weight: Number.isFinite(style.weight) ? style.weight : null, notes: style.notes || '', releasedIn: style.releasedIn || null, status }
     })
 }
 

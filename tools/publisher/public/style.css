@@ -357,6 +357,8 @@ label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--t
 .style-choice { position: relative; gap: 4px; padding: 12px 12px 10px; min-height: 104px; }
 .style-choice b { font: 700 20px/1.1 var(--font-dot); display: flex; align-items: center; gap: 8px; }
 .style-choice b i { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--swatch); box-shadow: 0 0 0 2px rgb(255 255 255 / .08); }
+.style-choice .weight { display: flex; align-items: center; gap: 6px; font: 500 11px/1.4 var(--font-mono); color: var(--muted, #8d8a84); }
+.style-choice .weight i { width: 11px; height: 11px; border-radius: 50%; flex: none; background: conic-gradient(var(--swatch) calc(var(--w) * 1%), rgb(255 255 255 / .12) 0); }
 .style-choice .state { margin-top: auto; font: 500 11px/1.4 var(--font-mono); letter-spacing: .02em; }
 .style-choice .state.ready { color: var(--ok); }
 .style-choice:disabled { cursor: default; opacity: .55; }
