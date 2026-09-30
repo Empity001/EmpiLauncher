@@ -28,6 +28,12 @@ internal sealed class FrameClock
 
     public bool IsRunning => _running;
 
+    // for the debug panel (DebugOverlay): frames drawn and the time spent drawing them, by every clock, since it last looked
+    public static int FramesDrawn;
+    public static double DrawMs;
+    public static double Wanted;
+    public static int Running;
+
     /// <summary>Frames per second wanted now. Changing it keeps the clock running.</summary>
     public double Fps
     {
@@ -45,6 +51,7 @@ internal sealed class FrameClock
     {
         if (_running) return;
         _running = true;
+        Running++;
         _due = _clock.Elapsed.TotalSeconds + 1 / _fps;
         Arm();
     }
@@ -53,6 +60,7 @@ internal sealed class FrameClock
     {
         if (!_running) return;
         _running = false;
+        Running--;
         _timer.Stop();
         if (_vsync) { CompositionTarget.Rendering -= OnRendering; _vsync = false; }
     }
@@ -81,7 +89,7 @@ internal sealed class FrameClock
         _timer.Stop();
         if (!_running) return;
         Advance();
-        _frame();
+        Draw();
         if (_running && !_vsync) Schedule();
     }
 
@@ -91,7 +99,16 @@ internal sealed class FrameClock
         // a frame is due when its time has come (with a little slack: the screen's refresh is not exactly a multiple of the rate)
         if (_clock.Elapsed.TotalSeconds + 0.25 / _fps < _due) return;
         Advance();
+        Draw();
+    }
+
+    private void Draw()
+    {
+        var start = _clock.Elapsed.TotalMilliseconds;
         _frame();
+        DrawMs += _clock.Elapsed.TotalMilliseconds - start;
+        FramesDrawn++;
+        Wanted = _fps;
     }
 
     /// <summary>The next deadline: one period on, unless the clock fell far behind (a pause), then from now.</summary>

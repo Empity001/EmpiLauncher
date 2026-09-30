@@ -55,6 +55,8 @@ public sealed class Launcher : IAsyncDisposable
     private EngineHost? _host;
     public EngineClient Client => _host?.Client ?? throw new InvalidOperationException("the engine is not running");
     public bool Connected => _host != null;
+    /// <summary>The engine's process (the debug panel reads its processor time and memory).</summary>
+    public System.Diagnostics.Process? EngineProcess => _host?.Process;
 
     public ConfigResult? Config { get; private set; }
     public DistroResult? Distro { get; private set; }

@@ -63,6 +63,41 @@ internal static class NativeSettings
 
     public static void SaveRetired() => Save();
 
+    private static HashSet<string>? _debug;
+
+    /// <summary>The numbers the debug panel shows (Ajustes > Launcher > Depuración): "fps", "ms", "cpu", "ram", "gpu", "field". None by default.</summary>
+    public static IReadOnlySet<string> Debug
+    {
+        get
+        {
+            if (_debug != null) return _debug;
+            var set = new HashSet<string>();
+            try
+            {
+                if (File.Exists(FilePath))
+                {
+                    using var doc = JsonDocument.Parse(File.ReadAllText(FilePath));
+                    if (doc.RootElement.TryGetProperty("debug", out var d) && d.ValueKind == JsonValueKind.Array)
+                        foreach (var item in d.EnumerateArray()) if (item.ValueKind == JsonValueKind.String && item.GetString() is { } id) set.Add(id);
+                }
+            }
+            catch (Exception) { /* a broken file is an empty panel */ }
+            return _debug = set;
+        }
+    }
+
+    /// <summary>Raised when a number of the debug panel is switched on or off.</summary>
+    public static event Action? DebugChanged;
+
+    public static void SetDebug(string id, bool on)
+    {
+        var set = new HashSet<string>(Debug);
+        if (on) set.Add(id); else set.Remove(id);
+        _debug = set;
+        Save();
+        DebugChanged?.Invoke();
+    }
+
     private static string? _style;
 
     /// <summary>
@@ -177,7 +212,7 @@ internal static class NativeSettings
             var mine = System.Text.Json.Nodes.JsonNode.Parse(JsonSerializer.Serialize(new
             {
                 splash = Splash, retired = Retired.ToArray(), style = Style, packAccent = PackAccent,
-                fpsMin = FpsMin, fpsMax = FpsMax, fpsFixed = FpsFixed, styleColors = StyleColors
+                fpsMin = FpsMin, fpsMax = FpsMax, fpsFixed = FpsFixed, styleColors = StyleColors, debug = Debug.ToArray()
             }))!.AsObject();
             foreach (var (key, value) in mine.ToList()) { mine.Remove(key); root[key] = value; }
             File.WriteAllText(FilePath, root.ToJsonString());

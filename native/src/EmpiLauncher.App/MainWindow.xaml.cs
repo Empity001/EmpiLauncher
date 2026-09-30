@@ -84,6 +84,11 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        // the debug panel (Ajustes > Launcher > Depuración): under the window's buttons (low enough to clear Ajustes' Listo), over everything, never in the way of the pointer
+        _debug = new DebugOverlay(() => _backgroundOnly) { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 48, 12, 0) };
+        Grid.SetRow(_debug, 1);
+        Panel.SetZIndex(_debug, 100);
+        Root.Children.Add(_debug);
         // The screen is kept as a texture: the background moving under it (every frame, all over the window) then never makes WPF draw
         // the whole interface again, only put the texture back. Measured: the base style 4.1 % -> 2.7 % of one core, Celestial 18 % -> 13 %.
         if (Environment.GetEnvironmentVariable("EMPI_UI_CACHE") != "0") ViewHost.CacheMode = new BitmapCache { EnableClearType = true, SnapsToDevicePixels = true };
@@ -871,6 +876,7 @@ public partial class MainWindow : Window
     // ---- "ver solo el fondo" -----------------------------------------------------------------------------------------
 
     private bool _backgroundOnly;
+    private readonly DebugOverlay _debug;
     private bool _chromeShown = true;
     // The pointer is followed by asking Windows where it is: the title bar is Windows' own area, so the window gets no mouse events there
     // (and a "mouse left" when the pointer only went up to it), which hid the buttons just as the player reached for the eye.
@@ -930,6 +936,7 @@ public partial class MainWindow : Window
         }
         if (!on && MegaHost.Visibility == Visibility.Hidden) MegaHost.Visibility = Visibility.Visible;
         UpdateMega();
+        _debug.Update();
         ShowChrome(true);
         if (on)
         {
@@ -971,6 +978,7 @@ public partial class MainWindow : Window
 
     private void OnGameChanged()
     {
+        _debug.Update();
         var game = _l.Game;
         // Same as the classic launcher: once Minecraft is up the launcher steps aside, and comes back when it closes.
         if (game.Running && !_hiddenForGame && IsVisible) { _hiddenForGame = true; HideToTray(); }

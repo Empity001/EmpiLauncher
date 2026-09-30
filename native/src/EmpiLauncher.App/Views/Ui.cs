@@ -33,6 +33,52 @@ internal static class Ui
         return new Border { Style = S("Module"), Margin = new Thickness(0, 0, 0, 14), Child = body };
     }
 
+    // which folding sections are open: kept only while the launcher runs, so they open closed again on the next start
+    private static readonly Dictionary<string, bool> Folds = new();
+
+    /// <summary>
+    /// A module card whose heading opens and closes it (closed at first). It stays the way the player left it while the launcher runs, even
+    /// when the tab is rebuilt. The hint shows inside, with the rows.
+    /// </summary>
+    public static Border Fold(string key, string title, out StackPanel body, string? hint = null)
+    {
+        var inner = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
+        if (hint != null) inner.Children.Add(new TextBlock { Text = hint, Style = S("CaptionText") });
+        inner.Children.Add(new Border { Height = 8 });
+        body = inner;
+
+        var open = Folds.TryGetValue(key, out var o) && o;
+        var turn = new RotateTransform(open ? 180 : 0);
+        var chevron = new TextBlock
+        {
+            Text = "", FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"), FontSize = 11, Style = S("LabelText"),
+            VerticalAlignment = VerticalAlignment.Center, RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = turn
+        };
+        var head = new Grid { Background = Brushes.Transparent };
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        head.Children.Add(new TextBlock { Text = title.ToUpperInvariant(), Style = S("LabelText"), VerticalAlignment = VerticalAlignment.Center });
+        Grid.SetColumn(chevron, 1);
+        head.Children.Add(chevron);
+        var toggle = new Button { Style = S("BareButton"), Content = head, Padding = new Thickness(0), Margin = new Thickness(0, -4, 0, -4), MinHeight = 28 };
+        System.Windows.Automation.AutomationProperties.SetName(toggle, title);
+        inner.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+        toggle.Click += (_, _) =>
+        {
+            open = !open;
+            Folds[key] = open;
+            inner.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+            if (!Themes.Motion.Enabled) { turn.Angle = open ? 180 : 0; return; }
+            Themes.Motion.Animate(turn, RotateTransform.AngleProperty, turn.Angle, open ? 180 : 0, 200, 0, Themes.Motion.Out);
+            if (open) Themes.Motion.Animate(inner, UIElement.OpacityProperty, 0, 1, 180, 0, Themes.Motion.Out);
+        };
+
+        var card = new StackPanel();
+        card.Children.Add(toggle);
+        card.Children.Add(inner);
+        return new Border { Style = S("Module"), Margin = new Thickness(0, 0, 0, 14), Child = card };
+    }
+
     /// <summary>Label and explanation on the left, the control on the right.</summary>
     public static Grid Row(string title, string? hint, FrameworkElement control, double controlWidth = 0)
     {

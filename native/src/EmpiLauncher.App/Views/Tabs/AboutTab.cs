@@ -30,33 +30,35 @@ internal sealed class AboutTab : SettingsTab
         var config = _l.Config!;
 
         _weights.Clear();
+        // the version stays open on top; everything else folds (Ui.Fold), and stays as the player left it until the launcher closes
+        Root.Children.Add(UpdatesSection(config));
         Root.Children.Add(StyleSection());
         Root.Children.Add(FieldSection());   // the background's rate and cost sit right under the styles they change
-        Root.Children.Add(UpdatesSection(config));
 
-        var launcher = Ui.Section("Launcher", out var l);
+        var launcher = Ui.Fold("launcher", "Launcher", out var l);
         l.Children.Add(Ui.Row("Animación del logo", "Al abrir, mi logo se arma con glitch, y al cerrar se deshace (un clic o cualquier tecla te la salta). Si Windows tiene las animaciones apagadas, no sale.", Ui.Switch(NativeSettings.Splash, v => NativeSettings.Splash = v, "Animación del logo al abrir y cerrar")));
         l.Children.Add(Ui.Row("Banner y fondo animados", "Si un modpack trae banner o fondo animado (GIF, WebP o APNG), lo ves moverse. Solo se mueve mientras tienes el launcher a la vista, y se queda quieto si Windows tiene las animaciones apagadas. Apágalo si quieres ahorrar procesador y disco.", Ui.Switch(_l.Prefs.AnimatedArt != false, v => _ = _l.SetAnimatedArtAsync(v), "Banner y fondo animados")));
         l.Children.Add(Ui.Row("Versiones de prueba", "Te llegan también las versiones del launcher que todavía ando probando. Pueden traer uno que otro bicho, tú sabes ;3", Ui.Switch(Bool("allowPrerelease"), v => _ = Set("allowPrerelease", v), "Versiones de prueba")));
         Root.Children.Add(launcher);
 
-        var folders = Ui.Section("Carpetas", out var f, "Aquí viven el juego, tus cuentas y la configuración.");
+        var folders = Ui.Fold("carpetas", "Carpetas", out var f, "Aquí viven el juego, tus cuentas y la configuración.");
         f.Children.Add(FolderRow("Datos del juego", Str("dataDirectory")));
         f.Children.Add(FolderRow("Instalaciones", config.InstanceDirectory));
         f.Children.Add(FolderRow("Configuración", config.LauncherDirectory));
         Root.Children.Add(folders);
 
-        var report = Ui.Section("Informe de fallo y reparación", out var r, "Para pedirme ayuda: un informe con las versiones, tu equipo, el modpack, los mods y el final del registro del juego. Lo ves completito antes de hacer nada; lo puedes copiar, guardar como .txt o mandármelo a soporte (solo si tú quieres). Nunca lleva tu sesión, tus claves, tu correo ni tu usuario de Windows.");
+        var report = Ui.Fold("informe", "Informe de fallo y reparación", out var r, "Para pedirme ayuda: un informe con las versiones, tu equipo, el modpack, los mods y el final del registro del juego. Lo ves completito antes de hacer nada; lo puedes copiar, guardar como .txt o mandármelo a soporte (solo si tú quieres). Nunca lleva tu sesión, tus claves, tu correo ni tu usuario de Windows.");
         r.Children.Add(Ui.Row("Ver el informe", "Del modpack que tienes escogido.", Ui.Button("Ver informe", () => ((MainWindow)Application.Current.MainWindow).ShowReport(), "GhostButton", 18)));
         r.Children.Add(Ui.Row("Verificar y reparar", "Reviso todos los archivos del modpack escogido y vuelvo a bajar los que falten o estén dañados. Tus mundos y tus ajustes ni los toco.", Ui.Button("Verificar y reparar", () => ((MainWindow)Application.Current.MainWindow).AskRepair(), "GhostButton", 18)));
         Root.Children.Add(report);
 
-        var cost = Ui.Section("Consumo ahora mismo", out var c, "Lo que están usando ahorita la interfaz y el motor. Cuando la interfaz está quieta, le regresa memoria al sistema.");
+        var cost = Ui.Fold("consumo", "Consumo ahora mismo", out var c, "Lo que están usando ahorita la interfaz y el motor. Cuando la interfaz está quieta, le regresa memoria al sistema.");
         var ui = Ui.Text("", "BodyText");
         var engine = Ui.Text("", "BodyText");
         c.Children.Add(Ui.Row("Interfaz nativa", null, ui));
         c.Children.Add(Ui.Row("Motor del launcher", "Sin Chromium: pura lógica.", engine));
         Root.Children.Add(cost);
+        Root.Children.Add(DebugSection());
         try
         {
             var memory = await _l.Client.CallAsync<EngineMemory>("engine.memory");
@@ -65,6 +67,23 @@ internal sealed class AboutTab : SettingsTab
             engine.Text = $"{memory.RssMB:0} MB";
         }
         catch (EngineException) { ui.Text = engine.Text = "sin datos"; }
+    }
+
+    /// <summary>One switch per number of the debug panel (DebugOverlay), which sits in the top corner while any of them is on.</summary>
+    private static FrameworkElement DebugSection()
+    {
+        var section = Ui.Fold("depuracion", "Depuración", out var body, "Un panelito en la esquina de arriba con números en vivo, por si quieres ver qué tanto trabaja el launcher. Se esconde cuando ves solo el fondo y mientras juegas.");
+        foreach (var (id, title, hint) in new[]
+        {
+            ("fps", "FPS del fondo", "Los cuadros que de verdad dibuja el fondo contra los que le pides, tipo 28 / 30."),
+            ("ms", "Tiempo por cuadro", "Cuántos milisegundos le toma a mi código armar cada cuadro del fondo."),
+            ("cpu", "Procesador", "Cuánto procesador usan la interfaz y el motor, cada quien por su lado."),
+            ("ram", "Memoria", "La RAM que usan la interfaz y el motor."),
+            ("gpu", "Tarjeta gráfica", "Qué tanto trabaja la GPU dibujando en toda tu compu, y cuánto de eso es del launcher. Medirlo cuesta tantito, así que solo lo mido si lo prendes."),
+            ("field", "Estado del fondo", "Si el fondo se mueve o está quieto (y por qué), y en qué modo de rendimiento andas."),
+        })
+            body.Children.Add(Ui.Row(title, hint, Ui.Switch(NativeSettings.Debug.Contains(id), v => NativeSettings.SetDebug(id, v), title)));
+        return section;
     }
 
     /// <summary>The opacity slider sends every step to the screen at once but saves once it stops.</summary>
@@ -177,7 +196,7 @@ internal sealed class AboutTab : SettingsTab
     private FrameworkElement StyleSection()
     {
         var main = (MainWindow)Application.Current.MainWindow;
-        var section = Ui.Section("Estilo", out var body, "Le cambia la cara a todo el launcher: el fondo, las letras, las formas y los colores. Los textos dicen lo mismo, nomás se visten distinto.");
+        var section = Ui.Fold("estilo", "Estilo", out var body, "Le cambia la cara a todo el launcher: el fondo, las letras, las formas y los colores. Los textos dicen lo mismo, nomás se visten distinto.");
         body.Children.Add(CostNote());
         var cards = new WrapPanel { Margin = new Thickness(0, 6, 0, 4) };
         foreach (var style in StyleCatalog.Available)
@@ -451,7 +470,7 @@ internal sealed class AboutTab : SettingsTab
     /// </summary>
     private FrameworkElement FieldSection()
     {
-        var section = Ui.Section("Fondo", out var body, StyleTheme.Current == StyleCatalog.Base
+        var section = Ui.Fold("fondo", "Fondo", out var body, StyleTheme.Current == StyleCatalog.Base
             ? "Los puntitos de fondo: se mueven despacio, se acercan al puntero y agarran el color del modpack."
             : "El fondo del estilo que escogiste: se mueve despacio y le contesta al puntero y a los clics.");
         var status = Ui.Text("", "CaptionText");
