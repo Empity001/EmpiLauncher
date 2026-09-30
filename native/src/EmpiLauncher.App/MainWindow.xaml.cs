@@ -44,6 +44,14 @@ public partial class MainWindow : Window
                 try { command = System.IO.File.ReadAllText(request).Trim(); System.IO.File.Delete(request); } catch (System.IO.IOException) { continue; }
                 var parts = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 if (parts is ["burst", var x, var y]) { Field.Burst(new Point(double.Parse(x, inv), double.Parse(y, inv)), false); continue; }
+                // "pose CloseButton MouseOver": a control shown in one of its visual states without the real mouse over it ("... Normal" undoes it)
+                if (parts is ["pose", var who, var state]) { if (FindName(who) is Control control) VisualStateManager.GoToState(control, state, true); continue; }
+                // "pointer x y": the background's pointer held there (a lens, a glow), "pointer off" lets it go
+                // "scroll y": the settings page scrolled to that offset (DIPs)
+                if (parts is ["scroll", var sy]) { if (ViewHost.Content is SettingsView sv) sv.TestScroll(double.Parse(sy, inv)); continue; }
+                if (parts is ["tap", var tx, var ty]) { Field.Tap(new Point(double.Parse(tx, inv), double.Parse(ty, inv))); continue; }
+                if (parts is ["pointer", var px, var py]) { Views.Styles.StyleField.TestPointer = new Point(double.Parse(px, inv), double.Parse(py, inv)); continue; }
+                if (parts is ["pointer", "off"]) { Views.Styles.StyleField.TestPointer = null; continue; }
                 // a picture can leave pieces out ("hide:PlayHost,AccessLayer", looked up in the window and in the view on screen), drop the
                 // window's own ground ("bg:none", for a style whose background the capture cannot draw), or be of one piece only ("only:Field")
                 var hidden = new List<(UIElement Element, Visibility Was)>();
@@ -81,6 +89,13 @@ public partial class MainWindow : Window
         if (Environment.GetEnvironmentVariable("EMPI_UI_CACHE") != "0") ViewHost.CacheMode = new BitmapCache { EnableClearType = true, SnapsToDevicePixels = true };
 #if !EMPI_RELEASE
         WatchTestRequests();
+        // tests while someone is using the PC (EMPI_TEST_QUIET=1): the window opens off screen and never takes the focus
+        if (Environment.GetEnvironmentVariable("EMPI_TEST_QUIET") == "1")
+        {
+            ShowActivated = false;
+            WindowStartupLocation = WindowStartupLocation.Manual;
+            Left = SystemParameters.VirtualScreenLeft - 6000; Top = 0;
+        }
 #endif
         MinButton.Click += (_, _) => WindowState = WindowState.Minimized;
         MaxButton.Click += (_, _) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
@@ -130,10 +145,10 @@ public partial class MainWindow : Window
             if (open) ShowWaiting("Esperando a Microsoft", text, () => _ = _l.CancelAuthAsync());
             else HideWaiting();
         };
-        _l.EngineLost += message => ShowDialog("El launcher perdió su motor", message + " Ábrelo de nuevo para continuar.", ("Cerrar", Close, true));
+        _l.EngineLost += message => ShowDialog("El launcher se quedó sin motor", message + " Vuelve a abrirlo y seguimos.", ("Cerrar", Close, true));
         _l.JavaNeeded += need => ShowDialog(
             "Falta una versión de Java",
-            $"Para iniciar Minecraft se necesita una instalación de 64 bits de Java {need.SuggestedMajor}. ¿Quieres que la instalemos por ti?",
+            $"Para abrir Minecraft hace falta Java {need.SuggestedMajor} de 64 bits. ¿Te lo instalo yo?",
             ("Ahora no", () => _ = _l.DismissJavaAsync(), false),
             ("Instalar Java", () => _ = _l.InstallJavaAsync(), true));
 
@@ -162,7 +177,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ShowDialog("No se pudo iniciar el motor", ex.Message, ("Cerrar", Close, true));
+            ShowDialog("No arrancó el motor", ex.Message, ("Cerrar", Close, true));
             return;
         }
         _ = ValidateSessionAsync();
@@ -207,12 +222,12 @@ public partial class MainWindow : Window
         if (update == null) return;
         if (_l.Game.Running || _l.Game.Busy)
         {
-            ShowDialog($"Empi Launcher {update.Version}", "Hay una versión nueva del launcher. Se instala cuando Minecraft esté cerrado y no haya nada descargándose.", ("Entendido", null, true));
+            ShowDialog($"Empi Launcher {update.Version}", "Hay versión nueva del launcher. Se instala en cuanto cierres Minecraft y no haya nada descargándose.", ("Entendido", null, true));
             return;
         }
         var size = update.Size is > 0 ? $" (unos {Math.Max(1, update.Size.Value / 1048576)} MB)" : "";
         ShowDialog($"Empi Launcher {update.Version}",
-            $"Hay una versión nueva del launcher: tienes la {update.Current}. Se descarga{size}, se comprueba y se instala sola. El launcher se cierra un momento y se vuelve a abrir; tus cuentas, mods y ajustes no cambian.",
+            $"¡Salió versión nueva! Tú tienes la {update.Current}. Se baja{size}, la reviso y se instala solita: el launcher se cierra un momentito y se vuelve a abrir. Tus cuentas, mods y ajustes se quedan igualitos.",
             ("Más tarde", null, false),
             ("Actualizar ahora", () => _ = InstallUpdateAsync(update), true));
     }
@@ -233,7 +248,7 @@ public partial class MainWindow : Window
         {
             if (await _l.InstallUpdateAsync())
             {
-                SetWaitingText("Instalando… el launcher se abrirá solo en unos segundos.");
+                SetWaitingText("Instalando… en unos segundos el launcher se abre solito.");
                 await Task.Delay(400);
                 _exiting = true;
                 Close();
@@ -243,7 +258,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             HideWaiting();
-            ShowDialog("No se pudo actualizar", ex.Message + " Puedes descargar el instalador desde la página de la versión.",
+            ShowDialog("No se pudo actualizar", ex.Message + " Si quieres, baja el instalador desde la página de la versión y listo.",
                 ("Cerrar", null, false),
                 ("Abrir la descarga", () => { if (update.Page != null) Process.Start(new ProcessStartInfo(update.Page) { UseShellExecute = true }); }, true));
         }
@@ -255,7 +270,7 @@ public partial class MainWindow : Window
     {
         var removed = await _l.ValidateSessionAsync();
         if (removed != null)
-            ShowDialog("Tu sesión caducó", $"No se pudo renovar la sesión de {removed}. Inicia sesión de nuevo para jugar.",
+            ShowDialog("Se venció tu sesión", $"No pude renovar la sesión de {removed}. Vuelve a iniciar sesión y a jugar.",
                 ("Más tarde", null, false), ("Iniciar sesión", () => _ = _l.LoginAsync(), true));
     }
 
@@ -328,7 +343,7 @@ public partial class MainWindow : Window
     {
         if (_l.Update == null) await _l.CheckUpdateAsync();
         if (_l.Update != null) ShowUpdateDialog();
-        else ShowDialog("No se pudo buscar la actualización", "Comprueba tu conexión a internet y vuelve a intentarlo. También puedes bajar el instalador desde la página de versiones del launcher.", ("Entendido", null, true));
+        else ShowDialog("No pude buscar actualizaciones", "Revisa tu internet y vuelve a intentarlo. También puedes bajar el instalador desde la página de versiones del launcher.", ("Entendido", null, true));
     }
 
     /// <summary>What avisos.json says changed: the icons, the screen (a launcher below the minimum), and, once, what is waiting to be read.</summary>
@@ -413,7 +428,7 @@ public partial class MainWindow : Window
 
     private void OnGameCrashed(GameExit exit) => ShowDialog(
         "Minecraft se cerró con un error",
-        $"El juego terminó de forma inesperada (código {exit.Code}). Puedes ver un informe con lo que hace falta para entender qué pasó, guardarlo o mandarlo a soporte para que lo revisen (solo si tú lo pides). Si crees que falta algún archivo del modpack, también puedes verificarlo y repararlo.",
+        $"El juego se cerró de golpe (código {exit.Code}). Puedes ver un informe con lo necesario para entender qué pasó, guardarlo o mandármelo a soporte para que lo revise (solo si tú quieres). Si crees que le falta algún archivo al modpack, también puedes verificarlo y repararlo.",
         ("Ahora no", null, false), ("Verificar y reparar", () => AskRepair(), false), ("Ver informe", () => ShowReport(), true));
 
     /// <summary>The report in front of the player, to copy, save as a .txt or send to support. Nothing is sent until they press that button.</summary>
@@ -436,16 +451,16 @@ public partial class MainWindow : Window
     /// <summary>"Verificar y reparar": what it does, in a sentence, before it does it (it can take a while and download).</summary>
     public void AskRepair()
     {
-        if (_l.Game.Busy || _l.Game.Running) { ShowToast("Espera a que termine lo que se está haciendo."); return; }
+        if (_l.Game.Busy || _l.Game.Running) { ShowToast("Espérame tantito, estoy terminando otra cosa."); return; }
         var name = _l.Host?.Name ?? _l.Selected?.Name ?? "este modpack";
         ShowDialog($"Verificar y reparar {name}",
-            "Se comprueba cada archivo del modpack y solo se vuelven a bajar los que falten o estén dañados. Tus mundos, capturas y ajustes no se tocan. Puede tardar unos minutos y necesita internet.",
+            "Reviso cada archivo del modpack y solo vuelvo a bajar los que falten o estén dañados. Tus mundos, capturas y ajustes ni los toco. Puede tardar unos minutos y necesita internet.",
             ("Cancelar", null, false), ("Verificar y reparar", () => _ = _l.RepairAsync(), true));
     }
 
     private void OnGameDone(GameDone done) => ShowToast(done.Repaired is > 0
-        ? $"Listo: se repararon {done.Repaired} archivo(s) del modpack."
-        : "Todo en orden: los archivos del modpack están completos y sin cambios.");
+        ? $"Listo: reparé {done.Repaired} archivo(s) del modpack."
+        : "Todo en orden: el modpack está completito y sano.");
 
     // ---- the modpack's picture behind the home screen -------------------------------------------------------------
 
@@ -608,7 +623,7 @@ public partial class MainWindow : Window
     {
         if (_dialogOpen) { _dialogQueue.Enqueue(() => ShowOfflinePrompt(initial, done)); return; }
         ShowDialog("Jugar sin conexión",
-            "Elige el nombre con el que quieres jugar. No usa ninguna cuenta ni skin: solo este nombre. Sirve para un jugador y para servidores que no verifican la cuenta.",
+            "Escoge el nombre con el que quieres jugar. Sin cuenta ni skin: nomás este nombre. Sirve para un jugador y para servidores que no revisan la cuenta.",
             ("Cancelar", null, false),
             ("Jugar sin conexión", () => _ = UseOfflineNameAsync(_promptName, done), true));
         var confirm = (Button)DialogButtons.Children[^1];
@@ -628,7 +643,7 @@ public partial class MainWindow : Window
             var preview = await _l.PreviewOfflineAsync(text);
             if (generation != _promptGeneration || DialogInput.Visibility != Visibility.Visible) return;   // typed on, or the dialog is gone
             confirm.IsEnabled = preview.Valid;
-            SetHint(preview.Valid ? $"Tu identificador sin conexión: {preview.Id}. El mismo nombre siempre da el mismo." : preview.Reason ?? "Ese nombre no se puede usar.", !preview.Valid);
+            SetHint(preview.Valid ? $"Tu identificador sin conexión: {preview.Id}. El mismo nombre siempre da el mismo." : preview.Reason ?? "Ese nombre no se vale.", !preview.Valid);
         }
         _promptChanged = (_, _) => Check();
         _promptKeys = (_, e) => { if (e.Key == Key.Enter && confirm.IsEnabled) { e.Handled = true; confirm.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent)); } };
@@ -653,7 +668,7 @@ public partial class MainWindow : Window
         if (hasSkin) buttons.Add(("Quitar skin", () => _ = ClearSkinAsync(done), false));
         buttons.Add(("Usar esta skin", () => _ = ApplySkinAsync(skinId, done), true));
         ShowDialog("Skin para jugar sin conexión",
-            "Elige una skin en NameMC y pega aquí su id (por ejemplo 96cab59a8709ce31) o su enlace. Se descarga una sola vez y se ve al abrir Minecraft.",
+            "Escoge una skin en NameMC y pega aquí su id (por ejemplo 96cab59a8709ce31) o su enlace. La bajo una sola vez y la ves al abrir Minecraft.",
             buttons.ToArray());
 
         var confirm = (Button)DialogButtons.Children[^1];
@@ -724,15 +739,15 @@ public partial class MainWindow : Window
         if (id == null) return;
         ShowToast("Preparando la skin…");
         var error = await _l.ApplySkinAsync(id);
-        if (error != null) { HideToast(); ShowDialog("No se pudo usar esa skin", error, ("Entendido", null, true)); return; }
-        ShowToast("Skin lista: la verás al abrir Minecraft.");
+        if (error != null) { HideToast(); ShowDialog("No pude usar esa skin", error, ("Entendido", null, true)); return; }
+        ShowToast("Skin lista: la vas a ver al abrir Minecraft.");
         if (done != null) await done();
     }
 
     private async Task ClearSkinAsync(Func<Task>? done)
     {
         await _l.ClearSkinAsync();
-        ShowToast("Skin quitada: vuelves a la skin por defecto.");
+        ShowToast("Skin quitada: regresas a la de siempre.");
         if (done != null) await done();
     }
 
@@ -745,7 +760,7 @@ public partial class MainWindow : Window
     private async Task UseOfflineNameAsync(string name, Func<Task>? done)
     {
         var error = await _l.UseOfflineAsync(name);
-        if (error != null) ShowDialog("No se pudo usar ese nombre", error, ("Entendido", null, true));
+        if (error != null) ShowDialog("No pude usar ese nombre", error, ("Entendido", null, true));
         else if (done != null) await done();
     }
 
@@ -790,6 +805,7 @@ public partial class MainWindow : Window
         StyleTheme.Apply(style.Id);
         Launcher.RefreshAccent();
         Field.Go(style.Id);
+        RedressOverlays();
         switch (ViewHost.Content)
         {
             case SettingsView settings: ShowSettings(settings.CurrentTab, settings.ScrollOffset); break;
@@ -802,6 +818,32 @@ public partial class MainWindow : Window
         StyleSnapshot.Visibility = Visibility.Visible;
         Motion.Animate(StyleSnapshot, OpacityProperty, 1, 0, 460, 0, Motion.Out, () => { if (StyleSnapshot.Opacity < 0.01) { StyleSnapshot.Visibility = Visibility.Collapsed; StyleSnapshot.Source = null; } });
         Motion.Animate(ViewHost, OpacityProperty, 0, 1, 380, 70, Motion.Out);
+    }
+
+    /// <summary>
+    /// What lives over the view (the notices' newspaper, the failure report, the megaphone) was built with the style it was born in; a new
+    /// style builds it again, so the notices wear the style like the rest of the window. One that is open stays as it is until it closes.
+    /// </summary>
+    private void RedressOverlays()
+    {
+        if (NoticesLayer.Visibility != Visibility.Visible)
+        {
+            NoticesLayer.Children.Remove(NoticesPanelView);
+            NoticesPanelView = new NoticesPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Stretch, Margin = new Thickness(28, 64, 28, 28) };
+            NoticesPanelView.CloseRequested += HideNotices;
+            NoticesLayer.Children.Add(NoticesPanelView);
+        }
+        if (ReportLayer.Visibility != Visibility.Visible)
+        {
+            ReportLayer.Children.Remove(ReportPanelView);
+            ReportPanelView = new ReportPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Stretch, Margin = new Thickness(28, 64, 28, 28) };
+            ReportPanelView.CloseRequested += HideReport;
+            ReportLayer.Children.Add(ReportPanelView);
+        }
+        _mega = new NoticeIconButton(NoticeLook.Megaphone, "Avisos generales");
+        _mega.Clicked += () => ShowNotices(general: true);
+        MegaHost.Content = _mega;
+        UpdateMega();
     }
 
     /// <summary>"Usar el color del modpack": the modpack's colour wins, or the style's.</summary>

@@ -25,7 +25,7 @@ internal sealed class MinecraftTab : SettingsTab
         await _l.RefreshConfigAsync();
         Root.Children.Clear();
 
-        var window = Ui.Section("Ventana del juego", out var w, "Tamaño con el que se abre Minecraft. Con 0 elige el propio juego.");
+        var window = Ui.Section("Ventana del juego", out var w, "El tamaño con el que se abre Minecraft. Con 0 lo decide el propio juego.");
         var size = new StackPanel { Orientation = Orientation.Horizontal };
         var width = Ui.Box(Text("gameWidth"), text => _ = Save("gameWidth", int.Parse(text.Trim())), "Ancho de la ventana", ValidSize);
         var height = Ui.Box(Text("gameHeight"), text => _ = Save("gameHeight", int.Parse(text.Trim())), "Alto de la ventana", ValidSize);
@@ -36,11 +36,11 @@ internal sealed class MinecraftTab : SettingsTab
         ((TextBlock)size.Children[1]).VerticalAlignment = VerticalAlignment.Center;
         size.Children.Add(height);
         w.Children.Add(Ui.Row("Resolución", null, size));
-        w.Children.Add(Ui.Row("Pantalla completa", "Abre el juego ocupando toda la pantalla.", Ui.Switch(Bool("fullscreen"), v => _ = Save("fullscreen", v), "Pantalla completa")));
+        w.Children.Add(Ui.Row("Pantalla completa", "El juego se abre ocupando toda la pantalla.", Ui.Switch(Bool("fullscreen"), v => _ = Save("fullscreen", v), "Pantalla completa")));
         Root.Children.Add(window);
 
         var start = Ui.Section("Al iniciar", out var s);
-        s.Children.Add(Ui.Row("Conectar al servidor", "Entra directamente al servidor del modpack al abrir el juego.", Ui.Switch(Bool("autoConnect"), v => _ = Save("autoConnect", v), "Conectar al servidor")));
+        s.Children.Add(Ui.Row("Conectar al servidor", "Al abrir el juego entras directito al servidor del modpack.", Ui.Switch(Bool("autoConnect"), v => _ = Save("autoConnect", v), "Conectar al servidor")));
         s.Children.Add(Ui.Row("Separar el juego del launcher", "Minecraft sigue abierto aunque cierres el launcher.", Ui.Switch(Bool("launchDetached"), v => _ = Save("launchDetached", v), "Separar el juego del launcher")));
         Root.Children.Add(start);
     }

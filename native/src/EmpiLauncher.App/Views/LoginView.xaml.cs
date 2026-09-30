@@ -77,8 +77,8 @@ public partial class LoginView : UserControl
         if (accounts.Count > 0) Pills.Children.Add(Fmt.Pill(accounts.Count == 1 ? "1 CUENTA GUARDADA" : $"{accounts.Count} CUENTAS GUARDADAS"));
 
         Lead.Text = accounts.Count > 0
-            ? "Elige con qué cuenta juegas, añade otra o elimina una sesión."
-            : "Entra con Microsoft, o juega sin conexión con solo un nombre.";
+            ? "Escoge con qué cuenta juegas hoy, añade otra o elimina una sesión."
+            : "Entra con Microsoft, o juega sin conexión con nomás un nombre.";
 
         AccountsModule.Visibility = accounts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         Accounts.Children.Clear();
@@ -150,10 +150,10 @@ public partial class LoginView : UserControl
         var (title, message) = type switch
         {
             "offline" => ("¿Eliminar el jugador sin conexión?",
-                $"Se quitará {name} de este launcher. Si lo vuelves a crear con el mismo nombre tendrá el mismo identificador y conservarás tus datos de un jugador."),
+                $"Quito a {name} de este launcher. Si lo vuelves a crear con el mismo nombre, tiene el mismo identificador y conservas tus datos de un jugador, no se pierde nada."),
             "microsoft" => ("¿Eliminar la sesión?",
-                $"Se cierra la sesión de {name} en Microsoft (su ventana se abre un momento, elige tu cuenta ahí) y se quita de este launcher. Podrás volver a añadirla cuando quieras."),
-            _ => ("¿Eliminar la sesión?", $"Se quitará la cuenta {name} de este launcher. Podrás volver a añadirla cuando quieras.")
+                $"Cierro la sesión de {name} en Microsoft (su ventana se abre un momentito, escoge tu cuenta ahí) y la quito de este launcher. La puedes volver a añadir cuando quieras."),
+            _ => ("¿Eliminar la sesión?", $"Quito la cuenta {name} de este launcher. La puedes volver a añadir cuando quieras.")
         };
         window.ShowDialog(title, message,
             ("Cancelar", null, false),

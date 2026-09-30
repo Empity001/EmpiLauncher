@@ -98,6 +98,64 @@ internal static class NativeSettings
         set { _packAccent = value; Save(); }
     }
 
+    // ---- the background's frame rates (Ajustes > Launcher > Fondo) ----------------------------------------------------------
+    // "Automático" moves between a minimum (nothing happening) and a maximum (the player moving or clicking); "Desactivado" (performance
+    // mode off) holds one rate the player picks; "Activado" caps it (FieldGovernor.SaverFps) and ignores these.
+
+    public const int FpsLowest = 5, FpsHighest = 60;
+    private static int? _fpsMin, _fpsMax, _fpsFixed;
+
+    public static int FpsMin { get => _fpsMin ??= ReadInt("fpsMin", 15); set { _fpsMin = Math.Clamp(value, FpsLowest, FpsHighest); if (FpsMax < _fpsMin) _fpsMax = _fpsMin; Save(); } }
+    public static int FpsMax { get => _fpsMax ??= Math.Max(FpsMin, ReadInt("fpsMax", 30)); set { _fpsMax = Math.Clamp(value, FpsLowest, FpsHighest); if (FpsMin > _fpsMax) _fpsMin = _fpsMax; Save(); } }
+    public static int FpsFixed { get => _fpsFixed ??= ReadInt("fpsFixed", 30); set { _fpsFixed = Math.Clamp(value, FpsLowest, FpsHighest); Save(); } }
+
+    // ---- each style's own colour, when the modpack's does not win ------------------------------------------------------------
+
+    private static Dictionary<string, string>? _styleColors;
+
+    /// <summary>The colour the player gave a style (style id to "#rrggbb"); a style without one keeps its own (styles.json).</summary>
+    public static IReadOnlyDictionary<string, string> StyleColors => _styleColors ??= ReadColors();
+
+    /// <summary>Gives a style a colour (null: back to its own). <paramref name="save"/> false only shows it (the picker being dragged).</summary>
+    public static void SetStyleColor(string style, string? hex, bool save = true)
+    {
+        var colors = new Dictionary<string, string>(StyleColors);
+        if (hex == null) colors.Remove(style); else colors[style] = hex.ToLowerInvariant();
+        _styleColors = colors;
+        if (save) Save();
+    }
+
+    private static Dictionary<string, string> ReadColors()
+    {
+        var colors = new Dictionary<string, string>();
+        try
+        {
+            if (!File.Exists(FilePath)) return colors;
+            using var doc = JsonDocument.Parse(File.ReadAllText(FilePath));
+            if (doc.RootElement.TryGetProperty("styleColors", out var c) && c.ValueKind == JsonValueKind.Object)
+                foreach (var p in c.EnumerateObject())
+                    if (p.Value.ValueKind == JsonValueKind.String && p.Value.GetString() is { Length: 7 } hex && hex[0] == '#') colors[p.Name] = hex.ToLowerInvariant();
+        }
+        catch (Exception) { /* a broken file is no colours */ }
+        return colors;
+    }
+
+    private static System.Text.Json.Nodes.JsonObject? TryParse(string text)
+    {
+        try { return System.Text.Json.Nodes.JsonNode.Parse(text) as System.Text.Json.Nodes.JsonObject; } catch (Exception) { return null; }
+    }
+
+    private static int ReadInt(string key, int fallback)
+    {
+        try
+        {
+            if (!File.Exists(FilePath)) return fallback;
+            using var doc = JsonDocument.Parse(File.ReadAllText(FilePath));
+            return doc.RootElement.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out var n) ? Math.Clamp(n, FpsLowest, FpsHighest) : fallback;
+        }
+        catch (Exception) { return fallback; }
+    }
+
     private static string? ReadString(string key)
     {
         try
@@ -114,7 +172,15 @@ internal static class NativeSettings
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(new { splash = Splash, retired = Retired.ToArray(), style = Style, packAccent = PackAccent }));
+            // keys this file does not own are kept (a test run shares one file with the engine's preferences)
+            var root = (File.Exists(FilePath) ? TryParse(File.ReadAllText(FilePath)) : null) ?? new System.Text.Json.Nodes.JsonObject();
+            var mine = System.Text.Json.Nodes.JsonNode.Parse(JsonSerializer.Serialize(new
+            {
+                splash = Splash, retired = Retired.ToArray(), style = Style, packAccent = PackAccent,
+                fpsMin = FpsMin, fpsMax = FpsMax, fpsFixed = FpsFixed, styleColors = StyleColors
+            }))!.AsObject();
+            foreach (var (key, value) in mine.ToList()) { mine.Remove(key); root[key] = value; }
+            File.WriteAllText(FilePath, root.ToJsonString());
         }
         catch (Exception) { /* not saved: it lasts until the launcher closes */ }
     }

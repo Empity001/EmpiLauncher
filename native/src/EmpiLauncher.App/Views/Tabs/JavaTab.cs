@@ -30,7 +30,7 @@ internal sealed class JavaTab : SettingsTab
         var s = _settings = await _l.Client.CallAsync<JavaSettings>("settings.java");
 
         // ---- memory ----
-        var memory = Ui.Section("Memoria", out var m, $"Este modpack usa entre {s.AbsoluteMinGb:0.#} y {s.AbsoluteMaxGb:0.#} GB. Dar de más puede ir peor: el juego necesita margen para el sistema.");
+        var memory = Ui.Section("Memoria", out var m, $"Este modpack usa entre {s.AbsoluteMinGb:0.#} y {s.AbsoluteMaxGb:0.#} GB. Darle de más puede ir peor, ojo: tu compu también necesita su espacio para respirar.");
         _memoryStatus = Ui.Text("", "CaptionText");
         m.Children.Add(_memoryStatus);
         _min = Slider("Memoria mínima", s.MinRAMGb, s, out _minLabel);
@@ -56,7 +56,7 @@ internal sealed class JavaTab : SettingsTab
         j.Children.Add(_javaDetails);
 
         // what this modpack needs, what it uses, and the button to install or update exactly that Java
-        _javaState = Ui.Text("Comprobando el Java que pide este modpack...", "CaptionText");
+        _javaState = Ui.Text("Revisando el Java que pide este modpack...", "CaptionText");
         _javaState.Margin = new Thickness(4, 8, 0, 0);
         _javaState.TextWrapping = TextWrapping.Wrap;
         j.Children.Add(_javaState);
@@ -65,14 +65,14 @@ internal sealed class JavaTab : SettingsTab
         _javaInstall.HorizontalAlignment = HorizontalAlignment.Left;
         _javaInstall.Margin = new Thickness(0, 12, 0, 0);
         j.Children.Add(_javaInstall);
-        j.Children.Add(Ui.Row("Instalar Java automáticamente", "Si al jugar falta el Java que pide el modpack, el launcher lo instala solo. Apágalo si prefieres que te pregunte antes.",
+        j.Children.Add(Ui.Row("Instalar Java automáticamente", "Si al jugar falta el Java que pide el modpack, te lo instalo solito. Apágalo si prefieres que te pregunte antes.",
             Ui.Switch(_l.Prefs.AutoJava != false, v => _ = _l.SetAutoJavaAsync(v), "Instalar Java automáticamente")));
         Root.Children.Add(java);
         _l.GameChanged -= OnGameChanged; _l.GameChanged += OnGameChanged;
         _l.JavaInstalled -= OnJavaInstalled; _l.JavaInstalled += OnJavaInstalled;
 
         // ---- jvm options ----
-        var jvm = Ui.Section("Opciones de la JVM", out var o, "Argumentos separados por espacios. Déjalo como está si no sabes qué son.");
+        var jvm = Ui.Section("Opciones de la JVM", out var o, "Argumentos separados por espacios. Si no sabes qué son, genuinamente déjalo como está ;3");
         var jvmBox = Ui.Box(string.Join(" ", s.JvmOptions), text => _ = SetJava("jvmOptions", text), "Opciones de la JVM");
         jvmBox.TextWrapping = TextWrapping.Wrap;
         jvmBox.MinHeight = 76;
@@ -96,17 +96,17 @@ internal sealed class JavaTab : SettingsTab
             var busy = _l.Game.Busy || _l.Game.Running;
             if (check.Current is { Ok: true } fits)
             {
-                _javaState.Text = $"Este modpack usa Java {fits.Version}, el que pide (Java {need}).";
+                _javaState.Text = $"Este modpack usa Java {fits.Version}, justo el que pide (Java {need}). Todo en orden.";
                 _javaState.Foreground = Ui.Res("Paper3Brush");
                 _javaInstall.Content = $"Buscar actualización de Java {need}";
                 _javaInstall.Style = (Style)Application.Current.FindResource("GhostButton");
             }
             else
             {
-                var using_ = check.Current is { } wrong && wrong.Version != null ? $"Ahora usa Java {wrong.Version}, que no le sirve. " : "";
+                var using_ = check.Current is { } wrong && wrong.Version != null ? $"Ahorita usa Java {wrong.Version}, que no le sirve. " : "";
                 _javaState.Text = check.Found is { } found
-                    ? $"{using_}Este modpack pide Java {need} y ya hay uno en tu equipo ({found.Version}): lo usará al jugar, o puedes elegirlo ahora."
-                    : $"{using_}Este modpack pide Java {need} y no lo encuentro en tu equipo. {(check.AutoInstall ? "Se instalará solo al pulsar Jugar, o puedes instalarlo ahora." : "Instálalo aquí, o el launcher te preguntará al jugar.")}";
+                    ? $"{using_}Este modpack pide Java {need} y ya hay uno en tu compu ({found.Version}): lo uso al jugar, o lo puedes escoger ahorita."
+                    : $"{using_}Este modpack pide Java {need} y no lo encuentro en tu compu. {(check.AutoInstall ? "Se instala solito al pulsar Jugar, o lo puedes instalar ahorita." : "Instálalo aquí, o te pregunto al jugar.")}";
                 _javaState.Foreground = Ui.Res("WarnBrush");
                 _javaInstall.Content = check.Found != null ? $"Usar Java {need}" : $"Instalar Java {need}";
                 _javaInstall.Style = (Style)Application.Current.FindResource("PrimaryButton");
@@ -224,7 +224,7 @@ internal sealed class JavaTab : SettingsTab
         try
         {
             var details = await _l.Client.CallAsync<JavaDetails>("java.details", new { path });
-            _javaDetails.Text = details.Valid ? $"Java {details.Version}  {details.Vendor}" : path.Length == 0 ? "Sin Java elegido: se buscará o instalará al jugar." : "Esta ruta no es un Java compatible con el modpack.";
+            _javaDetails.Text = details.Valid ? $"Java {details.Version}  {details.Vendor}" : path.Length == 0 ? "Sin Java escogido: lo busco o lo instalo al jugar." : "Esa ruta no es un Java que le sirva al modpack.";
             _javaDetails.Foreground = details.Valid || path.Length == 0 ? Ui.Res("Paper3Brush") : Ui.Res("DangerBrush");
         }
         catch (EngineException ex) { _javaDetails.Text = ex.Message; }

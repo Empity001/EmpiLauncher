@@ -51,13 +51,24 @@ internal abstract class ShaderField : StyleField
 
     protected readonly StyleShader Fx;
     protected override double AmbientMs => 50;
-    protected override double InteractiveMs => 33;
 
     protected ShaderField(string shader, Brush? noise = null)
     {
         Fx = new StyleShader(shader, noise);
         Effect = Fx;
         ClipToBounds = true;   // the effect maps its picture over the field's own bounds: nothing drawn past the edges may stretch them
+    }
+
+    private double _intensity = 1;
+
+    /// <summary>
+    /// The element's own opacity never reaches a shader's picture (WPF fades the effect's input, and the picture is made from scratch), so
+    /// the intensity goes to the shader, which fades everything it returns, the field's drawings included.
+    /// </summary>
+    protected override void ApplyIntensity(double intensity)
+    {
+        _intensity = intensity;
+        if (Opacity != 1) Opacity = 1;
     }
 
     /// <summary>The whole field, so the effect covers it even where nothing is drawn.</summary>
@@ -75,7 +86,7 @@ internal abstract class ShaderField : StyleField
     protected void Feed(double time, double motion = 1)
     {
         var light = Light();
-        Fx.Set(StyleShader.ResProperty, new Point4D(W, H, 0, 0));
+        Fx.Set(StyleShader.ResProperty, new Point4D(W, H, _intensity, 0));
         Fx.Set(StyleShader.ClockProperty, new Point4D(time, T, 0.7, motion));
         Fx.Set(StyleShader.AccProperty, new Point4D(Accent.R / 255.0, Accent.G / 255.0, Accent.B / 255.0, 1));
         Fx.Set(StyleShader.AuraProperty, new Point4D(light.X, light.Y, 0, 0));
@@ -85,17 +96,21 @@ internal abstract class ShaderField : StyleField
             Fx.SetWave(i, i < recent.Count ? new Point4D(recent[i].X / Math.Max(1, W), recent[i].Y / Math.Max(1, H), T - recent[i].T0, recent[i].Weight) : new Point4D());
     }
 
-    /// <summary>A small tileable noise picture (64 cells across, smooth between them) for shaders that need noise.</summary>
+    /// <summary>
+    /// A small tileable noise picture (64 cells across, smooth between them) for shaders that need noise. It carries a border of 2 texels of
+    /// its own wrapped content (516 across for a 512 tile), so a shader sampling across the tile's edge blends with the right neighbours
+    /// (termico.hlsl's noise()): without it the edge was clamped and the folding heat showed straight cracks.
+    /// </summary>
     protected static ImageBrush NoiseBrush()
     {
-        const int size = 512, cells = 64;
+        const int tile = 512, pad = 2, size = tile + 2 * pad, cells = 64;
         static double Lattice(int x, int y) { x = ((x % cells) + cells) % cells; y = ((y % cells) + cells) % cells; var h = Math.Sin(x * 127.1 + y * 311.7) * 43758.5453; return h - Math.Floor(h); }
         static double S(double t) => t * t * t * (t * (t * 6 - 15) + 10);
         var pixels = new byte[size * size];
         for (var y = 0; y < size; y++)
             for (var x = 0; x < size; x++)
             {
-                double fx = x * (double)cells / size, fy = y * (double)cells / size;
+                double fx = ((x - pad + tile) % tile) * (double)cells / tile, fy = ((y - pad + tile) % tile) * (double)cells / tile;
                 int ix = (int)Math.Floor(fx), iy = (int)Math.Floor(fy);
                 double ux = S(fx - ix), uy = S(fy - iy);
                 var top = Lattice(ix, iy) + (Lattice(ix + 1, iy) - Lattice(ix, iy)) * ux;

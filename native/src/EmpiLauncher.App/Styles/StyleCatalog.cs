@@ -6,7 +6,8 @@ using System.Windows.Media;
 namespace EmpiLauncher.App.Styles;
 
 /// <summary>One style of the interface, as Styles/styles.json describes it.</summary>
-internal sealed record StyleInfo(string Id, string Name, string Summary, Color Accent, string AccentHex, bool Ported, string? ReleasedIn);
+/// <param name="Weight">how heavy it is next to the others (1 to 100) at the default frame rates: Ajustes shows it as a ring</param>
+internal sealed record StyleInfo(string Id, string Name, string Summary, Color Accent, string AccentHex, bool Ported, string? ReleasedIn, int Weight = 20);
 
 /// <summary>
 /// The launcher's styles ("estilos"): the background and the whole interface dressed to match. The list is Styles/styles.json, embedded in
@@ -40,7 +41,7 @@ internal static class StyleCatalog
     /// <summary>The style with that id if it is offered, the base style otherwise.</summary>
     public static StyleInfo Get(string? id) => Available.FirstOrDefault(s => s.Id == id) ?? All.FirstOrDefault(s => s.Id == Base) ?? Fallback;
 
-    private static readonly StyleInfo Fallback = new(Base, "Actual", "", Color.FromRgb(0xff, 0x3d, 0x8b), "#ff3d8b", true, null);
+    private static readonly StyleInfo Fallback = new(Base, "Actual", "", Color.FromRgb(0xff, 0x3d, 0x8b), "#ff3d8b", true, null, 18);
 
     private static List<StyleInfo> Load()
     {
@@ -62,7 +63,8 @@ internal static class StyleCatalog
                     s.TryGetProperty("summary", out var sum) ? sum.GetString() ?? "" : "",
                     accent, hex,
                     s.TryGetProperty("ported", out var p) && p.ValueKind == JsonValueKind.True,
-                    s.TryGetProperty("releasedIn", out var r) && r.ValueKind == JsonValueKind.String ? r.GetString() : null));
+                    s.TryGetProperty("releasedIn", out var r) && r.ValueKind == JsonValueKind.String ? r.GetString() : null,
+                    s.TryGetProperty("weight", out var wt) && wt.ValueKind == JsonValueKind.Number ? Math.Clamp(wt.GetInt32(), 1, 100) : 20));
             }
         }
         catch (Exception ex) when (ex is IOException or JsonException or KeyNotFoundException or InvalidOperationException)

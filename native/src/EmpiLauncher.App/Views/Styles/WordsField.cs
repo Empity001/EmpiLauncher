@@ -25,7 +25,6 @@ internal sealed class WordsField : StyleField
     public override double ArriveSeconds => 2.6;
     public override double Ease(double raw) => raw;
     protected override double AmbientMs => 100;
-    protected override double InteractiveMs => 33;
 
     private const string Serif = "Sitka Text, Palatino Linotype, Book Antiqua, Georgia";
     private const double FS = 15, LH = 22, Top = 86, BarUp = FS * 0.34;
@@ -528,9 +527,12 @@ internal sealed class WordsField : StyleField
         var amp = PointerAmp;
         if (amp < 0.03 || _page == null) return;
         const double R = 90;
-        Geometry clip = new EllipseGeometry(Pointer, R, R);
+        // the square the lens lives in, less the ink kept under the interface's text; its round, soft edge is the mask's alone
+        Geometry clip = new RectangleGeometry(new Rect(Pointer.X - R, Pointer.Y - R, R * 2, R * 2));
         foreach (var r in backing) clip = Geometry.Combine(clip, new RectangleGeometry(r), GeometryCombineMode.Exclude, null);
-        var fade = new RadialGradientBrush { Center = new Point(0.5, 0.5), GradientOrigin = new Point(0.5, 0.5), MappingMode = BrushMappingMode.RelativeToBoundingBox };
+        // placed where the pointer is (not on the drawing's bounds, which the words reaching past the circle stretched into a wide,
+        // hard-edged oval): strong in the middle, fading to nothing at R, as in the preview
+        var fade = new RadialGradientBrush { MappingMode = BrushMappingMode.Absolute, Center = Pointer, GradientOrigin = Pointer, RadiusX = R, RadiusY = R };
         fade.GradientStops.Add(new GradientStop(Color.FromArgb(199, 0, 0, 0), 0));
         fade.GradientStops.Add(new GradientStop(Color.FromArgb(115, 0, 0, 0), 0.6));
         fade.GradientStops.Add(new GradientStop(Color.FromArgb(0, 0, 0, 0), 1));

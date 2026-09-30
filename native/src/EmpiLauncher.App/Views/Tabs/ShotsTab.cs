@@ -37,7 +37,7 @@ internal sealed class ShotsTab : SettingsTab
         _shots = await Task.Run(() => Scan(dir));
         if (generation != _generation) return;
 
-        var card = Ui.Section("Capturas", out var body, Directory.Exists(dir) ? $"{_shots.Count} capturas de {_l.Selected?.Name}. Pulsa una para verla grande." : "Todavía no hay capturas de este modpack. Se guardan al pulsar F2 dentro del juego.");
+        var card = Ui.Section("Capturas", out var body, Directory.Exists(dir) ? $"{_shots.Count} capturas de {_l.Selected?.Name}. Pícale a una para verla en grande." : "Todavía no hay capturas de este modpack. Se guardan al pulsar F2 dentro del juego, a presumir.");
         var open = Ui.Button("Abrir carpeta", () => { Directory.CreateDirectory(dir); Process.Start(new ProcessStartInfo("explorer.exe", $"\"{dir}\"") { UseShellExecute = true }); });
         open.HorizontalAlignment = HorizontalAlignment.Left;
         body.Children.Add(open);

@@ -88,14 +88,14 @@ internal sealed class NoticesPanel : UserControl
         _body.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         _body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
         _body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 250 });
-        _pageFrame = new Border { BorderBrush = Fmt.Res("HairStrongBrush"), BorderThickness = new Thickness(1), Background = new SolidColorBrush(Color.FromRgb(0x0b, 0x0b, 0x0c)), Child = _page, RenderTransformOrigin = new Point(0.5, 0.5) };
+        _pageFrame = new Border { BorderBrush = Fmt.Res("HairStrongBrush"), BorderThickness = new Thickness(1), Background = Fmt.Res("WellBrush"), Child = _page, RenderTransformOrigin = new Point(0.5, 0.5) };
         var box = new Viewbox { Stretch = Stretch.Uniform, StretchDirection = StretchDirection.Both, Child = new Grid { Width = 450, Height = 600, Children = { _pageFrame } } };
         Grid.SetColumn(box, 0);
         _body.Children.Add(box);
         var scroller = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Focusable = false, Content = _strip };
         Grid.SetColumn(scroller, 2);
         _body.Children.Add(scroller);
-        _empty = Ui.Text("No hay avisos por ahora.", "BodyText", Fmt.Res("Paper2Brush"));
+        _empty = Ui.Text("No hay avisos por ahora. Todo tranqui.", "BodyText", Fmt.Res("Paper2Brush"));
         _empty.HorizontalAlignment = HorizontalAlignment.Left; _empty.Margin = new Thickness(2, 6, 0, 0);
         Grid.SetRow(_body, 1);
         root.Children.Add(_body);
@@ -203,7 +203,7 @@ internal sealed class NoticesPanel : UserControl
         var text = new StackPanel { Children = { title, meta } };
         Grid.SetColumn(text, 1);
         row.Children.Add(text);
-        var card = new Border { CornerRadius = new CornerRadius(14), Padding = new Thickness(12, 10, 12, 10), Margin = new Thickness(0, 0, 8, 6), Background = selected ? Fmt.Res("PaperBrush") : Brushes.Transparent, Child = row };
+        var card = new Border { CornerRadius = (CornerRadius)FindResource("RadiusTile"), Padding = new Thickness(12, 10, 12, 10), Margin = new Thickness(0, 0, 8, 6), Background = selected ? Fmt.Res("PaperBrush") : Brushes.Transparent, Child = row };
         var button = new Button { Style = (Style)FindResource("BareButton"), Content = card, HorizontalContentAlignment = HorizontalAlignment.Stretch };
         System.Windows.Automation.AutomationProperties.SetName(button, Ui.AccessName($"{notice.Title}, {(InArchive ? "cerrado" : NoticeLook.Unread(notice) ? "sin leer" : "leído")}"));
         button.Click += (_, _) => Choose(notice.Id);
@@ -240,7 +240,7 @@ internal sealed class NoticesPanel : UserControl
     {
         var notice = Visible().FirstOrDefault(n => n.Id == _selected);
         if (notice?.Button == null || !Uri.TryCreate(notice.Button.Url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps) return;
-        try { Process.Start(new ProcessStartInfo(uri.ToString()) { UseShellExecute = true }); } catch (Exception) { _l.RaiseNotice("No se pudo abrir el enlace."); }
+        try { Process.Start(new ProcessStartInfo(uri.ToString()) { UseShellExecute = true }); } catch (Exception) { _l.RaiseNotice("No pude abrir el enlace."); }
     }
 
     private void Later()
@@ -248,7 +248,7 @@ internal sealed class NoticesPanel : UserControl
         if (_selected == null) return;
         LaterThisRun.Add(_selected);
         _ = _l.MarkNoticeAsync(_selected, "later");
-        _l.RaiseNotice("Volverá a salir la próxima vez que abras el launcher.");
+        _l.RaiseNotice("Te lo vuelvo a enseñar la próxima vez que abras el launcher.");
         Advance();
     }
 

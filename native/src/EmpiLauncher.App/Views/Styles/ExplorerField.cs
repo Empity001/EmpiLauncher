@@ -47,7 +47,13 @@ internal sealed class ExplorerField : StyleField
 
     // ---- sprites, drawn once (at twice the size, so they stay crisp when the corridor brings them close) --------------------
 
-    private sealed record Sprite(BitmapSource Image, double W, double H);
+    /// <summary>A picture drawn once. A dialog also knows where its buttons are (Hits, with their Labels) and its close box, so they can be pressed.</summary>
+    private sealed record Sprite(BitmapSource Image, double W, double H)
+    {
+        public Rect[] Hits { get; init; } = [];
+        public string[] Labels { get; init; } = [];
+        public Rect Close { get; init; } = Rect.Empty;
+    }
 
     private static Sprite Draw(double w, double h, Action<DrawingContext> draw)
     {
@@ -173,18 +179,20 @@ internal sealed class ExplorerField : StyleField
         }
     }
 
+    private static Rect ButtonAt(int k, int count, double w, double h) { const double bw = 75; return new Rect(w - 12 - (count - k) * (bw + 8) + 8, h - 33, bw, 23); }
+
     private static Sprite Dialog(string title, string text, string[] buttons, string kind, double w = 300, double h = 126, bool bar = false) => Draw(w, h, g =>
     {
         var body = Window(g, new Rect(0, 0, w, h), title);
         Icon(g, kind, body.X + 11, body.Y + 10);
         g.DrawText(Words(text, Face, 11, Black, w - 72), new Point(body.X + 55, body.Y + 12));
-        for (var k = 0; k < buttons.Length; k++)
-        {
-            const double bw = 75;
-            var bx = w - 12 - (buttons.Length - k) * (bw + 8) + 8; var by = h - 33;
-            Push(g, new Rect(bx, by, bw, 23), buttons[k], k == 0);
-        }
-    });
+        for (var k = 0; k < buttons.Length; k++) Push(g, ButtonAt(k, buttons.Length, w, h), buttons[k], k == 0);
+    }) with
+    {
+        Hits = buttons.Select((_, k) => ButtonAt(k, buttons.Length, w, h)).ToArray(),
+        Labels = buttons,
+        Close = new Rect(w - 25, 2.5, 19, 19)   // Title's close box: the last of three 19 px buttons, 4 px from the right
+    };
 
     private readonly Sprite[] _dialogs;
     private readonly Sprite _bsod, _cloud, _sphere, _torus, _cube, _column;
@@ -197,8 +205,61 @@ internal sealed class ExplorerField : StyleField
     private const double Loop = 48, Focal = 520, CamH = 1.6;
     private double _walk, _camX;
 
-    private sealed record Popup(double X, double Y, Sprite Img, double T0);
+    /// <summary>A dialog a click opened. It can be pressed: a button stays down for a moment, then the dialog answers or goes away.</summary>
+    private sealed class Popup(double x, double y, Sprite img, double t0)
+    {
+        public double X = x, Y = y, T0 = t0;
+        public readonly Sprite Img = img;
+        public int Down = -1;               // the button held down (-2: the close box)
+        public double DownAt, GoneAt = double.NaN;
+    }
     private readonly List<Popup> _popups = [];
+    private const double PopupLife = 8;
+    private readonly Dictionary<string, Sprite> _replies = [];
+
+    /// <summary>A click on one of the dialogs a click opened: its button goes down (or its close box), and it comes to the front.</summary>
+    protected override bool Press(Point at)
+    {
+        for (var i = _popups.Count - 1; i >= 0; i--)
+        {
+            var p = _popups[i];
+            if (!double.IsNaN(p.GoneAt)) continue;
+            var local = new Point(at.X - p.X, at.Y - p.Y);
+            if (local.X < 0 || local.Y < 0 || local.X > p.Img.W || local.Y > p.Img.H) continue;
+            if (p.Down == -1)
+            {
+                for (var k = 0; k < p.Img.Hits.Length; k++) if (p.Img.Hits[k].Contains(local)) { p.Down = k; p.DownAt = T; break; }
+                if (p.Down == -1 && p.Img.Close.Contains(local)) { p.Down = -2; p.DownAt = T; }
+            }
+            p.T0 = Math.Min(p.T0 + 2, T - 0.12);   // touched: it stays a little longer (and does not pop in again)
+            _popups.RemoveAt(i); _popups.Add(p);   // to the front
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// What a pressed button does. Most just close the dialog, as they did; a few answer with another dialog of the era (the background
+    /// never touches the real launcher: its Aceptar only points at the real Jugar).
+    /// </summary>
+    private void Answer(Popup p)
+    {
+        p.GoneAt = T;
+        if (p.Down < 0) return;
+        var label = p.Img.Labels[p.Down];
+        (string Key, string Title, string Text, string Kind)? reply = label switch
+        {
+            "Depurar" => ("debug", "Depurador", "No se pudo depurar la nostalgia. Vuelve a intentarlo en 2003.", "error"),
+            "Instalar" => ("install", "Error", "No hay espacio suficiente para tantos recuerdos. Borra algunos y vuelve a intentarlo.", "error"),
+            "Sí" when ReferenceEquals(p.Img, _dialogs[0]) => ("stay", "Empi Launcher", "Buen intento. De aquí nadie se va sin jugar ;3", "info"),
+            "Sí" when ReferenceEquals(p.Img, _dialogs[4]) => ("chest", "Buscar", "Búsqueda terminada: 0 cofres encontrados. Qué sospechoso...", "warn"),
+            "Aceptar" when ReferenceEquals(p.Img, _packDialog) => ("play", "Empi Launcher", "Este Aceptar es de adorno. El Jugar de verdad está aquí abajo ;3", "info"),
+            _ => null
+        };
+        if (reply is not { } r) return;
+        if (!_replies.TryGetValue(r.Key, out var img)) _replies[r.Key] = img = Dialog(r.Title, r.Text, ["Aceptar"], r.Kind);
+        _popups.Add(new Popup(Math.Clamp(p.X + 18, 8, W - img.W - 8), Math.Clamp(p.Y + 18, 60, H - img.H - 8), img, T));
+    }
     private readonly HashSet<Click> _opened = [];
 
     public ExplorerField()
@@ -392,15 +453,25 @@ internal sealed class ExplorerField : StyleField
         DrawCopy(dc, l);
 
         // popups
-        _popups.RemoveAll(p => T - p.T0 > 3.2);
-        foreach (var p in _popups)
+        // the dialogs the clicks opened: they stay a while (so their buttons can be pressed); a pressed one answers or goes away
+        _popups.RemoveAll(p => T - p.T0 > PopupLife || !double.IsNaN(p.GoneAt) && T - p.GoneAt > 0.18);
+        foreach (var p in _popups.ToList())
         {
-            var age = T - p.T0; var inn = Math.Min(1, age / 0.12); var outA = Math.Clamp((3.2 - age) / 0.4, 0, 1);
+            if (p.Down != -1 && double.IsNaN(p.GoneAt) && T - p.DownAt > 0.14) Answer(p);
+            var age = T - p.T0; var inn = Math.Min(1, age / 0.12); var outA = Math.Clamp((PopupLife - age) / 0.4, 0, 1);
+            if (!double.IsNaN(p.GoneAt)) outA = Math.Min(outA, Math.Clamp(1 - (T - p.GoneAt) / 0.18, 0, 1));
             var sc = 0.92 + 0.08 * (1 - Math.Pow(1 - inn, 3));
             dc.PushOpacity(Math.Min(inn, outA));
             dc.PushTransform(new ScaleTransform(sc, sc, p.X + p.Img.W / 2, p.Y + p.Img.H / 2));
             dc.DrawRectangle(B(Color.FromArgb(90, 0, 0, 0)), null, new Rect(p.X + 4, p.Y + 4, p.Img.W, p.Img.H));
             dc.DrawImage(p.Img.Image, new Rect(p.X, p.Y, p.Img.W, p.Img.H));
+            if (p.Down != -1)
+            {
+                // held down: the button sinks (darker, its outline inside) until the dialog answers
+                var r = p.Down == -2 ? p.Img.Close : p.Img.Hits[p.Down];
+                r.Offset(p.X, p.Y);
+                dc.DrawRoundedRectangle(B(Color.FromArgb(64, 0, 0, 0x30)), P(Color.FromArgb(150, 0, 0, 0), 1), new Rect(r.X + 1, r.Y + 1, r.Width - 1, r.Height - 1), 3, 3);
+            }
             dc.Pop(); dc.Pop();
         }
 

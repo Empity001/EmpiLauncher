@@ -32,7 +32,7 @@ internal sealed class ColorPicker : Border
     private double _h, _s = 1, _v = 1;
     private bool _syncing;
 
-    public ColorPicker(string startHex, string defaultHex, IEnumerable<(string Hex, string Label)> presets)
+    public ColorPicker(string startHex, string defaultHex, IEnumerable<(string Hex, string Label)> presets, string resetLabel = "Gris")
     {
         _defaultHex = defaultHex;
         Background = (Brush)Application.Current.FindResource("PanelBrush");
@@ -74,7 +74,7 @@ internal sealed class ColorPicker : Border
         _hex = new TextBox { Style = (Style)Application.Current.FindResource("InputBox"), Width = 104, MaxLength = 7, Margin = new Thickness(10, 0, 0, 0), Padding = new Thickness(10, 6, 10, 6), MinHeight = 34 };
         System.Windows.Automation.AutomationProperties.SetName(_hex, "Color en hexadecimal");
         row.Children.Add(_hex);
-        var reset = new Button { Content = "Gris", Style = (Style)Application.Current.FindResource("GhostButton"), Padding = new Thickness(12, 6, 12, 6), FontSize = 12, Margin = new Thickness(8, 0, 0, 0), ToolTip = "Volver al color de siempre" };
+        var reset = new Button { Content = resetLabel, Style = (Style)Application.Current.FindResource("GhostButton"), Padding = new Thickness(12, 6, 12, 6), FontSize = 12, Margin = new Thickness(8, 0, 0, 0), ToolTip = "Volver al color de siempre" };
         System.Windows.Automation.AutomationProperties.SetName(reset, "Volver al gris de siempre");
         DockPanel.SetDock(reset, Dock.Right);
         row.Children.Add(reset);

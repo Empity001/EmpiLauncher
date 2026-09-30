@@ -53,7 +53,8 @@ internal sealed class LivingField : Grid, StyleHost.ILayer
     }
 
     private const double StillTime = 7.3;
-    private const double AmbientMs = 125, InteractiveMs = 41;
+    /// <summary>The base style's own quiet pace: it only counts while performance mode saves (FieldGovernor.Rate).</summary>
+    private const double AmbientMs = 125;
 
     // A click ripple lives as long as it takes to cross the window (see NewRipple), between these limits, in seconds.
     private const double RippleMinLife = 1.6, RippleMaxLife = 4.4, RipplePxPerSecond = 650, RippleBand = 26;
@@ -80,7 +81,9 @@ internal sealed class LivingField : Grid, StyleHost.ILayer
 
     private readonly Layer _baseLayer = new(cached: true), _liveLayer = new(cached: false);
     private readonly DispatcherTimer _gate = new() { Interval = TimeSpan.FromSeconds(2) };
-    private readonly DispatcherTimer _frame = new() { Interval = TimeSpan.FromMilliseconds(AmbientMs) };
+    private readonly FrameClock _frame;
+    private (double Idle, double Active) _rate = (15, 30);
+    private double _budget = 60;   // the fastest this machine has shown it can afford (lowered when frames cost too much, automatic mode only)
     private readonly DispatcherTimer _quietTimer = new() { Interval = TimeSpan.FromMilliseconds(700) };
     private readonly Stopwatch _clock = Stopwatch.StartNew();
 
@@ -124,7 +127,7 @@ internal sealed class LivingField : Grid, StyleHost.ILayer
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
         _gate.Tick += (_, _) => Gate();
-        _frame.Tick += (_, _) => Frame();
+        _frame = new FrameClock(Frame);
         _quietTimer.Tick += (_, _) => MeasureQuiet();
         SizeChanged += (_, _) => Rebuild();
     }
@@ -182,10 +185,12 @@ internal sealed class LivingField : Grid, StyleHost.ILayer
         ApplyOpacity();
         if (SyncColors()) DrawLive();   // a colour changed in Ajustes: show it even if the field is standing still
         FieldGovernor.Evaluate(Window.GetWindow(this));
+        var rate = FieldGovernor.Rate(1000 / AmbientMs);
+        if (rate != _rate) { _rate = rate; _budget = 60; }   // a new choice in Ajustes: the machine gets a fresh chance at it
         if (FieldGovernor.Allowed && !_running)
         {
             _running = true; _last = _clock.Elapsed.TotalSeconds; _t = StillTime;
-            _frame.Start(); _quietTimer.Start();
+            _frame.Fps = _rate.Idle; _frame.Start(); _quietTimer.Start();
         }
         else if (!FieldGovernor.Allowed && _running)
         {
@@ -365,7 +370,7 @@ internal sealed class LivingField : Grid, StyleHost.ILayer
     {
         var started = Stopwatch.GetTimestamp();
         var now = _clock.Elapsed.TotalSeconds;
-        _t += Math.Min(0.1, now - _last);
+        _t += Math.Min(0.25, now - _last);   // a slow rate (5 FPS) still keeps time
         _last = now;
 
         _ptr.Amp += (_ptr.Want - _ptr.Amp) * 0.12;
@@ -375,8 +380,7 @@ internal sealed class LivingField : Grid, StyleHost.ILayer
 
         // fast while the player is interacting (moving, clicking, a control being contoured), gentle otherwise
         var interacting = _clock.ElapsedMilliseconds - _movedAt < 1500 || _ripples.Count > 0 || _hot.Amp > 0.03;
-        var wanted = TimeSpan.FromMilliseconds(interacting ? InteractiveMs : AmbientMs);
-        if (_frame.Interval != wanted) _frame.Interval = wanted;
+        _frame.Fps = Math.Min(interacting ? _rate.Active : _rate.Idle, Math.Max(_rate.Idle, _budget));
 
         DrawLive();
 
@@ -389,8 +393,10 @@ internal sealed class LivingField : Grid, StyleHost.ILayer
 
     private void Degrade()
     {
+        if (FieldGovernor.PerfMode == "off") return;   // the player asked for the background whatever it costs
+        if (_budget > _rate.Idle + 0.5) { _budget = Math.Max(_rate.Idle, Math.Min(_budget, _rate.Active) * 0.75); return; }   // first fewer frames
         if (_pitch < 36) { _pitch += 6; Rebuild(); }
-        else FieldGovernor.Yield("el equipo iba justo y lo dejé quieto");
+        else FieldGovernor.Yield("tu compu iba justita y lo dejé quieto para que descanse");
     }
 
     /// <summary>Follows the target element: eases toward its rectangle and its presence, fades when there is none.</summary>

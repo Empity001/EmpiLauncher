@@ -5,8 +5,9 @@
     {
       "id": "actual",
       "name": "Actual",
-      "summary": "Puntos que respiran y ondas al hacer clic. El de siempre.",
+      "summary": "Puntitos que respiran y ondas al hacer clic. El de siempre.",
       "accent": "#ff3d8b",
+      "weight": 18,
       "ported": true,
       "releasedIn": null,
       "notes": ""
@@ -16,6 +17,7 @@
       "name": "Celestial",
       "summary": "Holográfico: brillos de colores, destellos y estrellas que flotan.",
       "accent": "#6fd6ff",
+      "weight": 55,
       "ported": true,
       "releasedIn": "3.7.0",
       "notes": "# Empi Launcher {version}: nuevo estilo Celestial\n\n## Estilos (nuevo)\n- Nuevo estilo **Celestial**: el fondo se vuelve holográfico, con brillos de colores que se mueven despacio, destellos que parpadean y estrellas de papel metalizado que flotan. Al hacer clic sale un pequeño fuego artificial.\n- Llega como una lluvia de estrellas fugaces desde la esquina de arriba.\n- Cambia toda la interfaz, no solo el fondo: letras, formas y colores siguen al estilo, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
@@ -25,81 +27,90 @@
       "name": "Oleaje",
       "summary": "Luz bajo el agua, con reflejos que se mueven como el mar.",
       "accent": "#39c6e0",
+      "weight": 45,
       "ported": true,
       "releasedIn": null,
-      "notes": "# Empi Launcher {version}: nuevo estilo Oleaje\n\n## Estilos (nuevo)\n- Nuevo estilo **Oleaje**: el fondo es luz vista desde debajo del agua, con reflejos que se mueven como el mar y bordes de color donde la luz se quiebra. Cada clic abre ondas en el agua.\n- El nombre del modpack se ve en el fondo como si estuviera sumergido.\n- Llega como una marea que sube desde abajo.\n- Cambia toda la interfaz, no solo el fondo: letras, formas y colores siguen al estilo, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
+      "notes": "# Empi Launcher {version}: nuevo estilo Oleaje\n\n## Estilos (nuevo)\n- Nuevo estilo **Oleaje**: como ver la luz desde el fondo de una alberca de noche, con reflejos que se mueven como el mar y bordes de color donde la luz se quiebra. Cada clic abre ondas en el agua, pícale.\n- El nombre del modpack se ve hundido en el fondo, como letras pintadas en el piso de la alberca.\n- Mientras descargas, la marea sube con la descarga.\n- Llega como una marea que sube desde abajo.\n- Cambia toda la interfaz, no nomás el fondo: letras, formas y colores se visten del estilo, y los textos se siguen leyendo igual de bien.\n- Lo escoges en Ajustes > Launcher > Estilo. Cambia al instante y puedes regresar al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo, y en \"Color del estilo\" le pones el tuyo.\n- Como el fondo de siempre, se queda quieto mientras juegas o si lo apagas, y sus FPS los manejas tú en Ajustes > Launcher > Fondo. El circulito de su tarjeta te dice qué tanto pesa."
     },
     {
       "id": "termico",
       "name": "Térmico",
       "summary": "Formas líquidas de cámara térmica, con una trama de impresión.",
       "accent": "#ff7a2f",
+      "weight": 50,
       "ported": true,
       "releasedIn": null,
-      "notes": "# Empi Launcher {version}: nuevo estilo Térmico\n\n## Estilos (nuevo)\n- Nuevo estilo **Térmico**: formas líquidas como vistas por una cámara térmica, con una trama de impresión y los colores un poco corridos, como un póster.\n- Un visor encima del fondo marca lo que pasa de verdad: la memoria asignada al modpack, sus mods y, mientras descargas, cuánto falta.\n- Llega derritiéndose hacia afuera desde el punto más caliente.\n- Cambia toda la interfaz, no solo el fondo: letras, formas y colores siguen al estilo, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
+      "notes": "# Empi Launcher {version}: nuevo estilo Térmico\n\n## Estilos (nuevo)\n- Nuevo estilo **Térmico**: formas líquidas como de cámara térmica, con trama de impresión y los colores un poquito corridos, como póster.\n- Un visor encima del fondo marca lo que pasa de verdad: los mods del modpack, su versión y, mientras descargas, cuánto falta (y hasta se calienta).\n- Llega derritiéndose desde el punto más caliente.\n- Cambia toda la interfaz, no nomás el fondo: letras, formas y colores se visten del estilo, y los textos se siguen leyendo igual de bien.\n- Lo escoges en Ajustes > Launcher > Estilo. Cambia al instante y puedes regresar al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo, y en \"Color del estilo\" le pones el tuyo.\n- Como el fondo de siempre, se queda quieto mientras juegas o si lo apagas, y sus FPS los manejas tú en Ajustes > Launcher > Fondo. El circulito de su tarjeta te dice qué tanto pesa."
     },
     {
       "id": "core",
       "name": "Core",
       "summary": "Anillos de líneas finas que cambian de forma, y campos de líneas por toda la ventana.",
       "accent": "#8fd3ff",
+      "weight": 65,
       "ported": true,
       "releasedIn": null,
-      "notes": "# Empi Launcher {version}: nuevo estilo Core\n\n## Estilos (nuevo)\n- Nuevo estilo **Core**: un núcleo de anillos de líneas finas que va cambiando de forma (resorte, esfera, rombo, dona, curvas de nivel) y campos de líneas y puntos que ocupan toda la ventana. Se inclina hacia el puntero y cada clic manda ondas por las líneas.\n- Pequeñas anotaciones técnicas acompañan al núcleo con los datos reales del modpack.\n- Llega como un iris de líneas concéntricas mientras los anillos se dibujan solos.\n- Cambia toda la interfaz, no solo el fondo: letras, formas y colores siguen al estilo, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
+      "notes": "# Empi Launcher {version}: nuevo estilo Core\n\n## Estilos (nuevo)\n- Nuevo estilo **Core**: un núcleo de anillos de líneas finitas que va cambiando de forma (resorte, esfera, dona, curvas de nivel y más), con campos de líneas y puntitos por toda la ventana. Se inclina hacia tu puntero y cada clic manda ondas por las líneas.\n- Unas notitas técnicas acompañan al núcleo con los datos reales del modpack.\n- Llega como un iris de líneas mientras los anillos se dibujan solitos.\n- Cambia toda la interfaz, no nomás el fondo: letras, formas y colores se visten del estilo, y los textos se siguen leyendo igual de bien.\n- Lo escoges en Ajustes > Launcher > Estilo. Cambia al instante y puedes regresar al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo, y en \"Color del estilo\" le pones el tuyo.\n- Como el fondo de siempre, se queda quieto mientras juegas o si lo apagas, y sus FPS los manejas tú en Ajustes > Launcher > Fondo. El circulito de su tarjeta te dice qué tanto pesa."
     },
     {
       "id": "shell",
       "name": "Shell",
       "summary": "Una terminal: cuadritos, paneles y el registro de lo que hace el launcher.",
       "accent": "#ff8a3d",
+      "weight": 28,
       "ported": true,
       "releasedIn": null,
-      "notes": "# Empi Launcher {version}: nuevo estilo Shell\n\n## Estilos (nuevo)\n- Nuevo estilo **Shell**: el launcher se vuelve una terminal, con una cuadrícula, cubitos que parpadean y paneles con lecturas.\n- El registro que se escribe solo no es de adorno: muestra lo que el launcher está haciendo de verdad (qué modpack está elegido, qué descarga, cuándo arranca el juego).\n- El puntero lleva una mira con sus coordenadas y cada clic deja ondas de píxeles cuadrados.\n- Llega arrancando como una pantalla vieja, en damero.\n- Cambia toda la interfaz, no solo el fondo: letras, formas y colores siguen al estilo, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
+      "notes": "# Empi Launcher {version}: nuevo estilo Shell\n\n## Estilos (nuevo)\n- Nuevo estilo **Shell**: el launcher se vuelve una terminal, con cuadrícula, cubitos que parpadean y paneles con lecturas.\n- El registro que se escribe solo no es de adorno: dice lo que el launcher está haciendo de verdad (qué modpack escogiste, qué descarga, cuándo arranca el juego).\n- Tu puntero lleva una mira con sus coordenadas y cada clic deja ondas de pixelitos cuadrados.\n- Llega arrancando como pantalla viejita, en damero.\n- Cambia toda la interfaz, no nomás el fondo: letras, formas y colores se visten del estilo, y los textos se siguen leyendo igual de bien.\n- Lo escoges en Ajustes > Launcher > Estilo. Cambia al instante y puedes regresar al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo, y en \"Color del estilo\" le pones el tuyo.\n- Como el fondo de siempre, se queda quieto mientras juegas o si lo apagas, y sus FPS los manejas tú en Ajustes > Launcher > Fondo. El circulito de su tarjeta te dice qué tanto pesa."
     },
     {
       "id": "explorer",
       "name": "Explorer",
-      "summary": "Un escritorio de los 90 que se quedó solo. Ventanas, cielo y nostalgia.",
+      "summary": "Un escritorio de los 90 que se quedó solito. Ventanas, cielo y nostalgia.",
       "accent": "#3a6edc",
+      "weight": 35,
       "ported": true,
       "releasedIn": null,
-      "notes": "# Empi Launcher {version}: nuevo estilo Explorer\n\n## Estilos (nuevo)\n- Nuevo estilo **Explorer**: un escritorio viejo de los 90 que se quedó solo, con cielo, un piso de cuadros que no termina y ventanitas de diálogo.\n- Mientras descargas aparece una ventana de copia de archivos de las de antes, con el progreso real.\n- Llega como una ventana que se abre desde la esquina.\n- Cambia toda la interfaz, no solo el fondo: letras, bordes en relieve y colores siguen al estilo, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
+      "notes": "# Empi Launcher {version}: nuevo estilo Explorer\n\n## Estilos (nuevo)\n- Nuevo estilo **Explorer**: un escritorio de los 90 que se quedó solito, con cielo, un piso de cuadros que no se acaba y ventanitas de diálogo por todos lados.\n- Pícale al fondo y salen ventanitas de las de antes. Sus botones sí se presionan, y algunos hasta te contestan (a ver si los encuentras xd).\n- Mientras descargas sale una ventana de copiar archivos de las de antes, con el progreso real.\n- Llega como una ventana que se abre desde la esquina.\n- Cambia toda la interfaz, no nomás el fondo: letras, formas y colores se visten del estilo, y los textos se siguen leyendo igual de bien.\n- Lo escoges en Ajustes > Launcher > Estilo. Cambia al instante y puedes regresar al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo, y en \"Color del estilo\" le pones el tuyo.\n- Como el fondo de siempre, se queda quieto mientras juegas o si lo apagas, y sus FPS los manejas tú en Ajustes > Launcher > Fondo. El circulito de su tarjeta te dice qué tanto pesa."
     },
     {
       "id": "minimal",
       "name": "Minimal",
-      "summary": "Oscuro, limpio y tranquilo, con tarjetas que muestran tu modpack.",
+      "summary": "Oscuro, limpio y tranqui, con tarjetas que muestran tu modpack.",
       "accent": "#c8f560",
+      "weight": 10,
       "ported": true,
       "releasedIn": null,
-      "notes": "# Empi Launcher {version}: nuevo estilo Minimal\n\n## Estilos (nuevo)\n- Nuevo estilo **Minimal**: fondo oscuro y tranquilo, sin nada que distraiga, con unas pocas tarjetas limpias que muestran tu modpack de verdad: los mods, la memoria asignada, la versión de Minecraft y el loader.\n- Mientras descargas, el anillo de la tarjeta grande muestra el porcentaje.\n- Llega con las tarjetas acomodándose una detrás de otra.\n- Cambia toda la interfaz, no solo el fondo: letras, formas y colores siguen al estilo, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
+      "notes": "# Empi Launcher {version}: nuevo estilo Minimal\n\n## Estilos (nuevo)\n- Nuevo estilo **Minimal**: fondo oscuro y tranqui, sin nada que distraiga, con unas tarjetas limpias que muestran tu modpack de verdad: mods, memoria, versión de Minecraft y loader.\n- Mientras descargas, el anillo de la tarjeta grande enseña el porcentaje.\n- Llega con las tarjetas acomodándose una tras otra.\n- Cambia toda la interfaz, no nomás el fondo: letras, formas y colores se visten del estilo, y los textos se siguen leyendo igual de bien.\n- Lo escoges en Ajustes > Launcher > Estilo. Cambia al instante y puedes regresar al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo, y en \"Color del estilo\" le pones el tuyo.\n- Como el fondo de siempre, se queda quieto mientras juegas o si lo apagas, y sus FPS los manejas tú en Ajustes > Launcher > Fondo. El circulito de su tarjeta te dice qué tanto pesa."
     },
     {
       "id": "remember",
       "name": "Remember",
-      "summary": "Un dibujo viejo en crayón. La casita se construye mientras descargas.",
+      "summary": "Un dibujo viejito en crayón. La casita se construye mientras descargas.",
       "accent": "#e2574c",
+      "weight": 30,
       "ported": true,
       "releasedIn": null,
-      "notes": "# Empi Launcher {version}: nuevo estilo Remember\n\n## Estilos (nuevo)\n- Nuevo estilo **Remember**: el launcher se vuelve un dibujo viejo en crayón sobre papel gastado, con una colina, un sol y una casita.\n- La casita se va construyendo mientras se descarga el modpack, al ritmo de la descarga real.\n- Llega como si alguien lo estuviera pintando.\n- Cambia toda la interfaz, no solo el fondo: letras a mano, formas chuecas y colores de crayón, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
+      "notes": "# Empi Launcher {version}: nuevo estilo Remember\n\n## Estilos (nuevo)\n- Nuevo estilo **Remember**: el launcher se vuelve un dibujo viejito en crayón sobre papel gastado, con su colina, su sol y su casita.\n- La casita se va construyendo mientras se descarga el modpack, al ritmo de la descarga de verdad.\n- Llega como si alguien lo estuviera pintando en ese momento.\n- Cambia toda la interfaz, no nomás el fondo: letras, formas y colores se visten del estilo, y los textos se siguen leyendo igual de bien.\n- Lo escoges en Ajustes > Launcher > Estilo. Cambia al instante y puedes regresar al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo, y en \"Color del estilo\" le pones el tuyo.\n- Como el fondo de siempre, se queda quieto mientras juegas o si lo apagas, y sus FPS los manejas tú en Ajustes > Launcher > Fondo. El circulito de su tarjeta te dice qué tanto pesa."
     },
     {
       "id": "punk",
       "name": "Punk",
       "summary": "Collage de fotocopias, letras recortadas y spray.",
       "accent": "#ff4fa3",
+      "weight": 40,
       "ported": true,
       "releasedIn": null,
-      "notes": "# Empi Launcher {version}: nuevo estilo Punk\n\n## Estilos (nuevo)\n- Nuevo estilo **Punk**: un collage de fotocopias con recortes rotos que se mueven cuadro a cuadro, letras recortadas como de nota de secuestro y spray.\n- El póster y las palabras recortadas usan los datos reales del modpack (su nombre, su versión de Minecraft y sus mods), y tu nombre de jugador sale como grafiti.\n- Cada clic deja una mancha de spray que chorrea.\n- Llega pegando hojas rotas una encima de otra.\n- Cambia toda la interfaz, no solo el fondo: letras, formas y colores siguen al estilo, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
+      "notes": "# Empi Launcher {version}: nuevo estilo Punk\n\n## Estilos (nuevo)\n- Nuevo estilo **Punk**: collage de fotocopias con recortes rotos que se mueven cuadro por cuadro, letras recortadas como de nota de secuestro y spray.\n- El póster y las letras usan los datos reales del modpack (nombre, versión de Minecraft y mods), y tu nombre de jugador sale como grafiti.\n- Cada clic deja una mancha de spray que chorrea.\n- Llega pegando hojas rotas una encima de otra.\n- Cambia toda la interfaz, no nomás el fondo: letras, formas y colores se visten del estilo, y los textos se siguen leyendo igual de bien.\n- Lo escoges en Ajustes > Launcher > Estilo. Cambia al instante y puedes regresar al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo, y en \"Color del estilo\" le pones el tuyo.\n- Como el fondo de siempre, se queda quieto mientras juegas o si lo apagas, y sus FPS los manejas tú en Ajustes > Launcher > Fondo. El circulito de su tarjeta te dice qué tanto pesa."
     },
     {
       "id": "words",
       "name": "Words",
       "summary": "Una página de libro tachada con marcador. Lo que queda es un poema que dice la verdad.",
       "accent": "#d6344d",
+      "weight": 42,
       "ported": true,
       "releasedIn": null,
-      "notes": "# Empi Launcher {version}: nuevo estilo Words\n\n## Estilos (nuevo)\n- Nuevo estilo **Words**: el fondo es una página de libro tachada con marcador, como en la poesía de tachones. Lo que queda sin tachar forma un poema corto.\n- El poema no es de adorno: dice lo que pasa de verdad. Qué modpack te espera, cuántos mods trae, cuánto va de la descarga o que estás jugando. Cuando algo cambia, la página se vuelve a escribir y el marcador la tacha otra vez.\n- Pasa el puntero sobre la tinta para leer lo que hay debajo. Cada clic deja trazos de pluma alrededor.\n- Llega inundando la ventana de tinta y revelando la página renglón por renglón.\n- Cambia toda la interfaz, no solo el fondo: letras de libro, recortes de papel y tinta, y los textos se siguen leyendo igual.\n- Se elige en Ajustes > Launcher > Estilo. El cambio es al instante y puedes volver al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo.\n- Como el fondo de siempre, se queda quieto mientras juegas, si el equipo va justo o si lo apagas en Ajustes."
+      "notes": "# Empi Launcher {version}: nuevo estilo Words\n\n## Estilos (nuevo)\n- Nuevo estilo **Words**: el fondo es una página de libro tachada con marcador, como la poesía de tachones. Lo que queda sin tachar forma un poemita.\n- El poema no es de adorno: dice lo que pasa de verdad (qué modpack te espera, cuántos mods trae, cuánto va la descarga o que estás jugando). Cuando algo cambia, la página se reescribe y el marcador la tacha otra vez.\n- Pasa el puntero sobre la tinta y con la lupita lees lo que hay debajo. Cada clic deja trazos de pluma.\n- Llega inundando la ventana de tinta y revelando la página renglón por renglón.\n- Cambia toda la interfaz, no nomás el fondo: letras, formas y colores se visten del estilo, y los textos se siguen leyendo igual de bien.\n- Lo escoges en Ajustes > Launcher > Estilo. Cambia al instante y puedes regresar al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo, y en \"Color del estilo\" le pones el tuyo.\n- Como el fondo de siempre, se queda quieto mientras juegas o si lo apagas, y sus FPS los manejas tú en Ajustes > Launcher > Fondo. El circulito de su tarjeta te dice qué tanto pesa."
     }
   ]
 }

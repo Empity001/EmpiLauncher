@@ -37,8 +37,8 @@ internal sealed class ModsTab : SettingsTab
 
     private void BuildOptional(ModsList m)
     {
-        var card = Ui.Section("Mods opcionales", out var body, "Activa o desactiva los mods que el modpack deja a tu elección.");
-        if (m.Optional.Count == 0) body.Children.Add(Ui.Text("Este modpack no tiene mods opcionales.", "CaptionText"));
+        var card = Ui.Section("Mods opcionales", out var body, "Prende o apaga los mods que el modpack deja a tu gusto.");
+        if (m.Optional.Count == 0) body.Children.Add(Ui.Text("Este modpack no trae mods opcionales.", "CaptionText"));
         foreach (var node in m.Optional) AddNode(body, node, 0);
         Root.Children.Add(card);
     }
@@ -66,7 +66,7 @@ internal sealed class ModsTab : SettingsTab
     private void BuildRequired(ModsList m)
     {
         var count = CountNodes(m.Required);
-        var card = Ui.Section("Mods del modpack", out var body, "Vienen incluidos y no se pueden quitar: forman parte de la versión.");
+        var card = Ui.Section("Mods del modpack", out var body, "Vienen incluidos y no se pueden quitar: son parte de la versión.");
         var list = new StackPanel { Visibility = Visibility.Collapsed, Margin = new Thickness(0, 8, 0, 0) };
         var built = false;
         var toggle = Ui.Button($"Ver los {count} mods", () => { }, "GhostButton");
@@ -102,7 +102,7 @@ internal sealed class ModsTab : SettingsTab
 
     private void BuildDropins(ModsList m)
     {
-        var card = Ui.Section("Tus mods", out var body, "Mods que añades tú. Arrastra archivos .jar aquí o usa el botón. Quitarlos los manda a la papelera.");
+        var card = Ui.Section("Tus mods", out var body, "Los mods que añades tú. Arrastra archivos .jar aquí o usa el botón. Si los quitas, se van a la papelera (por si te arrepientes).");
         card.AllowDrop = true;
         card.Drop += async (_, e) =>
         {
@@ -120,7 +120,7 @@ internal sealed class ModsTab : SettingsTab
         actions.Children.Add(open);
         body.Children.Add(actions);
 
-        if (m.Dropins.Mods.Count == 0) body.Children.Add(Ui.Text("Todavía no has añadido ningún mod.", "CaptionText"));
+        if (m.Dropins.Mods.Count == 0) body.Children.Add(Ui.Text("Todavía no le has añadido ningún mod.", "CaptionText"));
         foreach (var mod in m.Dropins.Mods)
         {
             var row = new DockPanel { Margin = new Thickness(0, 6, 0, 6) };
@@ -145,14 +145,14 @@ internal sealed class ModsTab : SettingsTab
             FileSystem.DeleteFile(resolved.Path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
             await ReloadAsync();
         }
-        catch (Exception ex) { _l.RaiseNotice($"No se pudo quitar {mod.Name}: {ex.Message}"); }
+        catch (Exception ex) { _l.RaiseNotice($"No pude quitar {mod.Name}: {ex.Message}"); }
     }
 
     // ---- shaders ----
 
     private void BuildShaders(ModsList m)
     {
-        var card = Ui.Section("Shaders", out var body, "Elige el paquete de shaders que usará el juego.");
+        var card = Ui.Section("Shaders", out var body, "Escoge los shaders con los que se ve el juego.");
         var wrap = new WrapPanel();
         foreach (var pack in m.Shaders.Packs)
         {

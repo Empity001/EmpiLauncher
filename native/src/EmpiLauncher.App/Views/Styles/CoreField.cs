@@ -23,7 +23,6 @@ internal sealed class CoreField : StyleField
     public override double ArriveSeconds => 1.9;
     public override double Ease(double p) => p < 0.5 ? 4 * p * p * p : 1 - Math.Pow(-2 * p + 2, 3) / 2;
     protected override double AmbientMs => 125;
-    protected override double InteractiveMs => 33;
 
     private static readonly Color Ground = Color.FromRgb(5, 5, 6);
     private static readonly Color Light = Color.FromRgb(241, 237, 224);

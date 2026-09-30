@@ -150,9 +150,17 @@ foreach ($step in $Steps.Split(';')) {
             if ($index -eq 0) { Write-Host 'popups: none open' }
         }
         'front' { [void][Win]::SetWindowPos($hwnd, [IntPtr]::new(-1), 0, 0, 0, 0, 0x0003) }   # HWND_TOPMOST, SWP_NOSIZE | SWP_NOMOVE
-        'size'  { $wh = $arg.Split('x'); [void][Win]::MoveWindow($hwnd, 40, 40, [int]$wh[0], [int]$wh[1], $true) }
+        'size'  { $wh = $arg.Split('x'); $sr = New-Object Win+RECT; [void][Win]::GetWindowRect($hwnd, [ref]$sr); [void][Win]::MoveWindow($hwnd, $sr.L, $sr.T, [int]$wh[0], [int]$wh[1], $true) }   # keeps its place (an off-screen test window stays off screen)
         # hit:x,y  a click on the background at x,y, handed to the app (no real mouse: works with the window covered)
         'hit'   { $xy = $arg.Split(','); if (-not (Ask-App "hit-$([guid]::NewGuid().ToString('N'))" "burst $($xy[0]) $($xy[1])")) { Write-Host 'hit: the app did not answer' } }
+        # pose:CloseButton,MouseOver  a named control shown in one of its visual states (hover, pressed...) without the real mouse; ",Normal" undoes it
+        'pose'  { $ps = $arg.Split(','); if (-not (Ask-App "pose-$([guid]::NewGuid().ToString('N'))" "pose $($ps[0]) $($ps[1])")) { Write-Host 'pose: the app did not answer' } }
+        # bgtap:x,y  a plain left click on the background at x,y (DIPs), through the style's own answer (Explorer's dialogs), no real mouse
+        'bgtap' { $xy = $arg.Split(','); if (-not (Ask-App "tap-$([guid]::NewGuid().ToString('N'))" "tap $($xy[0]) $($xy[1])")) { Write-Host 'bgtap: the app did not answer' } }
+        # scroll:y  the settings page scrolled to y (DIPs)
+        'scroll' { if (-not (Ask-App "scr-$([guid]::NewGuid().ToString('N'))" "scroll $arg")) { Write-Host 'scroll: the app did not answer' } }
+        # pointer:x,y  the background's pointer held at x,y (DIPs) without the real mouse; pointer:off lets it go
+        'pointer' { $pp = $arg.Split(','); if (-not (Ask-App "ptr-$([guid]::NewGuid().ToString('N'))" "pointer $($pp -join ' ')")) { Write-Host 'pointer: the app did not answer' } }
         # tap:x,y  a real left click at x,y inside the window (unlike click:, which goes through UI Automation and raises no mouse events).
         # Only if the launcher is what is there: with another window on top the click would land in that window.
         'tap'   {

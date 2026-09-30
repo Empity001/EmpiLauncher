@@ -29,33 +29,33 @@ internal sealed class AboutTab : SettingsTab
         Root.Children.Clear();
         var config = _l.Config!;
 
+        _weights.Clear();
         Root.Children.Add(StyleSection());
+        Root.Children.Add(FieldSection());   // the background's rate and cost sit right under the styles they change
         Root.Children.Add(UpdatesSection(config));
 
         var launcher = Ui.Section("Launcher", out var l);
-        l.Children.Add(Ui.Row("Modo de rendimiento", "Automático ahorra recursos en equipos justos: sin efectos que cuesten memoria o GPU.", ModeChoice()));
-        l.Children.Add(Ui.Row("Animación del logo", "El logo se arma con un efecto glitch al abrir el launcher y se deshace al cerrarlo (un clic o una tecla la salta). No se muestra si Windows tiene las animaciones apagadas.", Ui.Switch(NativeSettings.Splash, v => NativeSettings.Splash = v, "Animación del logo al abrir y cerrar")));
-        l.Children.Add(Ui.Row("Banner y fondo animados", "Los modpacks con un banner o un fondo animado (GIF, WebP o APNG) los ven en movimiento. Solo se mueven mientras el launcher está a la vista, y se quedan quietos si Windows tiene las animaciones apagadas. Apágalo para ahorrar procesador y disco.", Ui.Switch(_l.Prefs.AnimatedArt != false, v => _ = _l.SetAnimatedArtAsync(v), "Banner y fondo animados")));
-        l.Children.Add(Ui.Row("Versiones de prueba", "Recibir también las versiones del launcher que aún se están probando.", Ui.Switch(Bool("allowPrerelease"), v => _ = Set("allowPrerelease", v), "Versiones de prueba")));
+        l.Children.Add(Ui.Row("Animación del logo", "Al abrir, mi logo se arma con glitch, y al cerrar se deshace (un clic o cualquier tecla te la salta). Si Windows tiene las animaciones apagadas, no sale.", Ui.Switch(NativeSettings.Splash, v => NativeSettings.Splash = v, "Animación del logo al abrir y cerrar")));
+        l.Children.Add(Ui.Row("Banner y fondo animados", "Si un modpack trae banner o fondo animado (GIF, WebP o APNG), lo ves moverse. Solo se mueve mientras tienes el launcher a la vista, y se queda quieto si Windows tiene las animaciones apagadas. Apágalo si quieres ahorrar procesador y disco.", Ui.Switch(_l.Prefs.AnimatedArt != false, v => _ = _l.SetAnimatedArtAsync(v), "Banner y fondo animados")));
+        l.Children.Add(Ui.Row("Versiones de prueba", "Te llegan también las versiones del launcher que todavía ando probando. Pueden traer uno que otro bicho, tú sabes ;3", Ui.Switch(Bool("allowPrerelease"), v => _ = Set("allowPrerelease", v), "Versiones de prueba")));
         Root.Children.Add(launcher);
-        Root.Children.Add(FieldSection());
 
-        var folders = Ui.Section("Carpetas", out var f, "Aquí viven el juego, las cuentas y la configuración.");
+        var folders = Ui.Section("Carpetas", out var f, "Aquí viven el juego, tus cuentas y la configuración.");
         f.Children.Add(FolderRow("Datos del juego", Str("dataDirectory")));
         f.Children.Add(FolderRow("Instalaciones", config.InstanceDirectory));
         f.Children.Add(FolderRow("Configuración", config.LauncherDirectory));
         Root.Children.Add(folders);
 
-        var report = Ui.Section("Informe de fallo y reparación", out var r, "Para pedir ayuda: un informe con las versiones, tu equipo, el modpack, los mods y el final del registro del juego. Lo ves entero antes de hacer nada; puedes copiarlo, guardarlo como .txt o mandarlo a soporte (solo si tú lo pides). Nunca lleva tu sesión, tus claves, tu correo ni tu usuario de Windows.");
-        r.Children.Add(Ui.Row("Ver el informe", "Del modpack que tienes elegido.", Ui.Button("Ver informe", () => ((MainWindow)Application.Current.MainWindow).ShowReport(), "GhostButton", 18)));
-        r.Children.Add(Ui.Row("Verificar y reparar", "Comprueba todos los archivos del modpack elegido y vuelve a bajar los que falten o estén dañados. No toca tus mundos ni tus ajustes.", Ui.Button("Verificar y reparar", () => ((MainWindow)Application.Current.MainWindow).AskRepair(), "GhostButton", 18)));
+        var report = Ui.Section("Informe de fallo y reparación", out var r, "Para pedirme ayuda: un informe con las versiones, tu equipo, el modpack, los mods y el final del registro del juego. Lo ves completito antes de hacer nada; lo puedes copiar, guardar como .txt o mandármelo a soporte (solo si tú quieres). Nunca lleva tu sesión, tus claves, tu correo ni tu usuario de Windows.");
+        r.Children.Add(Ui.Row("Ver el informe", "Del modpack que tienes escogido.", Ui.Button("Ver informe", () => ((MainWindow)Application.Current.MainWindow).ShowReport(), "GhostButton", 18)));
+        r.Children.Add(Ui.Row("Verificar y reparar", "Reviso todos los archivos del modpack escogido y vuelvo a bajar los que falten o estén dañados. Tus mundos y tus ajustes ni los toco.", Ui.Button("Verificar y reparar", () => ((MainWindow)Application.Current.MainWindow).AskRepair(), "GhostButton", 18)));
         Root.Children.Add(report);
 
-        var cost = Ui.Section("Consumo ahora mismo", out var c, "Lo que usan en este instante la interfaz y el motor. La interfaz devuelve memoria al sistema cuando está quieta.");
+        var cost = Ui.Section("Consumo ahora mismo", out var c, "Lo que están usando ahorita la interfaz y el motor. Cuando la interfaz está quieta, le regresa memoria al sistema.");
         var ui = Ui.Text("", "BodyText");
         var engine = Ui.Text("", "BodyText");
         c.Children.Add(Ui.Row("Interfaz nativa", null, ui));
-        c.Children.Add(Ui.Row("Motor del launcher", "Sin Chromium: solo lógica.", engine));
+        c.Children.Add(Ui.Row("Motor del launcher", "Sin Chromium: pura lógica.", engine));
         Root.Children.Add(cost);
         try
         {
@@ -171,10 +171,14 @@ internal sealed class AboutTab : SettingsTab
     /// The styles this launcher offers (StyleCatalog.Available: the base one and each one an update switched on), the switch between the
     /// modpack's colour and the style's, and "ver solo el fondo". Picking a style dresses the whole window at once (MainWindow.ChangeStyle).
     /// </summary>
+    /// <summary>The style cards' consumption rings: each redraws itself when the frame rates change (they scale the cost).</summary>
+    private readonly List<Action> _weights = [];
+
     private FrameworkElement StyleSection()
     {
         var main = (MainWindow)Application.Current.MainWindow;
-        var section = Ui.Section("Estilo", out var body, "Cambia el fondo y toda la interfaz: letras, formas y colores. Lo que dice cada texto no cambia.");
+        var section = Ui.Section("Estilo", out var body, "Le cambia la cara a todo el launcher: el fondo, las letras, las formas y los colores. Los textos dicen lo mismo, nomás se visten distinto.");
+        body.Children.Add(CostNote());
         var cards = new WrapPanel { Margin = new Thickness(0, 6, 0, 4) };
         foreach (var style in StyleCatalog.Available)
         {
@@ -182,17 +186,78 @@ internal sealed class AboutTab : SettingsTab
             cards.Children.Add(StyleCard(style, id == StyleTheme.Current, () => main.ChangeStyle(id)));
         }
         body.Children.Add(cards);
-        body.Children.Add(Ui.Row("Usar el color del modpack", "Encendido, cada modpack pinta el launcher con su propio color. Apagado, manda siempre el color del estilo.",
+        body.Children.Add(Ui.Row("Usar el color del modpack", "Prendido, cada modpack pinta el launcher con su propio color. Apagado, manda el color del estilo: el suyo, o el que tú le pongas aquí abajo.",
             Ui.Switch(NativeSettings.PackAccent, main.SetPackAccent, "Usar el color del modpack")));
-        body.Children.Add(Ui.Row("Ver solo el fondo", "El ojo de arriba a la derecha esconde toda la interfaz para mirar el fondo entero. Con el ratón quieto unos segundos se van también los botones; al moverlo vuelven. El ojo, o Esc, trae la interfaz de vuelta.",
+        body.Children.Add(Ui.Row("Color del estilo", $"El color de {StyleCatalog.Get(StyleTheme.Current).Name} cuando no manda el del modpack. Escoge uno o hazte el tuyo; cada estilo se acuerda del suyo.", StyleColorChoice()));
+        body.Children.Add(Ui.Row("Ver solo el fondo", "El ojo de arriba a la derecha esconde toda la interfaz para que veas el fondo completito. Si dejas el ratón quieto unos segundos se van también los botones, y al moverlo regresan. El ojo, o Esc, trae todo de vuelta.",
             Ui.Button("Probar ahora", () => main.SetBackgroundOnly(true), "GhostButton", 18)));
         return section;
     }
 
-    /// <summary>One style: a small sample of it, its name and what it is like. The one in use is outlined.</summary>
-    private static Button StyleCard(StyleInfo style, bool chosen, Action pick)
+    /// <summary>The honest warning above the cards: a style costs more than a still launcher, and the rings say how much.</summary>
+    private static FrameworkElement CostNote()
     {
-        var sample = new Border { Height = 58, CornerRadius = new CornerRadius(10), Background = Sample(style), Margin = new Thickness(0, 0, 0, 10), ClipToBounds = true };
+        var icon = new TextBlock { Text = "", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 15, Margin = new Thickness(0, 1, 12, 0), VerticalAlignment = VerticalAlignment.Top };
+        icon.SetResourceReference(TextBlock.ForegroundProperty, "WarnBrush");
+        var text = Ui.Text("Ojo: los estilos gastan más compu que un launcher quieto, y más todavía si apagas el modo de rendimiento o le subes los FPS al fondo. El circulito de cada tarjeta te dice qué tanto pesa cada uno con tus FPS de ahorita (100 % es lo más pesado), para que escojas con cariño.", "CaptionText");
+        text.TextWrapping = TextWrapping.Wrap;
+        var row = new DockPanel();
+        DockPanel.SetDock(icon, Dock.Left);
+        row.Children.Add(icon);
+        row.Children.Add(text);
+        var note = new Border { Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 4, 0, 8), BorderThickness = new Thickness(1), Child = row };
+        note.SetResourceReference(Border.BorderBrushProperty, "HairStrongBrush");
+        note.SetResourceReference(Border.BackgroundProperty, "TintBrush");
+        note.SetResourceReference(Border.CornerRadiusProperty, "RadiusTile");
+        return note;
+    }
+
+    /// <summary>How heavy a style is with the rates in use now: its weight at the default rates (15 quiet, 30 moving), scaled by them.</summary>
+    private static int WeightNow(StyleInfo style)
+    {
+        var (idle, active) = FieldGovernor.Rate(15);
+        var factor = 0.5 * idle / 15 + 0.5 * active / 30;
+        return (int)Math.Clamp(Math.Round(style.Weight * factor), 1, 100);
+    }
+
+    /// <summary>A little ring that fills with the style's weight, and the number, in a dark chip on the sample's corner.</summary>
+    private FrameworkElement WeightChip(StyleInfo style)
+    {
+        var paper = new SolidColorBrush(Color.FromRgb(0xf1, 0xef, 0xe8));
+        var track = new System.Windows.Shapes.Ellipse { Width = 13, Height = 13, Stroke = new SolidColorBrush(Color.FromArgb(0x55, 0xf1, 0xef, 0xe8)), StrokeThickness = 2 };
+        var arc = new System.Windows.Shapes.Path { StrokeThickness = 2, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round };
+        var ring = new Grid { Width = 13, Height = 13, Margin = new Thickness(0, 0, 5, 0), VerticalAlignment = VerticalAlignment.Center, Children = { track, arc } };
+        var number = new TextBlock { FontFamily = (FontFamily)Application.Current.FindResource("MonoFont"), FontSize = 10.5, FontWeight = FontWeights.SemiBold, Foreground = paper, VerticalAlignment = VerticalAlignment.Center };
+        var chip = new Border
+        {
+            Background = new SolidColorBrush(Color.FromArgb(0xc8, 0x0b, 0x0b, 0x0d)), CornerRadius = new CornerRadius(9), Padding = new Thickness(5, 2, 7, 2),
+            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 5, 5),
+            Child = new StackPanel { Orientation = Orientation.Horizontal, Children = { ring, number } }
+        };
+        void Update()
+        {
+            var w = WeightNow(style);
+            // green, then amber, then red: the ring says at a glance what the number says
+            var tone = w < 35 ? Color.FromRgb(0x6f, 0xd0, 0x8c) : w < 65 ? Color.FromRgb(0xf2, 0xb5, 0x4a) : Color.FromRgb(0xff, 0x6b, 0x5e);
+            arc.Stroke = new SolidColorBrush(tone);
+            arc.Data = w >= 99 ? new EllipseGeometry(new Point(6.5, 6.5), 5.5, 5.5) : Arc(6.5, 6.5, 5.5, Math.Max(0.03, w / 100.0));
+            number.Text = $"{w} %";
+            chip.ToolTip = $"Qué tanto pesa {style.Name} con tus FPS de ahorita, comparado con los demás estilos. 100 % es lo más pesado.";
+            System.Windows.Automation.AutomationProperties.SetName(chip, $"Consumo de {style.Name}: {w} por ciento");
+        }
+        _weights.Add(Update);
+        Update();
+        return chip;
+    }
+
+    /// <summary>One style: a small sample of it, its name and what it is like. The one in use is outlined.</summary>
+    private Button StyleCard(StyleInfo style, bool chosen, Action pick)
+    {
+        // the sample in the colour the player gave the style, if they gave it one
+        if (NativeSettings.StyleColors.TryGetValue(style.Id, out var mine))
+            try { style = style with { Accent = (Color)ColorConverter.ConvertFromString(mine) }; } catch (FormatException) { }
+        var picture = new Border { Height = 58, CornerRadius = new CornerRadius(10), Background = Sample(style), ClipToBounds = true };
+        var sample = new Grid { Margin = new Thickness(0, 0, 0, 10), Children = { picture, WeightChip(style) } };
         var name = Ui.Text(style.Name, "BodyText");
         name.FontWeight = FontWeights.SemiBold;
         var head = new DockPanel();
@@ -380,19 +445,29 @@ internal sealed class AboutTab : SettingsTab
 
     // ---- the living background ---------------------------------------------------------------------------------------
 
-    /// <summary>The living background: three choices, its colour and, always visible, whether it is moving right now and why not if it is not.</summary>
+    /// <summary>
+    /// The living background: the performance mode and the frame rates it allows, the three motion choices, its colour and intensity, and,
+    /// always visible, whether it is moving right now (and how fast) or why not.
+    /// </summary>
     private FrameworkElement FieldSection()
     {
         var section = Ui.Section("Fondo", out var body, StyleTheme.Current == StyleCatalog.Base
-            ? "Puntos de fondo que se mueven despacio y se acercan al puntero, con el color del modpack."
-            : "El fondo del estilo que elegiste: se mueve despacio y responde al puntero y a los clics.");
+            ? "Los puntitos de fondo: se mueven despacio, se acercan al puntero y agarran el color del modpack."
+            : "El fondo del estilo que escogiste: se mueve despacio y le contesta al puntero y a los clics.");
         var status = Ui.Text("", "CaptionText");
+        var rates = new StackPanel();
 
         void Refresh()
         {
             FieldGovernor.Evaluate(Application.Current.MainWindow);
-            status.Text = FieldGovernor.Allowed ? "Ahora mismo: en movimiento." : "Ahora mismo: quieto porque " + FieldGovernor.Reason + ".";
+            status.Text = FieldGovernor.Allowed ? $"Ahora mismo: moviéndose {FieldGovernor.RateText()}." : "Ahora mismo: quieto porque " + FieldGovernor.Reason + ".";
+            foreach (var update in _weights) update();
         }
+
+        body.Children.Add(Ui.Row("Modo de rendimiento", "Activado, topo el fondo en 15 FPS para que tu compu descanse. Automático hace lo mismo solito si tu equipo tiene menos de 6 GB; si no, se mueve entre el mínimo y el máximo que tú le pongas. Desactivado, tú mandas.",
+            ModeChoice(() => { Rates(rates, Refresh); Refresh(); })));
+        Rates(rates, Refresh);
+        body.Children.Add(rates);
 
         var row = new StackPanel { Orientation = Orientation.Horizontal };
         var track = new Border { Background = Ui.Res("TintBrush"), Padding = new Thickness(3), Child = row };
@@ -404,15 +479,63 @@ internal sealed class AboutTab : SettingsTab
             pill.Checked += async (_, _) => { await _l.SetFieldModeAsync(mode); Refresh(); };
             row.Children.Add(pill);
         }
-        body.Children.Add(Ui.Row("Movimiento", "Automático sigue en marcha mientras descargas o actualizas y solo se queda quieto si algo importa más: Minecraft abierto, poca memoria, modo de rendimiento. Siempre no se apaga por eso.", track));
+        body.Children.Add(Ui.Row("Movimiento", "Automático sigue moviéndose mientras descargas o actualizas, y solo se queda quieto si hay algo más importante: Minecraft abierto o poca memoria libre. Siempre no se detiene por eso. Apagado lo deja como foto.", track));
         Refresh();
         status.Margin = new Thickness(0, 4, 0, 0);
         body.Children.Add(status);
-        // the dots' own colour belongs to the base style's field; the other styles bring their own palette
+        // the dots' own colour belongs to the base style's field; the other styles take the style's colour (Estilo, above)
         if (StyleTheme.Current == StyleCatalog.Base)
-            body.Children.Add(Ui.Row("Color de los puntos y las ondas", "El gris es el de siempre. Elige uno de la lista o crea el tuyo. Cuando una onda del color del modpack se cruza con la tuya, los puntos se mezclan.", DotColorChoice()));
-        body.Children.Add(Ui.Row("Intensidad del fondo", "Baja el porcentaje para un fondo más calmado. Se ve más tenue, sin cambiar cómo se mueve.", DotOpacityChoice()));
+            body.Children.Add(Ui.Row("Color de los puntos y las ondas", "El gris es el de siempre. Escoge uno o hazte el tuyo. Cuando una onda del color del modpack se cruza con la tuya, los puntos se mezclan.", DotColorChoice()));
+        body.Children.Add(Ui.Row("Intensidad del fondo", "Bájale para un fondo más calmadito: se ve más tenue y se sigue moviendo igual.", DotOpacityChoice()));
         return section;
+    }
+
+    /// <summary>The frame rate rows, as the performance mode allows: locked while saving, a minimum and a maximum in automatic, one rate when off.</summary>
+    private void Rates(StackPanel panel, Action refresh)
+    {
+        panel.Children.Clear();
+        void Changed() { _l.NotifyFieldSettings(); refresh(); }
+        if (FieldGovernor.Saving)
+        {
+            var locked = FpsSlider(FieldGovernor.SaverFps, _ => { }, "FPS del fondo (fijos)");
+            locked.IsEnabled = false;
+            panel.Children.Add(Ui.Row("FPS del fondo", FieldGovernor.PerfMode == "on"
+                ? "El modo de rendimiento lo tiene topado en 15. Si quieres escoger tú, ponlo en automático o desactívalo."
+                : "Tu equipo tiene menos de 6 GB, así que en automático lo topo en 15 para no ahogarlo. Si quieres escoger tú, desactiva el modo de rendimiento.", locked));
+            return;
+        }
+        if (FieldGovernor.PerfMode == "off")
+        {
+            panel.Children.Add(Ui.Row("FPS del fondo", "Tú mandas: el fondo va siempre a estos FPS, aunque tu compu sude. Más FPS se ve más fluido y gasta más.",
+                FpsSlider(NativeSettings.FpsFixed, v => { NativeSettings.FpsFixed = v; Changed(); }, "FPS del fondo")));
+            return;
+        }
+        Slider? min = null, max = null;
+        var minRow = FpsSlider(NativeSettings.FpsMin, v => { NativeSettings.FpsMin = v; if (max != null && max.Value < v) max.Value = v; Changed(); }, "FPS mínimo del fondo");
+        var maxRow = FpsSlider(NativeSettings.FpsMax, v => { NativeSettings.FpsMax = v; if (min != null && min.Value > v) min.Value = v; Changed(); }, "FPS máximo del fondo");
+        min = (Slider)((Panel)minRow).Children[0];
+        max = (Slider)((Panel)maxRow).Children[0];
+        panel.Children.Add(Ui.Row("FPS mínimo", "Cuando no estás moviendo nada: el fondo sigue vivo pero gastando poquito.", minRow));
+        panel.Children.Add(Ui.Row("FPS máximo", "Cuando mueves el ratón, haces clic o llega un estilo. Si tu compu no aguanta, lo bajo solito hacia el mínimo.", maxRow));
+    }
+
+    /// <summary>A frame rate slider, 5 to 60 in steps of 5, with its number. The change applies at once.</summary>
+    private static FrameworkElement FpsSlider(int value, Action<int> changed, string name)
+    {
+        var slider = new Slider
+        {
+            Style = (Style)Application.Current.FindResource("RangeSlider"), Minimum = NativeSettings.FpsLowest, Maximum = NativeSettings.FpsHighest, SmallChange = 5, LargeChange = 10,
+            TickFrequency = 5, IsSnapToTickEnabled = true, Width = 190, Value = value
+        };
+        System.Windows.Automation.AutomationProperties.SetName(slider, name);
+        var number = Ui.Text($"{value} FPS", "BodyText", null, 16);
+        number.FontWeight = FontWeights.SemiBold; number.MinWidth = 70; number.TextAlignment = TextAlignment.Right; number.VerticalAlignment = VerticalAlignment.Center; number.Margin = new Thickness(10, 0, 0, 0);
+        slider.ValueChanged += (_, e) =>
+        {
+            number.Text = $"{slider.Value:0} FPS";
+            if (Math.Abs(e.NewValue - e.OldValue) >= 1) changed((int)Math.Round(slider.Value));
+        };
+        return new StackPanel { Orientation = Orientation.Horizontal, Children = { slider, number } };
     }
 
     /// <summary>A slider from 10 to 100 %. The background follows it live; the value is saved when the slider stops.</summary>
@@ -447,10 +570,32 @@ internal sealed class AboutTab : SettingsTab
         ("#4caf6d", "Verde"), ("#c99a3a", "Ámbar"), ("#cc5a8a", "Rosa"), ("#8b6bd6", "Violeta")
     ];
 
-    /// <summary>Round presets plus a rainbow one that opens the launcher's own colour picker. Whatever is picked is shown live and saved by the engine.</summary>
-    private FrameworkElement DotColorChoice()
+    /// <summary>The base style's dots: presets plus the launcher's own colour picker, shown live and saved by the engine.</summary>
+    private FrameworkElement DotColorChoice() => ColorChoice((_l.Prefs.DotColor ?? DefaultDots).ToLowerInvariant(), DefaultDots, DotPresets, "Color de los puntos",
+        hex => _l.PreviewDotColor(hex), hex => _ = _l.SetDotColorAsync(hex));
+
+    /// <summary>
+    /// The style's own colour, used when the modpack's does not win: the style's first (its identity), then a few more, then the picker.
+    /// Each style remembers its own; picking the style's own colour again forgets the choice.
+    /// </summary>
+    private FrameworkElement StyleColorChoice()
     {
-        var current = (_l.Prefs.DotColor ?? DefaultDots).ToLowerInvariant();
+        var style = StyleCatalog.Get(StyleTheme.Current);
+        var own = style.AccentHex.ToLowerInvariant();
+        (string Hex, string Label)[] presets =
+        [
+            (own, "El del estilo"), ("#ff3d8b", "Rosa"), ("#e2574c", "Rojo"), ("#ff7a2f", "Naranja"), ("#f2b54a", "Ámbar"),
+            ("#c8f560", "Lima"), ("#4caf6d", "Verde"), ("#39c6e0", "Cian"), ("#4a6fd8", "Azul"), ("#8b6bd6", "Violeta")
+        ];
+        presets = presets.DistinctBy(p => p.Hex).ToArray();
+        var current = NativeSettings.StyleColors.TryGetValue(style.Id, out var mine) ? mine : own;
+        void Apply(string hex, bool save) { NativeSettings.SetStyleColor(style.Id, hex == own ? null : hex, save); Launcher.RefreshAccent(); if (save) foreach (var update in _weights) update(); }
+        return ColorChoice(current, own, presets, "Color del estilo", hex => Apply(hex, false), hex => Apply(hex, true));
+    }
+
+    /// <summary>Round presets plus a rainbow one that opens the launcher's own colour picker. Whatever is picked is shown live, then committed.</summary>
+    private static FrameworkElement ColorChoice(string current, string fallback, (string Hex, string Label)[] presets, string name, Action<string> preview, Action<string> commit)
+    {
         var rings = new List<(Border Ring, string Hex)>();
         Border? customRing = null;
         Border? customFace = null;
@@ -461,7 +606,7 @@ internal sealed class AboutTab : SettingsTab
         void Mark(string hex)
         {
             current = hex;
-            var preset = DotPresets.Any(p => p.Hex == hex);
+            var preset = presets.Any(p => p.Hex == hex);
             foreach (var (ring, h) in rings) ring.BorderBrush = h == hex ? Ui.Res("PaperBrush") : Brushes.Transparent;
             if (customRing != null && customFace != null)
             {
@@ -470,26 +615,26 @@ internal sealed class AboutTab : SettingsTab
             }
         }
 
-        var strip = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        foreach (var (hex, label) in DotPresets)
+        var strip = new WrapPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 340 };
+        foreach (var (hex, label) in presets)
         {
             var ring = Swatch(new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)));
             rings.Add((ring, hex));
-            var button = SwatchButton(ring, label);
+            var button = SwatchButton(ring, label, name);
             var chosen = hex;
-            button.Click += (_, _) => { _ = _l.SetDotColorAsync(chosen); Mark(chosen); };
+            button.Click += (_, _) => { commit(chosen); Mark(chosen); };
             strip.Children.Add(button);
         }
 
         customFace = new Border { Background = rainbow };
-        customRing = Swatch(customFace, out var face);
-        var custom = SwatchButton(customRing, "Personalizado…");
-        System.Windows.Automation.AutomationProperties.SetName(custom, "Color personalizado");
+        customRing = Swatch(customFace, out _);
+        var custom = SwatchButton(customRing, "Personalizado…", name);
+        System.Windows.Automation.AutomationProperties.SetName(custom, name + " personalizado");
         custom.Click += (_, _) =>
         {
-            var picker = new ColorPicker(current, DefaultDots, DotPresets);
-            picker.Changing += hex => { _l.PreviewDotColor(hex); Mark(hex); };
-            picker.Committed += hex => { _ = _l.SetDotColorAsync(hex); Mark(hex); };
+            var picker = new ColorPicker(current, fallback, presets, presets[0].Label);
+            picker.Changing += hex => { preview(hex); Mark(hex); };
+            picker.Committed += hex => { commit(hex); Mark(hex); };
             ColorPicker.Show(custom, picker);
         };
         strip.Children.Add(custom);
@@ -508,16 +653,17 @@ internal sealed class AboutTab : SettingsTab
         return new Border { Width = 32, Height = 32, CornerRadius = new CornerRadius(16), BorderThickness = new Thickness(2), BorderBrush = Brushes.Transparent, Child = face, Padding = new Thickness(2) };
     }
 
-    private static Button SwatchButton(Border ring, string label)
+    private static Button SwatchButton(Border ring, string label, string name)
     {
         var button = new Button { Style = (Style)Application.Current.FindResource("BareButton"), Content = ring, Margin = new Thickness(0, 0, 3, 0), ToolTip = label };
-        System.Windows.Automation.AutomationProperties.SetName(button, "Color de los puntos: " + label);
+        System.Windows.Automation.AutomationProperties.SetName(button, name + ": " + label);
         return button;
     }
 
-    private FrameworkElement ModeChoice()
+    /// <summary>Automático, Activado or Desactivado. The engine keeps it; the backgrounds read it at once (the config is read again).</summary>
+    private FrameworkElement ModeChoice(Action changed)
     {
-        var mode = Str("performanceMode");
+        var mode = FieldGovernor.PerfMode;   // unset means automatic
         var row = new StackPanel { Orientation = Orientation.Horizontal };
         var track = new Border { Background = Ui.Res("TintBrush"), Padding = new Thickness(3), Child = row };
         Ui.MakePill(track);
@@ -525,7 +671,13 @@ internal sealed class AboutTab : SettingsTab
         {
             var pill = new RadioButton { Content = label, GroupName = "perf", IsChecked = mode == value, Style = (Style)Application.Current.FindResource("TabPill") };
             var v = value;
-            pill.Checked += async (_, _) => await Set("performanceMode", v);
+            pill.Checked += async (_, _) =>
+            {
+                await Set("performanceMode", v);
+                await _l.RefreshConfigAsync();   // FieldGovernor reads the config: without this the new mode only counted after reopening Ajustes
+                _l.NotifyFieldSettings();
+                changed();
+            };
             row.Children.Add(pill);
         }
         return track;

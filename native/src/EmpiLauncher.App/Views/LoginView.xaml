@@ -13,7 +13,7 @@
                 <Border x:Name="AccountsModule" Style="{StaticResource Module}" Margin="0,28,0,0" Padding="20,16">
                     <StackPanel>
                         <TextBlock Text="CUENTAS GUARDADAS" Style="{StaticResource LabelText}"/>
-                        <TextBlock Text="Eliminar sesión quita la cuenta de este launcher; podrás volver a añadirla cuando quieras." Style="{StaticResource CaptionText}" Margin="0,6,0,10"/>
+                        <TextBlock Text="Eliminar sesión quita la cuenta de este launcher; la puedes volver a añadir cuando quieras." Style="{StaticResource CaptionText}" Margin="0,6,0,10"/>
                         <StackPanel x:Name="Accounts"/>
                     </StackPanel>
                 </Border>

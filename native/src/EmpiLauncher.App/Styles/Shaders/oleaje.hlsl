@@ -5,7 +5,7 @@
 // Compiled by native/tools/compile-shaders.ps1 (ps_3_0); coordinates are y-down, 0..1 across the field.
 
 sampler2D Input : register(s0);
-float4 Res : register(c0);      // xy: the field's size
+float4 Res : register(c0);      // xy: the field's size, z: the player's intensity (Ajustes > Fondo), 0..1
 float4 Clock : register(c1);    // x: the water's time, y: the clock, z: intensity, w: motion (1, or 0 when it must hold still)
 float4 Acc : register(c2);      // the accent
 float4 Aura : register(c3);     // xy: where the light is
@@ -98,5 +98,5 @@ float4 main(float2 uv : TEXCOORD) : COLOR
     col = pow(max(col, 0.0), 1.14);
 
     float4 water = float4(col * rv.x, rv.x);
-    return over + water * (1.0 - over.a);   // premultiplied: the field's own drawings over the water
+    return (over + water * (1.0 - over.a)) * Res.z;   // premultiplied: the field's own drawings over the water, all of it as strong as the player wants
 }

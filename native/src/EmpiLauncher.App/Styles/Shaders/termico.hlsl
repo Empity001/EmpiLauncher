@@ -7,7 +7,7 @@
 
 sampler2D Input : register(s0);
 sampler2D Noise : register(s1);
-float4 Res : register(c0);      // xy: the field's size
+float4 Res : register(c0);      // xy: the field's size, z: the player's intensity (Ajustes > Fondo), 0..1
 float4 Clock : register(c1);    // x: the picture's time, y: the clock, z: intensity, w: motion
 float4 Acc : register(c2);      // the accent
 float4 Aura : register(c3);     // xy: where the light is
@@ -15,7 +15,9 @@ float4 Reveal : register(c4);   // x: how far the arrival has got, y: 1 while ar
 float4 Waves[12] : register(c8); // x, y, age in s, strength
 
 // value noise from the texture: 64 cells across it, -1..1
-float noise(float2 p) { return tex2Dlod(Noise, float4(frac(p / 64.0), 0.0, 0.0)).r * 2.0 - 1.0; }
+// the texture is 512 texels of noise plus a 2-texel border of its own wrapped content (ShaderField.NoiseBrush): sampling across the tile's edge
+// blends with the right neighbours instead of stopping at the edge, which cracked the heat along straight lines
+float noise(float2 p) { return tex2Dlod(Noise, float4((2.0 + frac(p / 64.0) * 512.0) / 516.0, 0.0, 0.0)).r * 2.0 - 1.0; }
 
 float fbm(float2 p)
 {
@@ -94,5 +96,5 @@ float4 main(float2 uv : TEXCOORD) : COLOR
     col *= lerp(0.35, 1.0, vig);
 
     float4 picture = float4(col * rv.x, rv.x);
-    return over + picture * (1.0 - over.a);
+    return (over + picture * (1.0 - over.a)) * Res.z;   // as strong as the player wants (the element's own opacity does not reach a shader's picture)
 }

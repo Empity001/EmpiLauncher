@@ -229,7 +229,7 @@ public partial class HomeView : UserControl
         // modpack selected, which is one of the host's profiles when it has some.
         var host = _l.Host;
         var pack = _l.Selected;
-        SetTitle(host?.Name ?? "Conectando con el motor");
+        SetTitle(host?.Name ?? "Arrancando motores");
         var described = host?.Profiles?.List.FirstOrDefault(p => p.Id == pack?.Id && !p.Self)?.Description;
         var description = host == null || pack == null ? ""
             : !string.IsNullOrWhiteSpace(described) ? described
@@ -452,7 +452,7 @@ public partial class HomeView : UserControl
         var list = new StackPanel();
         var heading = new StackPanel { Margin = new Thickness(8, 4, 8, 12) };
         heading.Children.Add(new TextBlock { Text = "PERFIL", Style = (Style)FindResource("LabelText") });
-        heading.Children.Add(new TextBlock { Text = "Cada perfil es una versión aparte, con sus propios mods, mundos y ajustes.", Style = (Style)FindResource("CaptionText"), Margin = new Thickness(0, 5, 0, 0), TextWrapping = TextWrapping.Wrap });
+        heading.Children.Add(new TextBlock { Text = "Cada perfil es una versión aparte, con sus propios mods, mundos y ajustes. Escoge con cuál juegas hoy.", Style = (Style)FindResource("CaptionText"), Margin = new Thickness(0, 5, 0, 0), TextWrapping = TextWrapping.Wrap });
         list.Children.Add(heading); items.Add(heading);
         var playing = _l.PlayingIn(pack.Id);
         foreach (var profile in profiles.List)
@@ -807,15 +807,15 @@ public partial class HomeView : UserControl
         switch (access.State)
         {
             case "maintenance":
-                lines.Add(!string.IsNullOrWhiteSpace(access.Message) ? access.Message! : "Este modpack está en mantenimiento.");
-                if (access.Allowed == true) lines.Add("Tu cuenta tiene permiso para jugarlo mientras tanto." + (access.Until != null ? " Vuelve para todos " + Future(access.Until) + "." : ""));
+                lines.Add(!string.IsNullOrWhiteSpace(access.Message) ? access.Message! : "Este modpack está en mantenimiento. Le estoy haciendo sus arreglitos.");
+                if (access.Allowed == true) lines.Add("Tú sí tienes permiso para jugarlo mientras tanto, shh." + (access.Until != null ? " Para todos vuelve " + Future(access.Until) + "." : ""));
                 break;
             case "upcoming":
-                lines.Add(!string.IsNullOrWhiteSpace(access.Message) ? access.Message! : "Este modpack todavía no está disponible.");
+                lines.Add(!string.IsNullOrWhiteSpace(access.Message) ? access.Message! : "Este modpack todavía no sale. Ya casi, aguántame tantito.");
                 break;
             case "retired":
-                lines.Add(!string.IsNullOrWhiteSpace(access.Message) ? access.Message! : "Este modpack se retiró: ya no se puede jugar ni actualizar.");
-                if (installed) lines.Add("Con la papelera lo quitas de tu PC; tus mundos y capturas se quedan si quieres.");
+                lines.Add(!string.IsNullOrWhiteSpace(access.Message) ? access.Message! : "Este modpack se retiró: ya no se puede jugar ni actualizar. Gracias por los buenos ratos.");
+                if (installed) lines.Add("Con la papelera lo quitas de tu compu; tus mundos y capturas se quedan si quieres.");
                 break;
             default:
                 return null;
@@ -831,24 +831,24 @@ public partial class HomeView : UserControl
         var window = (MainWindow)Application.Current.MainWindow;
         UninstallPreview preview;
         try { preview = await _l.UninstallPreviewAsync(pack.Id); }
-        catch (Exception ex) { window.ShowDialog("No se pudo preparar el borrado", ex.Message, ("Entendido", null, true)); return; }
-        if (!preview.Installed) { window.ShowToast("Este modpack no está instalado en tu PC."); return; }
+        catch (Exception ex) { window.ShowDialog("No pude preparar el borrado", ex.Message, ("Entendido", null, true)); return; }
+        if (!preview.Installed) { window.ShowToast("Este modpack ni está instalado en tu compu."); return; }
 
         async Task Do(bool personal)
         {
-            try { var freed = await _l.UninstallAsync(pack.Id, personal); window.ShowToast($"Listo: se liberaron {Fmt.Bytes(freed)}."); }
-            catch (Exception ex) { window.ShowDialog("No se pudo quitar el modpack", ex.Message, ("Entendido", null, true)); }
+            try { var freed = await _l.UninstallAsync(pack.Id, personal); window.ShowToast($"Listo: te liberé {Fmt.Bytes(freed)}."); }
+            catch (Exception ex) { window.ShowDialog("No pude quitar el modpack", ex.Message, ("Entendido", null, true)); }
         }
         var personal = preview.SavesBytes + preview.ScreenshotsBytes;
         if (personal <= 0)
         {
             window.ShowDialog($"Quitar {_l.Host?.Name ?? pack.Name} de tu PC",
-                $"Se borran sus archivos del juego ({Fmt.Bytes(preview.GameBytes)}). No hay mundos ni capturas que conservar.",
+                $"Se borran sus archivos del juego ({Fmt.Bytes(preview.GameBytes)}). No tiene mundos ni capturas que guardar, así que no se pierde nada tuyo.",
                 ("Cancelar", null, false), ("Quitar del PC", () => _ = Do(false), true));
             return;
         }
         window.ShowDialog($"Quitar {_l.Host?.Name ?? pack.Name} de tu PC",
-            $"Se borran sus archivos del juego ({Fmt.Bytes(preview.GameBytes)}). Tus mundos ({Fmt.Bytes(preview.SavesBytes)}) y tus capturas ({Fmt.Bytes(preview.ScreenshotsBytes)}) pueden quedarse: con «Conservar mis mundos» solo se quita el juego, y con «Quitar todo» se borra también lo tuyo.",
+            $"Se borran sus archivos del juego ({Fmt.Bytes(preview.GameBytes)}). Tus mundos ({Fmt.Bytes(preview.SavesBytes)}) y tus capturas ({Fmt.Bytes(preview.ScreenshotsBytes)}) se pueden quedar: con «Conservar mis mundos» solo se va el juego, y con «Quitar todo» se va también lo tuyo, sin vuelta atrás.",
             ("Cancelar", null, false), ("Quitar todo", () => _ = Do(true), false), ("Conservar mis mundos", () => _ = Do(false), true));
     }
 }

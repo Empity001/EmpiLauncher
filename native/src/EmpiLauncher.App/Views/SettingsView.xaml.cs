@@ -30,6 +30,10 @@ public partial class SettingsView : UserControl
     /// <summary>The tab on screen, and how far it is scrolled: a change of style rebuilds this screen and puts both back.</summary>
     public string CurrentTab => _current?.Id ?? "account";
     public double ScrollOffset => Scroller.VerticalOffset;
+#if !EMPI_RELEASE
+    /// <summary>Tests only (MainWindow's "scroll y" request).</summary>
+    public void TestScroll(double y) => Scroller.ScrollToVerticalOffset(y);
+#endif
     private double? _restoreOffset;
 
     public SettingsView(string initialTab, double restoreOffset) : this(initialTab) => _restoreOffset = restoreOffset;
@@ -84,7 +88,7 @@ public partial class SettingsView : UserControl
         try { await load; }
         catch (Exception ex)
         {
-            if (token == _loadToken) tab.Root.Children.Add(Ui.Text("No se pudo cargar esta pestaña: " + ex.Message, "CaptionText", Ui.Res("DangerBrush")));
+            if (token == _loadToken) tab.Root.Children.Add(Ui.Text("No pude cargar esta pestaña: " + ex.Message, "CaptionText", Ui.Res("DangerBrush")));
         }
         TabLoaded?.Invoke();
     }

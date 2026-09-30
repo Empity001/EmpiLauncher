@@ -24,7 +24,6 @@ internal sealed class RememberField : StyleField
 {
     public override double ArriveSeconds => 2.2;
     protected override double AmbientMs => 166;
-    protected override double InteractiveMs => 50;
 
     private const string Hand = "Ink Free, Segoe Print, Comic Sans MS";
     private static readonly Color InkC = Color.FromRgb(0x2b, 0x26, 0x20);

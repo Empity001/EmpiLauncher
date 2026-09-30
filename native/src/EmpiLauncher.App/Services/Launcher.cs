@@ -84,7 +84,7 @@ public sealed class Launcher : IAsyncDisposable
     {
         _host = await EngineHost.StartAsync(EngineLocator.Resolve());
         _host.Client.EventReceived += (name, data) => OnUi(() => HandleEvent(name, data));
-        _host.Client.Disconnected += () => OnUi(() => { if (_host != null) { _host = null; EngineLost?.Invoke("El motor del launcher se cerró de forma inesperada."); } });
+        _host.Client.Disconnected += () => OnUi(() => { if (_host != null) { _host = null; EngineLost?.Invoke("El motor del launcher se cerró de la nada."); } });
 
         Config = await Client.CallAsync<ConfigResult>("config.get");
         await ReloadDistroAsync();
@@ -142,7 +142,7 @@ public sealed class Launcher : IAsyncDisposable
     public async Task ChooseProfileAsync(string profileId)
     {
         if (profileId == SelectedId) return;
-        if (Game.Busy || Game.Running) { Notice?.Invoke("Termina o detén lo que está en marcha antes de cambiar de perfil."); return; }
+        if (Game.Busy || Game.Running) { Notice?.Invoke("Termina o detén lo que está en marcha antes de cambiar de perfil, porfa."); return; }
         await SwitchAsync(profileId);
         var name = Host?.Profiles?.List.FirstOrDefault(p => p.Id == profileId)?.Name;
         if (name != null) Notice?.Invoke($"Perfil {name}.");
@@ -179,6 +179,8 @@ public sealed class Launcher : IAsyncDisposable
     public UiPrefs Prefs { get; private set; } = new("auto");
     public event Action? ArtChanged;
     public event Action? PrefsChanged;
+    /// <summary>A setting the backgrounds read changed outside the engine's preferences (FPS, performance mode): they look again.</summary>
+    public void NotifyFieldSettings() => PrefsChanged?.Invoke();
 
     /// <summary>Banner and background of the selected modpack, as small still previews made by the engine (never the 278 MB originals).</summary>
     public async Task LoadArtAsync()
@@ -317,7 +319,9 @@ public sealed class Launcher : IAsyncDisposable
     /// </summary>
     public static void RefreshAccent()
     {
-        var hex = NativeSettings.PackAccent && !string.IsNullOrWhiteSpace(PackAccentHex) ? PackAccentHex : Styles.StyleCatalog.Get(Styles.StyleTheme.Current).AccentHex;
+        // the style's colour: the one the player gave it (Ajustes > Launcher > Estilo), or its own
+        var own = NativeSettings.StyleColors.TryGetValue(Styles.StyleTheme.Current, out var chosen) ? chosen : Styles.StyleCatalog.Get(Styles.StyleTheme.Current).AccentHex;
+        var hex = NativeSettings.PackAccent && !string.IsNullOrWhiteSpace(PackAccentHex) ? PackAccentHex : own;
         Color color;
         try { color = (Color)ColorConverter.ConvertFromString(string.IsNullOrWhiteSpace(hex) ? "#ff3d8b" : hex); }
         catch { color = Color.FromRgb(0xff, 0x3d, 0x8b); }
@@ -357,16 +361,16 @@ public sealed class Launcher : IAsyncDisposable
         AuthBusy = true;
         try
         {
-            ShowAuthWindow(true, "Termina de iniciar sesión en la ventana de Microsoft. Cuando acabes, esta pantalla continúa sola.");
+            ShowAuthWindow(true, "Termina de iniciar sesión en la ventana de Microsoft. Cuando acabes, esta pantalla sigue solita.");
             await Client.CallAsync<AccountList>("auth.microsoft.login", timeout: TimeSpan.FromMinutes(11));
             await RefreshConfigAsync();
-            Notice?.Invoke($"Sesión iniciada como {Account?.DisplayName}.");
+            Notice?.Invoke($"¡Hola, {Account?.DisplayName}! Ya estás dentro.");
             return true;
         }
         catch (EngineException ex) when (ex.Code == "cancelled") { return false; }
         catch (EngineException ex)
         {
-            Failure?.Invoke(new GameFailure("auth", ex.Title ?? "Error al iniciar sesión", ex.Message));
+            Failure?.Invoke(new GameFailure("auth", ex.Title ?? "No se pudo iniciar sesión", ex.Message));
             return false;
         }
         finally { AuthBusy = false; ShowAuthWindow(false, ""); }
@@ -427,7 +431,7 @@ public sealed class Launcher : IAsyncDisposable
         var microsoft = Config?.Accounts.Accounts.FirstOrDefault(a => a.Uuid == uuid)?.Type == "microsoft";
         try
         {
-            if (microsoft) ShowAuthWindow(true, "Elige tu cuenta en la ventana de Microsoft para cerrar su sesión. Se cierra sola al terminar; si la cierras tú, la cuenta también se quita de este launcher.");
+            if (microsoft) ShowAuthWindow(true, "Escoge tu cuenta en la ventana de Microsoft para cerrar su sesión. Se cierra solita al terminar; si la cierras tú, la cuenta igual se quita de este launcher.");
             await Client.CallAsync<AccountList>("account.remove", new { uuid }, TimeSpan.FromMinutes(11));
             await RefreshConfigAsync();
             return true;
@@ -477,7 +481,7 @@ public sealed class Launcher : IAsyncDisposable
     public async Task<OfflinePreview> PreviewOfflineAsync(string name)
     {
         try { return await Client.CallAsync<OfflinePreview>("offline.preview", new { name }, TimeSpan.FromSeconds(5)); }
-        catch (Exception) { return new OfflinePreview(false, "No se pudo comprobar el nombre. Inténtalo de nuevo.", name, null, null); }
+        catch (Exception) { return new OfflinePreview(false, "No pude revisar el nombre. Inténtalo otra vez.", name, null, null); }
     }
 
     /// <summary>Time played in the last seven days and in all, for one modpack (or all of them). Null when the engine cannot say.</summary>
@@ -495,7 +499,7 @@ public sealed class Launcher : IAsyncDisposable
         {
             await Client.CallAsync<AccountList>("offline.set", new { name }, TimeSpan.FromSeconds(10));
             await RefreshConfigAsync();
-            Notice?.Invoke($"Jugarás sin conexión como {Account?.DisplayName}.");
+            Notice?.Invoke($"Vas a jugar sin conexión como {Account?.DisplayName}.");
             return null;
         }
         catch (EngineException ex) { return ex.Message; }
@@ -529,7 +533,7 @@ public sealed class Launcher : IAsyncDisposable
             {
                 await RefreshPackAsync();
                 Changed?.Invoke();
-                Notice?.Invoke("Se detectaron cambios en las carpetas protegidas del modpack. Pulsa Restaurar para volver a la versión original.");
+                Notice?.Invoke("Alguien le movió a las carpetas protegidas del modpack. Pulsa Restaurar para dejarlo como venía.");
             }
         }
         catch (EngineException ex) when (ex.Code == "blocked")

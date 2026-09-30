@@ -54,7 +54,7 @@ internal sealed class BlockedView : UserControl
 
     private void Refresh()
     {
-        _message.Text = _l.Notices?.Launcher.Message ?? "Esta versión del launcher ya no se puede usar.";
+        _message.Text = _l.Notices?.Launcher.Message ?? "Esta versión del launcher ya se jubiló. Actualízala y seguimos.";
         // the update the engine knows about (or is still asking for); without one there is only the download page
         _update.Content = _l.Update != null ? $"Actualizar a la {_l.Update.Version}" : "Actualizar ahora";
     }

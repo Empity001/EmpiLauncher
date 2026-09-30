@@ -25,7 +25,6 @@ internal sealed class PunkField : StyleField
     public override double ArriveSeconds => 1.4;
     public override double Ease(double raw) => raw;   // the sheets land at a steady beat, one slap after another
     protected override double AmbientMs => 125;
-    protected override double InteractiveMs => 42;
 
     private static readonly Color Ink = Color.FromRgb(0x14, 0x12, 0x14);
     private static readonly Color Paper = Color.FromRgb(0xf1, 0xec, 0xe2);

@@ -21,7 +21,7 @@ internal sealed class AccountTab : SettingsTab
 
         var accounts = _l.Config?.Accounts.Accounts ?? [];
         var card = Ui.Section("Cuentas de Minecraft", out var body,
-            accounts.Count == 0 ? null : _l.SignedOut ? "Ahora no hay ninguna sesión iniciada. Elige con cuál jugar." : "La cuenta seleccionada es la que se usa al jugar. Cambia de una a otra cuando quieras.");
+            accounts.Count == 0 ? null : _l.SignedOut ? "Ahorita no hay ninguna sesión iniciada. Escoge con cuál jugar." : "La cuenta escogida es la que se usa al jugar. Cambia de una a otra cuando quieras.");
         if (accounts.Count == 0)
             body.Children.Add(Ui.Text("Todavía no hay ninguna cuenta guardada. Añade una desde la pantalla de inicio de sesión.", "BodyText", Ui.Res("Paper2Brush")));
 
@@ -80,7 +80,7 @@ internal sealed class AccountTab : SettingsTab
         Root.Children.Add(card);
 
         var note = Ui.Section(null, out var noteBody);
-        noteBody.Children.Add(Ui.Text("Cerrar sesión no borra nada: te lleva a la pantalla de inicio de sesión, donde puedes entrar con cualquiera de tus cuentas, añadir otra (Microsoft o sin conexión) o eliminar una sesión guardada.", "CaptionText"));
+        noteBody.Children.Add(Ui.Text("Cerrar sesión no borra nada, tranqui: te lleva a la pantalla de inicio de sesión, donde puedes entrar con cualquiera de tus cuentas, añadir otra (Microsoft o sin conexión) o eliminar una sesión guardada.", "CaptionText"));
         Root.Children.Add(note);
     }
 }

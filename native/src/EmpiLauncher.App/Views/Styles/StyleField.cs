@@ -22,7 +22,9 @@ namespace EmpiLauncher.App.Views.Styles;
 /// </summary>
 internal abstract class StyleField : FrameworkElement, StyleHost.ILayer
 {
-    private readonly DispatcherTimer _frame = new(DispatcherPriority.Render);
+    private readonly FrameClock _frame;
+    private (double Idle, double Active) _rate = (15, 30);
+    private double _budget = 60;   // the fastest this machine has shown it can afford (lowered when frames cost too much, automatic mode only)
     private readonly DispatcherTimer _gate = new() { Interval = TimeSpan.FromSeconds(2) };
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private double _lastRender, _lastQuiet = -9, _cost;
@@ -55,9 +57,8 @@ internal abstract class StyleField : FrameworkElement, StyleHost.ILayer
     protected double NextAmp { get; private set; }
     protected List<Rect> Quiet { get; } = [];
 
-    /// <summary>Frame interval while nothing happens, and while the player moves or clicks.</summary>
+    /// <summary>The style's own quiet pace (ms between frames while nothing happens): it only counts while performance mode saves (FieldGovernor.Rate).</summary>
     protected virtual double AmbientMs => 66;
-    protected virtual double InteractiveMs => 33;
     public abstract double ArriveSeconds { get; }
     public virtual double Ease(double raw) => raw * raw * (3 - 2 * raw);
     public FrameworkElement View => this;
@@ -75,7 +76,7 @@ internal abstract class StyleField : FrameworkElement, StyleHost.ILayer
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
         _gate.Tick += (_, _) => Gate();
-        _frame.Tick += (_, _) => DrawFrame();
+        _frame = new FrameClock(DrawFrame);
         SizeChanged += (_, _) => { Resized(); _baseDirty = true; DrawFrame(); };
     }
 
@@ -108,6 +109,9 @@ internal abstract class StyleField : FrameworkElement, StyleHost.ILayer
     }
 
     public void Burst(Point point, bool accent) => AddClick(point, accent, 1);
+
+    /// <summary>A left click on the background at that point, as the mouse gives it (the style may take it: Press).</summary>
+    public void Tap(Point point) { if (!Press(point)) AddClick(point, false, 1); }
 
     protected void AddClick(Point p, bool accent, double strength)
     {
@@ -151,17 +155,21 @@ internal abstract class StyleField : FrameworkElement, StyleHost.ILayer
     private void OnWindowEvent(object? sender, EventArgs e) => Gate();
     private void OnVisible(object sender, DependencyPropertyChangedEventArgs e) => Gate();
 
+    /// <summary>The player's intensity (Ajustes > Fondo), 0.1 to 1: the whole layer fades by default.</summary>
+    protected virtual void ApplyIntensity(double intensity) { if (Math.Abs(Opacity - intensity) > 0.001) Opacity = intensity; }
+
     private void Gate()
     {
-        var wanted = Math.Clamp(Launcher.Instance.Prefs.DotOpacity ?? 1, 0.1, 1);
-        if (Math.Abs(Opacity - wanted) > 0.001) Opacity = wanted;
+        ApplyIntensity(Math.Clamp(Launcher.Instance.Prefs.DotOpacity ?? 1, 0.1, 1));
         SyncAccent();
         FieldGovernor.Evaluate(Window.GetWindow(this));
+        var rate = FieldGovernor.Rate(1000 / AmbientMs);
+        if (rate != _rate) { _rate = rate; _budget = 60; }   // a new choice in Ajustes: the machine gets a fresh chance at it
         if (FieldGovernor.Allowed && !Running)
         {
             Running = true;
             _lastRender = _clock.Elapsed.TotalSeconds;
-            _frame.Interval = TimeSpan.FromMilliseconds(AmbientMs);
+            _frame.Fps = _rate.Idle;
             _frame.Start();
         }
         else if (!FieldGovernor.Allowed && Running)
@@ -196,23 +204,41 @@ internal abstract class StyleField : FrameworkElement, StyleHost.ILayer
         if (!Running) return;
         var target = e.OriginalSource as DependencyObject;
         var accent = false;
+        var control = false;
         while (target != null)
         {
-            if (ReferenceEquals(target, LivingField.NextAction) || target is Button b && ReferenceEquals(b.Style, Application.Current.TryFindResource("PrimaryButton"))) { accent = true; break; }
-            if (target is ButtonBase) break;
+            if (ReferenceEquals(target, LivingField.NextAction) || target is Button b && ReferenceEquals(b.Style, Application.Current.TryFindResource("PrimaryButton"))) { accent = true; control = true; break; }
+            if (target is ButtonBase or TextBoxBase or RangeBase or Selector or Thumb) { control = true; break; }
             target = target is Visual ? VisualTreeHelper.GetParent(target) : LogicalTreeHelper.GetParent(target);
         }
-        AddClick(e.GetPosition(this), accent, 1);
+        var at = e.GetPosition(this);
+        // a click that lands on the background's own drawing (and not on the interface over it) may be the style's to answer
+        if (!control && e.ChangedButton == MouseButton.Left && !Quiet.Any(r => r.Contains(at)) && Press(at)) return;
+        AddClick(at, accent, 1);
     }
 
+    /// <summary>
+    /// A left click on the background, where no control of the interface is: a style whose drawing has things to press (Explorer's dialogs)
+    /// takes it and returns true, and then no ring or answer is drawn for it.
+    /// </summary>
+    protected virtual bool Press(Point at) => false;
+
     // ---- a frame --------------------------------------------------------------------------------------------------------------
+
+#if !EMPI_RELEASE
+    /// <summary>Tests only (MainWindow's "pointer x y" request): the pointer held at a point, without the real mouse.</summary>
+    internal static Point? TestPointer;
+#endif
 
     private void DrawFrame()
     {
         if (W < 50 || H < 50 || !IsLoaded) return;
         var started = Stopwatch.GetTimestamp();
         var now = _clock.Elapsed.TotalSeconds;
-        var dt = Running ? Math.Min(0.1, now - _lastRender) : 0;
+#if !EMPI_RELEASE
+        if (TestPointer is { } held) { Pointer = held; _pointerWant = 1; _movedAt = _clock.ElapsedMilliseconds; }
+#endif
+        var dt = Running ? Math.Min(0.25, now - _lastRender) : 0;   // a slow rate (5 FPS) still keeps time
         _lastRender = now;
         T += dt;
 
@@ -229,17 +255,27 @@ internal abstract class StyleField : FrameworkElement, StyleHost.ILayer
         using (var dc = _live.RenderOpen()) Render(dc, dt);
         if (_baseDirty) { _baseDirty = false; using var bc = _base.RenderOpen(); RenderBase(bc); }
 
-        // fast while the player is interacting or the style is arriving, gentle otherwise
+        // the fast rate while the player is interacting or the style is arriving, the quiet one otherwise (FieldGovernor.Rate)
         if (Running)
         {
             var interacting = _clock.ElapsedMilliseconds - _movedAt < 1500 || Clicks.Count > 0 || Reveal < 1;
-            var wanted = TimeSpan.FromMilliseconds(interacting ? InteractiveMs : AmbientMs);
-            if (_frame.Interval != wanted) _frame.Interval = wanted;
+            _frame.Fps = Math.Min(interacting ? _rate.Active : _rate.Idle, Math.Max(_rate.Idle, _budget));
             var ms = (Stopwatch.GetTimestamp() - started) * 1000.0 / Stopwatch.Frequency;
             _cost = _cost * 0.9 + ms * 0.1;
             _slow = _cost > 9 ? _slow + 1 : Math.Max(0, _slow - 1);
-            if (_slow > 90) { _slow = 0; _cost = 0; if (!Thin()) FieldGovernor.Yield("el equipo iba justo y lo dejé quieto"); }
+            if (_slow > 90) { _slow = 0; _cost = 0; Afford(); }
         }
+    }
+
+    /// <summary>
+    /// Frames cost more than this machine can give. Automatic mode first draws fewer of them (down to the player's minimum), then draws
+    /// less (Thin), and in the end stops; performance mode off never gives up: the player asked for it.
+    /// </summary>
+    private void Afford()
+    {
+        if (FieldGovernor.PerfMode == "off") return;
+        if (_budget > _rate.Idle + 0.5) { _budget = Math.Max(_rate.Idle, Math.Min(_budget, _rate.Active) * 0.75); return; }
+        if (!Thin()) FieldGovernor.Yield("tu compu iba justita y lo dejé quieto para que descanse");
     }
 
     private string _quietSig = "";

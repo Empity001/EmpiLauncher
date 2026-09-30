@@ -48,7 +48,7 @@ internal sealed class ReportPanel : UserControl
         root.Children.Add(header);
 
         var intro = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
-        var explanation = Ui.Text("Esto es todo lo que contiene: versiones, tu equipo, el modpack, los mods y el final del registro del juego. Lleva tu nombre de jugador para que se sepa quién eres, pero nunca tu sesión, tus claves, tu correo ni tu usuario de Windows. No se envía nada hasta que tú lo pidas.", "BodyText", Fmt.Res("Paper2Brush"));
+        var explanation = Ui.Text("Esto es todo lo que lleva: versiones, tu equipo, el modpack, los mods y el final del registro del juego. Lleva tu nombre de jugador para saber quién eres, pero nunca tu sesión, tus claves, tu correo ni tu usuario de Windows. No se manda nada hasta que tú digas.", "BodyText", Fmt.Res("Paper2Brush"));
         explanation.TextWrapping = TextWrapping.Wrap;
         intro.Children.Add(explanation);
         _note = new TextBox { Style = (Style)FindResource("InputBox"), AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 36, MaxHeight = 60, MaxLength = 600, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(0, 10, 0, 0) };
@@ -105,7 +105,7 @@ internal sealed class ReportPanel : UserControl
         catch (Exception ex)
         {
             if (generation != _generation) return;
-            _text.Text = "No se pudo preparar el informe: " + ex.Message;
+            _text.Text = "No pude preparar el informe: " + ex.Message;
         }
         Layout();
     }
@@ -122,16 +122,16 @@ internal sealed class ReportPanel : UserControl
         _copyMail.Visibility = support is { CanSend: false, Email: not null } ? Visibility.Visible : Visibility.Collapsed;
         _where.Text = support switch
         {
-            { CanSend: true } => "Se envía a soporte por correo, con este contenido exacto y tu nota. Tú eliges: si prefieres, guárdalo y mándalo tú.",
-            { Email: { } mail } => $"Aquí no se puede enviar directamente. Guarda el informe y mándalo a {mail}.",
-            _ => "Guarda el informe y envíaselo a quien te esté ayudando."
+            { CanSend: true } => "Me llega a soporte por correo, con esto exactito y tu nota. Tú decides: si prefieres, guárdalo y mándalo tú.",
+            { Email: { } mail } => $"Desde aquí no se puede mandar directo. Guarda el informe y mándalo a {mail}.",
+            _ => "Guarda el informe y mándaselo a quien te esté echando la mano."
         };
     }
 
     private void Copy()
     {
-        try { Clipboard.SetText(_report); Say("Copiado. Pégalo donde quieras compartirlo.", ok: true); }
-        catch (Exception) { Say("No se pudo copiar (otro programa está usando el portapapeles). Vuelve a intentarlo.", ok: false); }
+        try { Clipboard.SetText(_report); Say("Copiado. Pégalo donde lo quieras compartir.", ok: true); }
+        catch (Exception) { Say("No se pudo copiar (otro programa está usando el portapapeles). Inténtalo otra vez.", ok: false); }
     }
 
     private void CopyMail()
@@ -162,10 +162,10 @@ internal sealed class ReportPanel : UserControl
         {
             await _l.SendReportAsync(_report, _code, _note.Text);
             _sent = true;
-            Say($"Enviado. Gracias. Tu código es {_code}: si te escriben, menciónalo.", ok: true);
+            Say($"¡Enviado, gracias! Tu código es {_code}: si te escribo, así sé que eres tú.", ok: true);
         }
         catch (EngineException ex) { Say(ex.Message, ok: false); }
-        catch (Exception) { Say("No se pudo enviar. Guárdalo como archivo y mándalo por otro medio.", ok: false); }
+        catch (Exception) { Say("No se pudo enviar. Guárdalo como archivo y mándamelo por otro lado.", ok: false); }
         _sending = false;
         Layout();
     }

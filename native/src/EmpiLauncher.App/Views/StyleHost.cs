@@ -93,6 +93,9 @@ internal sealed class StyleHost : Grid
     /// <summary>A click or the logo's opening: the style on top answers it.</summary>
     public void Burst(Point point, bool accent) => _stack[^1].Layer.Burst(point, accent);
 
+    /// <summary>A plain click on the background, as the mouse gives it (tests: MainWindow's "tap x y").</summary>
+    public void Tap(Point point) { if (_stack[^1].Layer is Styles.StyleField field) field.Tap(point); else Burst(point, false); }
+
     private void Order()
     {
         for (var i = 0; i < _stack.Count; i++) SetZIndex(_stack[i].Layer.View, i);
