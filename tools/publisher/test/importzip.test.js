@@ -16,6 +16,19 @@ const zipfile = require('../lib/zipfile')
 const iz = require('../lib/importzip')
 const nebula = require('../lib/nebula')
 
+
+/** A zip made by the OS's own tool (Compress-Archive on Windows, zip elsewhere), not by our writer. `contentsOnly` leaves the folder itself out. */
+function makeZip(folder, zipPath, contentsOnly) {
+    if (process.platform === 'win32') {
+        const target = contentsOnly ? `${folder}\\*` : folder
+        execFileSync('powershell.exe', ['-NoProfile', '-Command', `Compress-Archive -Path "${target}" -DestinationPath "${zipPath}" -Force`])
+    } else if (contentsOnly) {
+        execFileSync('zip', ['-rqD', zipPath, '.'], { cwd: folder })
+    } else {
+        execFileSync('zip', ['-rqD', zipPath, path.basename(folder)], { cwd: path.dirname(folder) })
+    }
+}
+
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'publisher-importzip-'))
 
 // ------------------------------------------------------------ zipfile.js: reading the format itself
@@ -28,7 +41,7 @@ test('a real zip (built by Windows, not by us) reads back byte for byte, store a
     fs.writeFileSync(path.join(dir, 'src', 'mods', 'big.jar'), require('crypto').randomBytes(400000))   // big enough that deflate actually compresses it
     fs.writeFileSync(path.join(dir, 'src', 'config', 'sub', 'settings.json'), '{"ok":true}')
     const zipPath = path.join(dir, 'out.zip')
-    execFileSync('powershell.exe', ['-NoProfile', '-Command', `Compress-Archive -Path "${path.join(dir, 'src')}\\*" -DestinationPath "${zipPath}" -Force`])
+    makeZip(path.join(dir, 'src'), zipPath, true)
 
     const zip = zipfile.open(zipPath)
     try {
@@ -193,7 +206,7 @@ function buildRealZip(dir) {
     fs.writeFileSync(path.join(root, 'logs', 'latest.log'), REAL_FORGE_LOG)
     fs.writeFileSync(path.join(root, 'options.txt'), 'fov:90')
     const zipPath = path.join(dir, 'profile.zip')
-    execFileSync('powershell.exe', ['-NoProfile', '-Command', `Compress-Archive -Path "${root}" -DestinationPath "${zipPath}" -Force`])
+    makeZip(root, zipPath, false)
     return zipPath
 }
 

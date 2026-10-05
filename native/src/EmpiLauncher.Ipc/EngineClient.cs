@@ -1,18 +1,19 @@
 using System.Collections.Concurrent;
 using System.IO.Pipes;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 
 namespace EmpiLauncher.Ipc;
 
 /// <summary>
-/// The UI's side of the engine pipe: newline-delimited JSON over a Windows named pipe.
+/// The UI's side of the engine pipe: newline-delimited JSON over a Windows named pipe, or a Unix domain socket on Linux and macOS.
 /// Requests carry an id and are answered with the same id; anything without an id is an event pushed by the engine.
 /// The UI never needs to know how helios-core works: it asks for an action, the engine does it and reports back.
 /// </summary>
 public sealed class EngineClient : IAsyncDisposable
 {
-    private readonly NamedPipeClientStream _pipe;
+    private readonly Stream _pipe;
     private readonly StreamReader _reader;
     private readonly StreamWriter _writer;
     private readonly SemaphoreSlim _writeLock = new(1, 1);
@@ -24,7 +25,7 @@ public sealed class EngineClient : IAsyncDisposable
     public event Action<string, JsonElement>? EventReceived;
     public event Action? Disconnected;
 
-    private EngineClient(NamedPipeClientStream pipe)
+    private EngineClient(Stream pipe)
     {
         _pipe = pipe;
         _reader = new StreamReader(pipe, new UTF8Encoding(false), false, 64 * 1024, leaveOpen: true);
@@ -33,9 +34,23 @@ public sealed class EngineClient : IAsyncDisposable
 
     public static async Task<EngineClient> ConnectAsync(string pipeName, string token, CancellationToken ct = default)
     {
-        var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
-        await pipe.ConnectAsync(5000, ct).ConfigureAwait(false);
-        var client = new EngineClient(pipe);
+        Stream stream;
+        if (OperatingSystem.IsWindows())
+        {
+            var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+            await pipe.ConnectAsync(5000, ct).ConfigureAwait(false);
+            stream = pipe;
+        }
+        else
+        {
+            // pipeName is the absolute path of the engine's socket (see EngineHost.SocketPath)
+            var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(5000);
+            await socket.ConnectAsync(new UnixDomainSocketEndPoint(pipeName), timeout.Token).ConfigureAwait(false);
+            stream = new NetworkStream(socket, ownsSocket: true);
+        }
+        var client = new EngineClient(stream);
         _ = Task.Run(client.ReadLoopAsync);
         await client.CallAsync("engine.hello", new { token, client = "EmpiLauncher.App" }, ct: ct).ConfigureAwait(false);
         return client;

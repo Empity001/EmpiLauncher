@@ -13,7 +13,7 @@ const TIMEOUT_MS = 10 * 60 * 1000
 function findElectron(hint) {
     if (hint && fs.existsSync(hint)) return hint
     if (process.versions.electron) return process.execPath
-    const dev = path.join(__dirname, '..', '..', '..', 'node_modules', 'electron', 'dist', 'electron.exe')
+    const dev = path.join(__dirname, '..', '..', '..', 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron')
     if (fs.existsSync(dev)) return dev
     return null
 }

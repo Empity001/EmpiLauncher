@@ -16,6 +16,7 @@ files:
   - '!{dist,.gitignore,.vscode,docs,dev-app-update.yml,.nvmrc,eslint.config.mjs}'
   - '!.github/**'
   - '!tools/**'
+  - '!{native,engine,patches,logs,.impeccable}/**'
   - '!{PRODUCT.md,DESIGN.md,.impeccable}'
 
 extraResources:
@@ -55,8 +56,10 @@ mac:
   category: 'public.app-category.games'
 
 # Linux Configuration
-linux: 
+linux:
   target: 'AppImage'
+  artifactName: 'Empi-Launcher-${version}.${ext}'
+  icon: 'build/icon.png'
   maintainer: 'Empity001'
   vendor: 'Empity001'
   synopsis: 'EmpiLauncher'

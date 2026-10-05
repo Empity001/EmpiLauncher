@@ -1,0 +1,8 @@
+{
+  "name": "empi-publisher-app",
+  "productName": "Empi Publisher",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ventana de escritorio del Publisher: levanta el servidor local y lo muestra como app, sin navegador.",
+  "main": "main.js"
+}

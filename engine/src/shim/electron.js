@@ -10,7 +10,7 @@ const os = require('os')
 const path = require('path')
 
 const APP_NAME = 'Empi Launcher'          // package.json "productName": Electron's userData folder is %APPDATA%\<productName>
-let userData = process.env.EMPI_ENGINE_USER_DATA || path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), APP_NAME)
+let userData = process.env.EMPI_ENGINE_USER_DATA || path.join(process.env.APPDATA || (process.platform === 'win32' ? path.join(os.homedir(), 'AppData', 'Roaming') : process.platform === 'darwin' ? path.join(os.homedir(), 'Library', 'Application Support') : process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config')), APP_NAME)
 let appVersion = process.env.EMPI_ENGINE_APP_VERSION || '0.0.0'
 
 const app = {

@@ -1,6 +1,7 @@
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
+const { spawnSync } = require('child_process')
 const { capture, runNode } = require('./exec')
 const git = require('./git')
 const gh = require('./gh')
@@ -33,9 +34,10 @@ function setVersion(config, version) {
 }
 
 /** What electron-builder produced, as recorded in dist/latest.yml (the exact names auto-update looks for). */
-function readBuild(config, expectedVersion) {
+function readBuild(config, expectedVersion, kind) {
     const dist = path.join(config.launcherRepoPath, 'dist')
-    const yml = path.join(dist, 'latest.yml')
+    const linux = kind === 'linux'
+    const yml = path.join(dist, linux ? 'latest-linux.yml' : 'latest.yml')
     if (!fs.existsSync(yml)) return null
     const text = fs.readFileSync(yml, 'utf8')
     const version = (text.match(/^version:\s*(.+)$/m) || [])[1]
@@ -46,8 +48,8 @@ function readBuild(config, expectedVersion) {
     const local = fs.readdirSync(dist).find((name) => name.replace(/ /g, '-') === assetName.trim())
     if (!local) return null
     const exe = path.join(dist, local)
-    if (!fs.existsSync(`${exe}.blockmap`)) return null
-    return { version: version.trim(), assetName: assetName.trim(), exe, size: fs.statSync(exe).size, yml }
+    if (!linux && !fs.existsSync(`${exe}.blockmap`)) return null   // the Linux package has no installer block map
+    return { version: version.trim(), assetName: assetName.trim(), exe, size: fs.statSync(exe).size, yml, ymlName: path.basename(yml), kind: kind || 'classic' }
 }
 
 /**
@@ -57,9 +59,15 @@ function readBuild(config, expectedVersion) {
  * The channel is the same latest.yml for both, so a player with the classic launcher who receives a native build
  * is updated into it: the native installer removes the classic program (native/build/installer.nsi).
  */
+const hasBuilder = (config) => fs.existsSync(path.join(config.launcherRepoPath, 'node_modules', 'electron-builder', 'cli.js'))
+const hasDotnet = () => spawnSync('dotnet', ['--version'], { encoding: 'utf8' }).status === 0
+const hasWine = () => (process.env.PATH || '').split(path.delimiter).some((dir) => dir && fs.existsSync(path.join(dir, 'wine')))
 const KINDS = {
-    native: (config) => fs.existsSync(path.join(config.launcherRepoPath, 'native', 'build', 'build.mjs')),
-    classic: (config) => fs.existsSync(path.join(config.launcherRepoPath, 'node_modules', 'electron-builder', 'cli.js'))
+    // WPF + NSIS only build on Windows; the classic Windows installer needs Wine anywhere else; the Linux launcher only builds on Linux.
+    native: (config) => process.platform === 'win32' && fs.existsSync(path.join(config.launcherRepoPath, 'native', 'build', 'build.mjs')),
+    classic: (config) => hasBuilder(config) && (process.platform === 'win32' || hasWine()),
+    // the native Linux launcher: Avalonia + the engine, as one tar.gz (native/build/build-linux.mjs); needs the .NET SDK
+    linux: (config) => process.platform === 'linux' && fs.existsSync(path.join(config.launcherRepoPath, 'native', 'build', 'build-linux.mjs')) && hasDotnet()
 }
 
 function availableKinds(config) {
@@ -67,13 +75,13 @@ function availableKinds(config) {
 }
 
 function defaultKind(config) {
-    return KINDS.native(config) ? 'native' : 'classic'
+    return KINDS.native(config) ? 'native' : KINDS.linux(config) ? 'linux' : 'classic'
 }
 
 async function info(config) {
     const pkg = readPackage(config)
     const state = loadState().launcherBuild || null
-    const build = state ? readBuild(config, state.version) : null
+    const build = state ? readBuild(config, state.version, state.kind) : null
     let dirty = 0
     try { dirty = (await git.changes(config.launcherRepoPath)).length } catch { /* not a repo */ }
     const latestTag = await gh.latestTag(config.launcherGithubRepo)
@@ -115,7 +123,7 @@ async function compile(config, options, log, step) {
 
     const kind = options.kind || defaultKind(config)
     if (!KINDS[kind]) throw new Error(`Tipo de instalador desconocido: ${kind}.`)
-    if (!KINDS[kind](config)) throw new Error(kind === 'native' ? 'Falta native/build/build.mjs en la carpeta del launcher.' : 'Faltan las dependencias del launcher. Corre "npm install" en su carpeta una vez.')
+    if (!KINDS[kind](config)) throw new Error(kind === 'native' ? 'El instalador nativo solo se compila en Windows (necesita WPF y NSIS).' : kind === 'linux' ? 'El launcher de Linux se compila en Linux, con el SDK de .NET (brew install dotnet) y las dependencias del launcher ("npm ci" en su carpeta).' : 'El instalador clásico de Windows se compila en Windows (en otros sistemas necesita Wine). Faltan las dependencias del launcher: corre "npm ci" en su carpeta una vez.')
 
     // A style from Pendientes is switched on in styles.json BEFORE the build, so the installer carries it; one left in an unsent build goes back.
     const style = options.style ? String(options.style) : null
@@ -125,7 +133,7 @@ async function compile(config, options, log, step) {
     try {
         await build(config, kind, version, log, step)
         step('Comprobando el instalador')
-        const built = readBuild(config, version)
+        const built = readBuild(config, version, kind)
         if (!built) throw new Error('La compilacion termino pero no encuentro el instalador de esa version.')
         log(`Instalador listo: ${path.basename(built.exe)} (${(built.size / MB).toFixed(0)} MB)`)
     } catch (err) {
@@ -147,6 +155,12 @@ async function build(config, kind, version, log, step) {
             const stage = /^==> \[\d+\]\s*(.+)$/.exec(line)
             if (stage) step(stage[1]); else log(line)
         })
+    } else if (kind === 'linux') {
+        step('Construyendo el launcher de Linux (tarda un par de minutos)')
+        await runNode(path.join(repo, 'native', 'build', 'build-linux.mjs'), ['--version', version], { cwd: repo }, (line) => {
+            const stage = /^==> \[\d+\]\s*(.+)$/.exec(line)
+            if (stage) step(stage[1]); else log(line)
+        })
     } else {
         step('Construyendo el instalador clasico (tarda unos minutos)')
         await runNode(path.join(repo, 'node_modules', 'electron-builder', 'cli.js'), ['build', '-w', '--publish', 'never'], {
@@ -160,7 +174,7 @@ async function send(config, options, log, step) {
     const repo = config.launcherRepoPath
     const state = loadState().launcherBuild
     if (!state) throw new Error('Primero pulsa "Compilar".')
-    const build = readBuild(config, state.version)
+    const build = readBuild(config, state.version, state.kind)
     if (!build) throw new Error('No encuentro el instalador compilado. Vuelve a pulsar "Compilar".')
     if (readPackage(config).version !== state.version) throw new Error('La versión cambió después de compilar. Vuelve a pulsar "Compilar".')
 
@@ -179,8 +193,8 @@ async function send(config, options, log, step) {
     try {
         const files = [
             [build.exe, build.assetName],
-            [`${build.exe}.blockmap`, `${build.assetName}.blockmap`],
-            [build.yml, 'latest.yml']
+            ...(build.kind === 'linux' ? [] : [[`${build.exe}.blockmap`, `${build.assetName}.blockmap`]]),
+            [build.yml, build.ymlName]
         ].map(([source, name]) => {
             const staged = path.join(staging, name)
             try { fs.linkSync(source, staged) } catch { fs.copyFileSync(source, staged) }
@@ -191,6 +205,9 @@ async function send(config, options, log, step) {
             log(`El release ${tag} ya existia, lo actualizo.`)
             await gh.uploadAssets(config.launcherGithubRepo, tag, files, log)
             await gh.editRelease(config.launcherGithubRepo, tag, { title: tag, notes, draft: false }, log)
+        } else if (build.kind === 'linux') {
+            // a release made only of Linux files would become the "latest" one and the Windows launchers' latest.yml would vanish from it
+            throw new Error(`El Release ${tag} todavía no existe. El de Linux se agrega al de Windows: primero publica esa versión desde Windows (o crea el Release a mano con su latest.yml).`)
         } else {
             await gh.createRelease(config.launcherGithubRepo, tag, tag, notes, log, files, branch)
         }
@@ -200,13 +217,13 @@ async function send(config, options, log, step) {
 
     step('Comprobando que quedo publicado')
     const assets = (await gh.listAssets(config.launcherGithubRepo, tag)).map((asset) => asset.name)
-    for (const name of [build.assetName, `${build.assetName}.blockmap`, 'latest.yml']) {
+    for (const name of [build.assetName, ...(build.kind === 'linux' ? [] : [`${build.assetName}.blockmap`]), build.ymlName]) {
         if (!assets.includes(name)) throw new Error(`En GitHub falta ${name}. Vuelve a pulsar "Enviar".`)
     }
 
     // What players' launchers read is the "latest release" copy of latest.yml. It is normally live right away; if GitHub still serves
     // the old one this says so instead of leaving a silent "published" that nobody is offered yet.
-    try {
+    if (build.kind !== 'linux') try {
         const response = await fetch(`https://github.com/${config.launcherGithubRepo}/releases/latest/download/latest.yml`, { headers: { 'User-Agent': 'EmpiPublisher' }, cache: 'no-store', signal: AbortSignal.timeout(15000) })
         const served = response.ok ? (/^version:\s*(.+)$/m.exec(await response.text()) || [])[1] : null
         if (served && served.trim() === state.version) log(`Los launchers ya ven la version ${state.version} como la ultima.`)
@@ -218,12 +235,12 @@ async function send(config, options, log, step) {
     // Old installers pile up ~100 MB each; only the one just released is worth keeping.
     const dist = path.dirname(build.exe)
     for (const name of fs.readdirSync(dist)) {
-        if (/^Empi[ -]Launcher-setup-.*\.exe(\.blockmap)?$/.test(name) && !name.startsWith(path.basename(build.exe))) {
+        if (/^Empi[ -]Launcher-(setup-.*\.exe(\.blockmap)?|[\d.]+-linux-x64\.tar\.gz)$/.test(name) && !name.startsWith(path.basename(build.exe))) {
             fs.rmSync(path.join(dist, name), { force: true })
         }
     }
 
-    saveState({ launcherBuild: { ...state, sentAt: new Date().toISOString() }, lastSentKind: state.kind || 'classic' })
+    saveState({ launcherBuild: { ...state, sentAt: new Date().toISOString() }, lastSentKind: state.kind === 'linux' ? (loadState().lastSentKind || null) : (state.kind || 'classic') })
     log(`Publicado: https://github.com/${config.launcherGithubRepo}/releases/tag/${tag}`)
     return { version: state.version, url: `https://github.com/${config.launcherGithubRepo}/releases/tag/${tag}` }
 }

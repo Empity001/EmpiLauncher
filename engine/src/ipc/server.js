@@ -79,9 +79,18 @@ function createServer({ pipeName, token, handlers, log, onIdle }) {
     return {
         listen: () => new Promise((resolve, reject) => {
             server.once('error', reject)
-            server.listen(`\\\\.\\pipe\\${pipeName}`, () => resolve())
+            // Windows: a named pipe. Elsewhere the UI passes an absolute path and the engine listens on a Unix socket there, for the owner only.
+            const onUnixSocket = pipeName.startsWith('/')
+            if (onUnixSocket) { try { require('fs').unlinkSync(pipeName) } catch { /* nothing left over */ } }
+            server.listen(onUnixSocket ? pipeName : `\\\\.\\pipe\\${pipeName}`, () => {
+                if (onUnixSocket) { try { require('fs').chmodSync(pipeName, 0o600) } catch { /* the folder is already the user's own */ } }
+                resolve()
+            })
         }),
-        close: () => new Promise((resolve) => server.close(() => resolve())),
+        close: () => new Promise((resolve) => server.close(() => {
+            if (pipeName.startsWith('/')) { try { require('fs').unlinkSync(pipeName) } catch { /* already gone */ } }
+            resolve()
+        })),
         broadcast: (event, data) => { if (client && !client.destroyed) client.write(JSON.stringify({ event, data }) + '\n') },
         hasClient: () => client != null
     }

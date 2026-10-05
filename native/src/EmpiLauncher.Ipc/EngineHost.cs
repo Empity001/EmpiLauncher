@@ -30,6 +30,7 @@ public sealed class EngineHost : IAsyncDisposable
     public static async Task<EngineHost> StartAsync(EngineHostOptions options, CancellationToken ct = default)
     {
         var pipe = $"empi-engine-{Environment.ProcessId}-{Convert.ToHexString(RandomNumberGenerator.GetBytes(4)).ToLowerInvariant()}";
+        if (!OperatingSystem.IsWindows()) pipe = SocketPath(pipe);
         var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
 
         var info = new ProcessStartInfo(options.RuntimePath)
@@ -50,6 +51,13 @@ public sealed class EngineHost : IAsyncDisposable
         var ready = new TaskCompletionSource();
         process.OutputDataReceived += (_, e) => { if (e.Data != null && e.Data.StartsWith("ENGINE_READY")) ready.TrySetResult(); };
         process.ErrorDataReceived += (_, e) => { if (e.Data != null && e.Data.StartsWith("ENGINE_FAILED")) ready.TrySetException(new InvalidOperationException(e.Data)); };
+        // development: EMPI_ENGINE_LOG=1 shows what the engine writes (its log lines and, if it dies, why)
+        if (Environment.GetEnvironmentVariable("EMPI_ENGINE_LOG") == "1")
+        {
+            process.OutputDataReceived += (_, e) => { if (e.Data != null) Console.Error.WriteLine("[engine] " + e.Data); };
+            process.ErrorDataReceived += (_, e) => { if (e.Data != null) Console.Error.WriteLine("[engine!] " + e.Data); };
+            process.Exited += (_, _) => Console.Error.WriteLine($"[engine] exited with code {process.ExitCode}");
+        }
         process.EnableRaisingEvents = true;
         process.Exited += (_, _) => ready.TrySetException(new InvalidOperationException("the engine exited before it was ready"));
         process.BeginOutputReadLine();
@@ -66,10 +74,18 @@ public sealed class EngineHost : IAsyncDisposable
         return new EngineHost(process, client, pipe);
     }
 
+    /// <summary>Where the engine's Unix socket lives: the user's runtime folder (private to them), or the temp folder when there is none.</summary>
+    public static string SocketPath(string name)
+    {
+        var runtime = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
+        var folder = !string.IsNullOrEmpty(runtime) && Directory.Exists(runtime) ? runtime : Path.GetTempPath();
+        return Path.Combine(folder, name + ".sock");
+    }
+
     /// <summary>Gives back the pages the engine touched while it worked; they are paged in again if it is needed.</summary>
     public void Trim()
     {
-        try { if (!Process.HasExited) EmptyWorkingSet(Process.Handle); } catch { }
+        try { if (OperatingSystem.IsWindows() && !Process.HasExited) EmptyWorkingSet(Process.Handle); } catch { }
     }
 
     public async ValueTask DisposeAsync()

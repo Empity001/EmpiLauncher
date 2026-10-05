@@ -3,7 +3,7 @@ const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
 const os = require('os')
-const { exec } = require('child_process')
+const { exec, spawn } = require('child_process')
 const { pipeline } = require('stream/promises')
 
 const config = require('./lib/config')
@@ -368,7 +368,9 @@ const server = http.createServer(async (req, res) => {
 
 function openBrowser() {
     if (process.argv.includes('--no-open')) return
-    if (process.platform === 'win32') exec(`start "" http://localhost:${PORT}`)
+    const url = `http://localhost:${PORT}`
+    if (process.platform === 'win32') exec(`start "" ${url}`)
+    else spawn(process.platform === 'darwin' ? 'open' : 'xdg-open', [url], { detached: true, stdio: 'ignore' }).on('error', () => {}).unref()
 }
 
 /** A small request to the copy of the tool that already has the port. Rejects on any failure or after 1.5 s. */

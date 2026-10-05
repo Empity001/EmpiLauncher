@@ -116,14 +116,17 @@ if (modsList.ok) {
 // ---- updates: a local server stands in for GitHub ----
 {
     const http = await import('node:http')
-    const yml = (version) => `version: ${version}\nfiles:\n  - url: Empi-Launcher-setup-${version}.exe\n    sha512: abc123==\n    size: 123456\npath: Empi-Launcher-setup-${version}.exe\nsha512: abc123==\nreleaseDate: '2026-09-18T00:00:00.000Z'\n`
+    // Windows reads latest.yml and an .exe, Linux latest-linux.yml and a .tar.gz (engine/src/handlers/update.js)
+    const EXT = process.platform === 'win32' ? '.exe' : '.tar.gz'
+    const CHANNEL = process.platform === 'win32' ? '/latest.yml' : '/latest-linux.yml'
+    const yml = (version) => `version: ${version}\nfiles:\n  - url: Empi-Launcher-setup-${version}${EXT}\n    sha512: abc123==\n    size: 123456\npath: Empi-Launcher-setup-${version}${EXT}\nsha512: abc123==\nreleaseDate: '2026-09-18T00:00:00.000Z'\n`
     let served = '99.0.0'
-    const server = http.createServer((req, res) => { if (req.url.endsWith('/latest.yml') && served) { res.end(yml(served)) } else { res.statusCode = 404; res.end() } })
+    const server = http.createServer((req, res) => { if (req.url.endsWith(CHANNEL) && served) { res.end(yml(served)) } else { res.statusCode = 404; res.end() } })
     await new Promise((r) => server.listen(0, '127.0.0.1', r))
     const url = `http://127.0.0.1:${server.address().port}`
     const updater = await startUpdateEngine(url)
     const newer = await updater.call('update.check')
-    check('update.check offers a newer version', newer.ok && newer.result.available === true && newer.result.version === '99.0.0' && newer.result.installer.endsWith('.exe') && newer.result.size === 123456, JSON.stringify(newer.result))
+    check('update.check offers a newer version', newer.ok && newer.result.available === true && newer.result.version === '99.0.0' && newer.result.installer.endsWith(EXT) && newer.result.size === 123456, JSON.stringify(newer.result))
     served = '0.0.0-alpha'   // the test engine reports 0.0.0-test, which is newer
     const older = await updater.call('update.check')
     check('update.check does not offer an older version', older.ok && older.result.available === false, JSON.stringify(older.result))

@@ -1,0 +1,49 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="EmpiLauncher.Linux.App"
+             RequestedThemeVariant="Dark">
+  <Application.Styles>
+    <FluentTheme />
+
+    <!-- Empi's buttons: a pill that lifts under the pointer, sinks when pressed and dims when it cannot be used. The face colour is set by the code. -->
+    <Style Selector="Button.pill">
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Name="Face" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}" RenderTransformOrigin="50%,50%">
+            <Border.Transitions>
+              <Transitions>
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.14" Easing="0.23,1,0.32,1"/>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.14"/>
+              </Transitions>
+            </Border.Transitions>
+            <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="CornerRadius" Value="999"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.pill:pointerover /template/ Border#Face"><Setter Property="Opacity" Value="0.86"/><Setter Property="RenderTransform" Value="translateY(-1px)"/></Style>
+    <Style Selector="Button.pill:pressed /template/ Border#Face"><Setter Property="RenderTransform" Value="scale(0.975)"/></Style>
+    <Style Selector="Button.pill:disabled"><Setter Property="Opacity" Value="0.4"/></Style>
+
+    <!-- the cards of the rail and of the profile list: no pill, a rounded rectangle -->
+    <Style Selector="Button.card">
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Name="Face" Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}">
+            <ContentPresenter Content="{TemplateBinding Content}" HorizontalContentAlignment="Stretch" TextElement.Foreground="{TemplateBinding Foreground}"/>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    </Style>
+    <Style Selector="Button.card:pointerover /template/ Border#Face"><Setter Property="Opacity" Value="0.9"/></Style>
+  </Application.Styles>
+</Application>

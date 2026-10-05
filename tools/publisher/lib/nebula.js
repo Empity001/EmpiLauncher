@@ -542,7 +542,7 @@ function deleteFile(config, id, folder, name) {
     fs.rmSync(path.join(folder ? path.join(root, folder) : root, base), { recursive: true, force: true })
 }
 
-/** Opens a folder in Explorer (the easiest way to drop configs, resource packs, shaders into "files"). */
+/** Opens a folder in the file manager (the easiest way to drop configs, resource packs, shaders into "files"). */
 function openFolder(config, id, what) {
     const dir = assertPackId(config, id)
     const kind = FILE_KINDS.find((candidate) => candidate.folder === what)
@@ -551,7 +551,8 @@ function openFolder(config, id, what) {
             : what === 'mods' ? path.join(dir, modsFolder(dir) || '')
                 : dir
     fs.mkdirSync(folder, { recursive: true })
-    if (process.platform === 'win32') spawn('explorer.exe', [folder], { detached: true, stdio: 'ignore' }).unref()
+    const opener = process.platform === 'win32' ? 'explorer.exe' : process.platform === 'darwin' ? 'open' : 'xdg-open'
+    spawn(opener, [folder], { detached: true, stdio: 'ignore' }).on('error', () => {}).unref()
     return folder
 }
 

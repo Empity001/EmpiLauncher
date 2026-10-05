@@ -8,16 +8,18 @@ const CONFIG_PATH = path.join(HOME, '.empilauncher-publisher.json')
 const STATE_PATH = path.join(HOME, '.empilauncher-publisher-state.json')
 const CACHE_PATH = path.join(HOME, '.empilauncher-publisher-cache.json')
 
+const WINDOWS = process.platform === 'win32'
+
 const DEFAULTS = {
     launcherRepoPath: path.join(__dirname, '..', '..', '..'),
-    empiPacksRepoPath: path.join(HOME, 'OneDrive', 'Documents', 'GitHub', 'EmpiPacks'),
+    empiPacksRepoPath: WINDOWS ? path.join(HOME, 'OneDrive', 'Documents', 'GitHub', 'EmpiPacks') : path.join(HOME, 'EmpiPacks'),
     empiPacksRepoUrl: 'https://github.com/Empity001/EmpiPacks.git',
     launcherGithubRepo: 'Empity001/EmpiLauncher',
     empiPacksGithubRepo: 'Empity001/EmpiPacks',
     // Nebula writes to its own ROOT folder (see its .env), not into the EmpiPacks git
     // checkout directly - the result gets mirrored over when compiling.
-    nebulaProjectPath: path.join(HOME, 'OneDrive', 'Desktop', 'Nebula-master', 'Nebula-master'),
-    nebulaRootPath: 'C:\\EmpiPacksRoot',
+    nebulaProjectPath: WINDOWS ? path.join(HOME, 'OneDrive', 'Desktop', 'Nebula-master', 'Nebula-master') : path.join(HOME, 'Nebula'),
+    nebulaRootPath: WINDOWS ? 'C:\\EmpiPacksRoot' : path.join(HOME, 'EmpiPacksRoot'),
     largeFileThresholdMb: 40,
     largeAssetsReleaseTag: 'large-assets'
 }

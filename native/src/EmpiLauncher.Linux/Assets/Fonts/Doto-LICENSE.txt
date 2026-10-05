@@ -1,0 +1,10 @@
+Doto (variable, weights 100-900), latin subset, self-hosted as Doto.woff2.
+
+Origin:   Google Fonts, https://fonts.google.com/specimen/Doto
+          (downloaded 2026-09-18 from fonts.gstatic.com, family "Doto", woff2 "latin" range).
+Author:   The Doto Project Authors (Oliver Lalan), https://github.com/oliverlalan/Doto
+License:  SIL Open Font License, Version 1.1 - https://openfontlicense.org
+          The font may be used, studied, modified and redistributed freely, including bundled with software,
+          provided it is not sold on its own and this notice travels with it.
+
+Used for: the wordmark, page headlines, the activity drawer title and the version numerals. Never for body text.

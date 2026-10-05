@@ -7,14 +7,18 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { startEngine, check } from './harness.mjs'
 
+// Windows reads latest.yml and an .exe, Linux latest-linux.yml and a .tar.gz (engine/src/handlers/update.js)
+const EXT = process.platform === 'win32' ? '.exe' : '.tar.gz'
+const CHANNEL = process.platform === 'win32' ? '/latest.yml' : '/latest-linux.yml'
+
 const payload = crypto.randomBytes(3 * 1024 * 1024)                     // 3 MB of "installer"
 const good = crypto.createHash('sha512').update(payload).digest('base64')
-let published = { name: 'Empi-Launcher-setup-99.0.0.exe', sha512: good, size: payload.length }
+let published = { name: `Empi-Launcher-setup-99.0.0${EXT}`, sha512: good, size: payload.length }
 let stall = false
 
 const server = http.createServer((req, res) => {
     const url = decodeURIComponent(req.url)
-    if (url.endsWith('/latest.yml')) {
+    if (url.endsWith(CHANNEL)) {
         res.end(`version: 99.0.0\nfiles:\n  - url: ${published.name}\n    sha512: ${published.sha512}\n    size: ${published.size}\npath: ${published.name}\nsha512: ${published.sha512}\nreleaseDate: '2026-09-19T00:00:00.000Z'\n`)
     } else if (url.endsWith('/releases.json')) {
         res.end(JSON.stringify([
@@ -24,7 +28,7 @@ const server = http.createServer((req, res) => {
             { tag_name: 'v99.0.7', name: 'draft', body: '- draft', draft: true, prerelease: false },
             { tag_name: 'v0.0.0-alpha', name: 'old', published_at: '2020-01-01T00:00:00Z', body: '- older than the running one', draft: false, prerelease: false }
         ]))
-    } else if (url.endsWith('.exe')) {
+    } else if (url.endsWith(EXT)) {
         res.setHeader('content-length', payload.length)
         if (stall) { res.write(payload.subarray(0, 1024 * 1024)); return }   // a connection that goes quiet half way
         res.end(payload)
@@ -50,15 +54,15 @@ try {
     check('a wrong sha512 is refused', bad.ok === false && bad.error.code === 'bad_checksum', JSON.stringify(bad.error))
     check('and the bad file is not kept', !fs.readdirSync(path.join(engine.root, 'user', 'updates')).length)
 
-    published = { name: '..\\..\\evil.exe', sha512: good, size: payload.length }
+    published = { name: `..\\..\\evil${EXT}`, sha512: good, size: payload.length }
     const evil = await engine.call('update.install')
     check('an installer name with a path is refused', evil.ok === false && evil.error.code === 'bad_channel', JSON.stringify(evil.error))
 
-    published = { name: 'Empi-Launcher-setup-99.0.0.exe', sha512: '', size: payload.length }
+    published = { name: `Empi-Launcher-setup-99.0.0${EXT}`, sha512: '', size: payload.length }
     const noHash = await engine.call('update.install')
     check('an update without a sha512 is not installed', noHash.ok === false && noHash.error.code === 'bad_channel', JSON.stringify(noHash.error))
 
-    published = { name: 'Empi-Launcher-setup-99.0.0.exe', sha512: good, size: payload.length }
+    published = { name: `Empi-Launcher-setup-99.0.0${EXT}`, sha512: good, size: payload.length }
     stall = true
     const pending = engine.call('update.install')
     await new Promise((resolve) => setTimeout(resolve, 1200))

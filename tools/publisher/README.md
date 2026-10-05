@@ -6,6 +6,7 @@ tú eliges cosas en pantalla, ella lanza Nebula, git, gh y electron-builder por 
 ## Abrirlo
 
 Doble click en **`Publicar.bat`** (o en el acceso directo del escritorio).
+En **Linux**: `tools/publisher/Publicar.sh` (o el acceso "Empi Publisher" que crea `tools/linux/instalar-accesos.sh`); abre una ventana propia, sin navegador. Más en `docs/LINUX.md`.
 Se abre `http://localhost:4848` y **se cierra solo** cuando cierras la pestaña, así que
 no queda nada consumiendo recursos en segundo plano.
 

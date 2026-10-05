@@ -27,6 +27,14 @@ const { runAuthHelper } = createRequire(import.meta.url)(path.join(here, '..', '
 const probeAt = process.argv.indexOf('--probe')
 const seconds = Number(process.argv[process.argv.indexOf('--seconds') + 1]) || 8
 const helperPids = () => {
+    if (process.platform !== 'win32') {
+        // Linux: the main helper process (not Chromium's children) whose command line mentions auth-helper
+        try {
+            return execFileSync('ps', ['-eo', 'pid,args'], { encoding: 'utf8' }).split('\n')
+                .filter((line) => line.includes('auth-helper') && !line.includes('--type=') && !line.includes('ps -eo'))
+                .map((line) => Number(line.trim().split(/\s+/)[0])).filter(Boolean)
+        } catch { return [] }
+    }
     try {
         const out = execFileSync('powershell', ['-NoProfile', '-Command', "Get-CimInstance Win32_Process -Filter \"Name='electron.exe'\" | Where-Object { $_.CommandLine -match 'auth-helper' -and $_.CommandLine -notmatch '--type=' } | ForEach-Object { $_.ProcessId }"], { encoding: 'utf8' })
         return out.split(/\s+/).filter(Boolean).map(Number)
@@ -118,7 +126,9 @@ try {
     await new Promise((r) => setTimeout(r, holdMs))
     const [pid] = helperPids()
     check('signing out opens the window once more', helperPids().length === 1, `pids ${helperPids().join(',')}`)
-    execFileSync('powershell', ['-NoProfile', '-Command', `(Get-Process -Id ${pid}).CloseMainWindow() | Out-Null`])   // what clicking the X does
+    // what clicking the X does: Windows asks the window to close; elsewhere the helper is asked to quit
+    if (process.platform === 'win32') execFileSync('powershell', ['-NoProfile', '-Command', `(Get-Process -Id ${pid}).CloseMainWindow() | Out-Null`])
+    else process.kill(pid, 'SIGTERM')
     const doneByPlayer = await closedByPlayer
     check('closing the Microsoft window yourself finishes the sign-out', doneByPlayer.ok === true, JSON.stringify(doneByPlayer.error ?? doneByPlayer.result))
     const afterClose = (await seeded.call('account.list')).result

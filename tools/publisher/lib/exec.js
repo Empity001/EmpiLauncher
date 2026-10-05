@@ -20,7 +20,7 @@ function killTree(child) {
     if (process.platform === 'win32') {
         spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' })
     } else {
-        try { child.kill('SIGTERM') } catch { /* already gone */ }
+        try { process.kill(-child.pid, 'SIGTERM') } catch { try { child.kill('SIGTERM') } catch { /* already gone */ } }
     }
 }
 
@@ -37,6 +37,7 @@ function run(command, args, options = {}, onLine = () => {}) {
             cwd: options.cwd,
             env: options.env ? { ...process.env, ...options.env } : process.env,
             shell: false,
+            detached: process.platform !== 'win32',
             windowsHide: true
         })
         if (store) store.children.add(child)

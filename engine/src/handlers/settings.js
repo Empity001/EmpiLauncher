@@ -40,7 +40,7 @@ function register(handlers, state) {
 
     /** Resolves a name inside `root`, refusing anything that escapes it (../, absolute paths). */
     function inside(root, name) {
-        const resolved = path.resolve(root, name)
+        const resolved = path.resolve(root, String(name).replaceAll('\\', '/'))
         if (resolved !== root && !resolved.startsWith(root + path.sep)) throw new EngineError('bad_path', 'that path is outside the modpack folder')
         return resolved
     }

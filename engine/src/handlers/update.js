@@ -19,9 +19,11 @@ const semver = require('semver')
 
 const OWNER = 'Empity001'
 const REPO = 'EmpiLauncher'
-const CHANNEL_FILE = 'latest.yml'
+const WINDOWS = process.platform === 'win32'
+// One channel file per system: Windows reads latest.yml (the installer), Linux latest-linux.yml (a tar.gz of the whole program, see native/build/build-linux.mjs)
+const CHANNEL_FILE = WINDOWS ? 'latest.yml' : 'latest-linux.yml'
 /** The installer is named by a file we downloaded, so it must be a plain file name: never a path, never a URL. */
-const INSTALLER_NAME = /^[A-Za-z0-9][A-Za-z0-9._ -]{0,120}\.exe$/
+const INSTALLER_NAME = WINDOWS ? /^[A-Za-z0-9][A-Za-z0-9._ -]{0,120}\.exe$/ : /^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.tar\.gz$/
 
 /** electron-builder's latest.yml is flat enough to read without a YAML dependency: key: value lines and one files: list. */
 function parseLatestYml(text) {
@@ -110,6 +112,34 @@ function register(handlers, state) {
     let installing = false
     let abort = null
 
+    /**
+     * Linux: the program is a folder (the interface, engine/, runtime/...) that the build marked with ".empi-install". The new tar.gz is unpacked
+     * beside it and swapped in with two renames, then the new program is started; the UI closes when it hears launched. Run from a checkout
+     * (no marker) nothing is replaced: the file is only left in the updates folder.
+     */
+    async function installLinux(archive, info) {
+        const root = path.resolve(__dirname, '..', '..', '..')
+        if (!fs.existsSync(path.join(root, '.empi-install'))) return { launched: false, file: archive, version: info.version }
+        const fresh = `${root}.new`
+        const old = `${root}.old`
+        fs.rmSync(fresh, { recursive: true, force: true })
+        fs.rmSync(old, { recursive: true, force: true })
+        fs.mkdirSync(fresh, { recursive: true })
+        await new Promise((resolve, reject) => {
+            const tar = spawn('tar', ['-xzf', archive, '-C', fresh], { stdio: 'ignore' })
+            tar.once('error', reject)
+            tar.once('exit', (code) => (code === 0 ? resolve() : reject(new Error(`tar salio con ${code}`))))
+        }).catch((err) => { fs.rmSync(fresh, { recursive: true, force: true }); throw new EngineError('install_failed', `No pude abrir el paquete descargado: ${err.message}`) })
+        const launcher = path.join(fresh, 'EmpiLauncher')
+        if (!fs.existsSync(launcher)) { fs.rmSync(fresh, { recursive: true, force: true }); throw new EngineError('install_failed', 'El paquete descargado no trae el launcher. No se instala.') }
+        fs.renameSync(root, old)
+        try { fs.renameSync(fresh, root) } catch (err) { fs.renameSync(old, root); throw new EngineError('install_failed', `No pude poner la versión nueva: ${err.message}`) }
+        setTimeout(() => fs.rm(old, { recursive: true, force: true }, () => {}), 20000).unref()
+        const child = spawn(path.join(root, 'EmpiLauncher'), [], { detached: true, stdio: 'ignore', cwd: root })
+        child.unref()
+        return { launched: true, file: archive, version: info.version }
+    }
+
     // The installer of an update that already ran (140 MB) has no use after the launcher restarted: drop it a minute after start-up.
     const leftovers = () => path.join(require('electron').app.getPath('userData'), 'updates')
     setTimeout(() => { if (!installing) fs.rm(leftovers(), { recursive: true, force: true }, () => {}) }, 60000).unref()
@@ -178,6 +208,8 @@ function register(handlers, state) {
             if (process.env.EMPI_ENGINE_TEST === '1' && process.env.EMPI_UPDATE_NO_RUN === '1') return { launched: false, file: target, version: info.version }
 
             // Same arguments electron-updater gave the classic installer: silent, "this is an update", start the launcher afterwards.
+            if (!WINDOWS) return installLinux(target, info)
+
             const child = spawn(target, ['/S', '--updated', '--force-run'], { detached: true, stdio: 'ignore' })
             await new Promise((resolve, reject) => {
                 child.once('error', reject)
