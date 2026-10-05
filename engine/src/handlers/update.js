@@ -62,8 +62,14 @@ function register(handlers, state) {
         const { ConfigManager } = ensureCore(state)
         const current = state.shim && require('electron').app.getVersion()
         try {
-            const url = await channelUrl(ConfigManager.getAllowPrerelease())
-            const body = url ? await text(url) : null
+            let url = await channelUrl(ConfigManager.getAllowPrerelease())
+            let body = url ? await text(url) : null
+            if (!body && !WINDOWS && !process.env.EMPI_UPDATE_URL) {
+                // The newest release may be a Windows-only one: Linux then looks through the recent ones for the newest that carries its channel file.
+                const list = JSON.parse(await text(`https://api.github.com/repos/${OWNER}/${REPO}/releases?per_page=15`) || '[]')
+                const release = list.find((r) => !r.draft && (!r.prerelease || ConfigManager.getAllowPrerelease()) && (r.assets || []).some((asset) => asset.name === CHANNEL_FILE))
+                if (release) { url = `https://github.com/${OWNER}/${REPO}/releases/download/${release.tag_name}/${CHANNEL_FILE}`; body = await text(url) }
+            }
             if (!body) return { available: false, current, reason: 'no_channel' }
             const info = parseLatestYml(body)
             if (!info.version || !semver.valid(info.version)) return { available: false, current, reason: 'bad_channel' }
