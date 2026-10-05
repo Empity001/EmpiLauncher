@@ -60,6 +60,14 @@ function newestFile(dir, filter) {
  * @param {string[]} [input.hide]              strings to take out (the player's name)
  * @param {object} [input.support]             makes it the report for support: { code, player: { name, uuid, type }, installed: {version}, language, performance, engineMb }
  */
+/** Windows: its version and release; Linux: the distribution's own name (os-release) and the kernel. */
+function systemName() {
+    if (process.platform === 'win32') return `${os.version ? os.version() + ' ' : ''}${os.release()}`
+    let pretty = ''
+    try { pretty = (/^PRETTY_NAME="?([^"\n]+)"?/m.exec(require('fs').readFileSync('/etc/os-release', 'utf8')) || [])[1] || '' } catch { /* no os-release */ }
+    return `${pretty || process.platform} (núcleo ${os.release()})`
+}
+
 function build(input) {
     const lines = []
     const add = (text = '') => lines.push(text)
@@ -70,12 +78,12 @@ function build(input) {
     add(`Generado: ${new Date().toISOString()}`)
     if (support) add(`Código del informe: ${support.code}`)
     add(support
-        ? 'Lo envía el propio jugador desde el launcher, con su permiso, para que se revise. No lleva su sesión, sus claves, su correo ni el nombre de usuario de Windows.'
+        ? 'Lo envía el propio jugador desde el launcher, con su permiso, para que se revise. No lleva su sesión, sus claves, su correo ni el nombre de usuario de tu sistema.'
         : 'Este informe no se envía a ningún sitio: lo copias tú y lo compartes con quien quieras. Los datos personales están ocultos.')
     add()
     add('== Sistema ==')
     add(`Launcher: ${input.appVersion || 'desconocido'}`)
-    add(`Windows: ${os.version ? os.version() + ' ' : ''}${os.release()} (${os.arch()})`)
+    add(`${process.platform === 'win32' ? 'Windows' : 'Sistema'}: ${systemName()} (${os.arch()})`)
     add(`Memoria del equipo: ${(os.totalmem() / 1024 ** 3).toFixed(1)} GB (libre ${(os.freemem() / 1024 ** 3).toFixed(1)} GB)`)
     add(`Procesador: ${os.cpus()[0] ? os.cpus()[0].model.trim() : 'desconocido'} (${os.cpus().length} núcleos)`)
     add(`Tipo de cuenta: ${input.accountType || 'ninguna'}`)

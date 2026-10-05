@@ -642,6 +642,8 @@ public sealed class Launcher : IAsyncDisposable
     /// <summary>What stops this modpack from being played or updated (maintenance, not out yet, retired), or the launcher itself being too old.</summary>
     public AccessInfo Access(string? modpackId)
     {
+        if (Environment.GetEnvironmentVariable("EMPI_ACCESS") is { Length: > 0 } fake && modpackId != null)
+            return new AccessInfo(fake, null, fake == "maintenance" ? DateTimeOffset.Now.AddHours(5).ToString("o") : null, fake == "upcoming" ? DateTimeOffset.Now.AddDays(2).ToString("o") : null, null, null);
         if (Notices?.Launcher.Blocked == true) return new AccessInfo("launcher", Notices.Launcher.Message, null, null, null, Notices.Launcher.MinVersion);
         return modpackId != null && Notices != null && Notices.Modpacks.TryGetValue(modpackId, out var entry) ? entry.Access : AllClear;
     }

@@ -55,8 +55,11 @@ Se ofrecen los mismos que en Windows: el Default y los que el Publisher ("Pendie
 publicar un estilo nuevo**). Los dos con shader (Oleaje, Térmico) están portados de HLSL a SkSL (`Views/Fields/Shaders.g.cs`).
 Los colores, radios y fuentes de cada estilo salen de sus `*.tokens.xaml` (`Styles/StyleTokens.g.cs`, generado).
 
-**Todavía no están en Linux:** los efectos de Jugar por estilo (mantenimiento, próximamente, retirado y "vuelve": aquí Jugar se bloquea y se muestra
-el mensaje del autor), la forma propia de los controles de cada estilo, la animación de apertura/cierre del logo, la bandeja del sistema y el panel de depuración.
+También están: los efectos de Jugar (sello de mantenimiento/próximamente, cristal que se rompe al retirarse y los efectos propios de cada estilo),
+el logo de apertura, la bandeja del sistema, el panel de depuración, el reporte de errores, el aviso de skin sin conexión y arrastrar mods.
+Para probar un estado sin tocar los avisos publicados: `EMPI_ACCESS=maintenance|upcoming|retired`.
+
+**Todavía no están en Linux:** la forma propia de los controles de cada estilo (controls.xaml), el selector de color y el banner animado.
 
 ## Nebula en Linux
 

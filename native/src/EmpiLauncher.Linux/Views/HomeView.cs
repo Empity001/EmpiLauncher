@@ -191,7 +191,9 @@ public sealed class HomeView : UserControl
         Grid.SetColumn(tools, 1);
         dock.Children.Add(tools);
 
-        var action = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { _play, _offline } };
+        _accessLayer = new Grid { Width = PlayWidth, Height = 52, IsHitTestVisible = false };
+        var playHost = new Grid { Width = PlayWidth, Height = 52, Children = { _play, _accessLayer } };
+        var action = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { playHost, _offline } };
         Grid.SetColumn(action, 2);
         dock.Children.Add(action);
 
@@ -489,22 +491,178 @@ public sealed class HomeView : UserControl
         RefreshAccess(access, game);
     }
 
+    /// <summary>"hoy 18:00", "mañana 18:00", or "el 21 sep, 18:00": a moment in the future, in this PC's time zone.</summary>
+    private static string Future(string? iso)
+    {
+        if (!DateTimeOffset.TryParse(iso, out var at)) return "";
+        var local = at.ToLocalTime();
+        var days = (local.Date - DateTime.Now.Date).Days;
+        return days == 0 ? $"hoy a las {local:HH:mm}" : days == 1 ? $"mañana a las {local:HH:mm}" : $"el {local.ToString("d MMM", System.Globalization.CultureInfo.InvariantCulture).ToLowerInvariant()}, {local:HH:mm}";
+    }
+
+    /// <summary>What the author says about a modpack that is closed, not out yet or retired: Jugar steps aside and these words stand in its place.</summary>
+    private static string? NoteFor(AccessInfo access, bool installed)
+    {
+        var lines = new List<string>();
+        switch (access.State)
+        {
+            case "maintenance":
+                lines.Add(!string.IsNullOrWhiteSpace(access.Message) ? access.Message! : "Este modpack está en mantenimiento. Le estoy haciendo sus arreglitos.");
+                if (access.Allowed == true) lines.Add("Tú sí tienes permiso para jugarlo mientras tanto, shh." + (access.Until != null ? " Para todos vuelve " + Future(access.Until) + "." : ""));
+                else if (access.Until != null) lines.Add("Vuelve " + Future(access.Until) + ".");
+                break;
+            case "upcoming":
+                lines.Add(!string.IsNullOrWhiteSpace(access.Message) ? access.Message! : "Este modpack todavía no sale. Ya casi, aguántame tantito.");
+                if (access.From != null) lines.Add("Disponible " + Future(access.From) + ".");
+                break;
+            case "retired":
+                lines.Add(!string.IsNullOrWhiteSpace(access.Message) ? access.Message! : "Este modpack se retiró: ya no se puede jugar ni actualizar. Gracias por los buenos ratos.");
+                if (installed) lines.Add("Con la papelera lo quitas de tu compu; tus mundos y capturas se quedan si quieres.");
+                break;
+            case "launcher":
+                lines.Add(!string.IsNullOrWhiteSpace(access.Message) ? access.Message! : $"Este launcher ya está muy viejito: necesitas la versión {access.MinVersion} o más nueva.");
+                break;
+            default:
+                return null;
+        }
+        return string.Join("\n", lines);
+    }
+
+    private static readonly AccessInfo AllClear = new("ok", null, null, null, null, null);
+    private Grid _accessLayer = null!;
+    private string _accessKey = "";
+    private GlassButton? _glass;
+    private string? _glassFor;
+    private bool _regenerating;
+    private string _stampKey = "";
+    private readonly long _builtAt = Environment.TickCount64;
+
+    /// <summary>Runs once the screen has finished arriving, so a seal or a break is not spent on a screen nobody sees yet.</summary>
+    private void WhenSettled(Action action)
+    {
+        var left = 700 - (Environment.TickCount64 - _builtAt);
+        if (left <= 0) { action(); return; }
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(left) };
+        timer.Tick += (_, _) => { timer.Stop(); action(); };
+        timer.Start();
+    }
+
+    private static Color AccentColor() => Pal.Accent.Color;
+
     /// <summary>Maintenance, a modpack that is not out yet, a retired one, a launcher that is too old: Jugar steps aside and the author's words stand in its place.</summary>
     private void RefreshAccess(AccessInfo access, GameSession game)
     {
-        var blocked = Launcher.BlocksPlaying(access) && !game.Busy && !game.Running;
-        var message = access.State switch
+        var id = _l.Selected?.Id;
+        var idle = !game.Busy && !game.Running;
+        var installed = _l.Pack?.Installed == true;
+        var raw = idle ? access : AllClear;
+        var shown = raw.State is "maintenance" or "upcoming" or "retired" ? raw : AllClear;
+        var blocked = Services.Launcher.BlocksPlaying(shown) && idle;
+        var key = $"{id}|{shown.State}|{shown.Allowed}|{shown.Message}|{shown.Until}|{shown.From}|{installed}";
+        if (key != _accessKey)
         {
-            "maintenance" when access.Allowed != true => access.Message ?? "Este modpack está en mantenimiento. Vuelve en un ratito.",
-            "upcoming" => access.Message ?? (access.From != null ? $"Este modpack todavía no sale. Abre el {access.From}." : "Este modpack todavía no sale."),
-            "retired" => access.Message ?? "Este modpack ya se retiró. Lo puedes quitar de tu compu.",
-            "launcher" => access.Message ?? $"Este launcher ya está muy viejito: necesitas la versión {access.MinVersion} o más nueva.",
-            _ => null
-        };
-        _accessNote.IsVisible = message != null && !game.Busy && !game.Running;
-        _accessText.Text = message ?? "";
-        if (blocked) { _play.IsHitTestVisible = false; _play.Opacity = 0.4; } else _play.Opacity = 1;
-        _trash.IsVisible = access.State == "retired" && _l.Pack?.Installed == true;
+            _accessKey = key;
+            if (_glass != null && _glassFor != id) DropGlass();
+            if (AccessDirector.Handles(NativeSettings.Style)) StyledAccess(shown, blocked, id);
+            else BaseAccess(shown, blocked, id);
+        }
+        _play.IsHitTestVisible = !blocked && _play.IsHitTestVisible;
+        if (blocked) _play.IsHitTestVisible = false;
+
+        var note = idle ? NoteFor(access, installed) : null;
+        var appears = note != null && !_accessNote.IsVisible;
+        _accessNote.IsVisible = note != null;
+        _accessText.Text = note ?? "";
+        if (appears) Motion.Rise(_accessNote, 60, 240, 8);
+        _trash.IsVisible = access.State == "retired" && installed;
+    }
+
+    /// <summary>The base style: a seal over a dimmed Jugar (maintenance, soon) or a glass that breaks (retired).</summary>
+    private void BaseAccess(AccessInfo access, bool blocked, string? id)
+    {
+        AccessDirector.Clear();
+        foreach (var old in _accessLayer.Children.OfType<Control>().Where(c => c.Tag as string == "stamp").ToList()) _accessLayer.Children.Remove(old);
+        var showSeal = blocked && access.State is "maintenance" or "upcoming";
+        _play.Opacity = blocked ? 0.32 : 1;
+        if (showSeal)
+        {
+            var maintenance = access.State == "maintenance";
+            var sub = maintenance ? (access.Until != null ? "Vuelve " + Future(access.Until) : null) : (access.From != null ? "Disponible " + Future(access.From) : null);
+            var ink = Stamp.Pick(maintenance ? Stamp.Amber : Stamp.Cream, AccentColor());
+            var (frame, _) = Stamp.Make(maintenance ? "MANTENIMIENTO" : "PRÓXIMAMENTE", sub, ink);
+            // in a canvas, which does not squeeze it to the button's height: with a second line the seal is taller than the button
+            var holder = new Canvas { Width = PlayWidth, Height = 52, Tag = "stamp", IsHitTestVisible = false };
+            frame.SizeChanged += (_, e) => { Canvas.SetLeft(frame, (PlayWidth - e.NewSize.Width) / 2); Canvas.SetTop(frame, (52 - e.NewSize.Height) / 2); };
+            holder.Children.Add(frame);
+            _accessLayer.Children.Add(holder);
+            var stampKey = $"{id}|{access.State}";
+            if (stampKey != _stampKey)
+            {
+                frame.Opacity = 0;   // it drops when the screen is there to see it
+                WhenSettled(() => Stamp.Slam(frame, () => Stamp.Squash(_play)));
+            }
+            _stampKey = stampKey;
+        }
+        else _stampKey = "";
+
+        if (access.State == "retired" && id != null)
+        {
+            if (_glass == null || _regenerating)
+            {
+                if (_glass == null) { _glass = new GlassButton(PlayWidth, 52, AccentColor()); _accessLayer.Children.Add(_glass); }
+                _glassFor = id; _regenerating = false;
+                _play.Opacity = 0;
+                if (NativeSettings.Retired.Add(id)) { NativeSettings.SaveRetired(); var glass = _glass; glass.Opacity = 0; WhenSettled(() => { if (!ReferenceEquals(_glass, glass)) return; glass.Opacity = 1; glass.PlayBreak(); }); }
+                else _glass.ShowBroken();
+            }
+        }
+        else if (id != null && (_glass != null && _glassFor == id || NativeSettings.Retired.Contains(id)) && !_regenerating)
+        {
+            // it is not retired any more: the glass grows back by itself and Jugar is there again
+            if (_glass == null) { _glass = new GlassButton(PlayWidth, 52, AccentColor()); _accessLayer.Children.Add(_glass); _glass.ShowBroken(); }
+            _glassFor = id; _regenerating = true;
+            _play.Opacity = 0;
+            var glass = _glass;
+            NativeSettings.Retired.Remove(id); NativeSettings.SaveRetired();
+            WhenSettled(() => glass.PlayRegenerate(() =>
+            {
+                if (!ReferenceEquals(_glass, glass)) return;
+                DropGlass();
+                Motion.Pop(_play, RelativePoint.Center, 200, 0.97, fade: false);
+            }));
+        }
+    }
+
+    /// <summary>The state, the style's own way: its effect the first time (for retired, the first time ever), its last pose after that, its way back when a retired modpack returns.</summary>
+    private void StyledAccess(AccessInfo access, bool blocked, string? id)
+    {
+        DropGlass();
+        foreach (var old in _accessLayer.Children.OfType<Control>().Where(c => c.Tag as string == "stamp").ToList()) _accessLayer.Children.Remove(old);
+        _stampKey = "";
+        _play.Opacity = 1;
+        var name = _l.Host?.Name ?? _l.Selected?.Name;
+        var state = blocked ? access.State switch { "maintenance" => "maint", "upcoming" => "soon", "retired" => "retired", _ => null } : null;
+        if (state != null && id != null)
+        {
+            var first = state == "retired" && NativeSettings.Retired.Add(id);
+            if (first) NativeSettings.SaveRetired();
+            AccessDirector.Show(_play, access, state, first, id, name, WhenSettled);
+        }
+        else if (id != null && NativeSettings.Retired.Contains(id))
+        {
+            NativeSettings.Retired.Remove(id); NativeSettings.SaveRetired();
+            AccessDirector.Back(_play, access, id, name, WhenSettled);
+        }
+        else AccessDirector.Clear();
+    }
+
+    private void DropGlass()
+    {
+        if (_glass == null) return;
+        _glass.Stop();
+        _accessLayer.Children.Remove(_glass);
+        _glass = null; _glassFor = null; _regenerating = false;
+        _play.Opacity = 1;
     }
 
     // ---- removing a retired modpack ------------------------------------------------------------------------------------------

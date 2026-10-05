@@ -20,6 +20,19 @@ public partial class App : Application
                 Resources[key] = Views.Pal.Accent;
             var window = new MainWindow();
             desktop.MainWindow = window;
+            // the notification-area icon (where the desktop has one: GNOME needs the AppIndicator extension, KDE and others have it)
+            try
+            {
+                void Show() { if (window.WindowState == Avalonia.Controls.WindowState.Minimized) window.WindowState = Avalonia.Controls.WindowState.Normal; window.Show(); window.Activate(); }
+                var open = new Avalonia.Controls.NativeMenuItem("Abrir Empi Launcher"); open.Click += (_, _) => Show();
+                var stop = new Avalonia.Controls.NativeMenuItem("Detener Minecraft"); stop.Click += (_, _) => { if (Services.Launcher.Instance.Game.Running) _ = Services.Launcher.Instance.PrimaryActionAsync(); };
+                var exit = new Avalonia.Controls.NativeMenuItem("Salir"); exit.Click += (_, _) => { if (!Services.Launcher.Instance.Game.Busy) window.Close(); };
+                var menu = new Avalonia.Controls.NativeMenu { open, stop, new Avalonia.Controls.NativeMenuItemSeparator(), exit };
+                var tray = new Avalonia.Controls.TrayIcon { ToolTipText = "Empi Launcher", Menu = menu, Icon = new Avalonia.Controls.WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://EmpiLauncher/Assets/icon.png"))) };
+                tray.Clicked += (_, _) => Show();
+                Avalonia.Controls.TrayIcon.SetIcons(this, new Avalonia.Controls.TrayIcons { tray });
+            }
+            catch (Exception ex) { Log("tray", ex); }
             desktop.ShutdownRequested += (_, _) => { try { Launcher.Instance.DisposeAsync().AsTask().Wait(3000); } catch { } };
         }
         base.OnFrameworkInitializationCompleted();

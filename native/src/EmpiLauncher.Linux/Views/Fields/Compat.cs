@@ -167,6 +167,29 @@ internal static class Px
     /// <summary>A small bitmap written from BGRA bytes (the light beams of Celestial are made this way).</summary>
     public static WriteableBitmap Make(int w, int h) => new(new PixelSize(w, h), new Vector(96, 96), PixelFormat.Bgra8888, AlphaFormat.Opaque);
 
+    /// <summary>A greyscale copy of a bitmap (luminance in the three colour channels, alpha kept).</summary>
+    public static WriteableBitmap? Grey(Bitmap source)
+    {
+        try
+        {
+            var size = source.PixelSize;
+            var stride = size.Width * 4;
+            var pixels = new byte[stride * size.Height];
+            var handle = GCHandle.Alloc(pixels, GCHandleType.Pinned);
+            try { source.CopyPixels(new PixelRect(0, 0, size.Width, size.Height), handle.AddrOfPinnedObject(), pixels.Length, stride); }
+            finally { handle.Free(); }
+            for (var i = 0; i < pixels.Length; i += 4)
+            {
+                var y = (byte)(0.114 * pixels[i] + 0.587 * pixels[i + 1] + 0.299 * pixels[i + 2]);
+                pixels[i] = pixels[i + 1] = pixels[i + 2] = y;
+            }
+            var grey = new WriteableBitmap(size, new Vector(96, 96), PixelFormat.Bgra8888, AlphaFormat.Premul);
+            Write(grey, pixels);
+            return grey;
+        }
+        catch (Exception) { return null; }
+    }
+
     public static void Write(WriteableBitmap bitmap, byte[] bgra)
     {
         using var frame = bitmap.Lock();

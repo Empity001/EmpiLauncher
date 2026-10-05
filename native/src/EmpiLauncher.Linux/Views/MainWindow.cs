@@ -21,7 +21,10 @@ public sealed class MainWindow : Window
 {
     private readonly Services.Launcher _l = Services.Launcher.Instance;
     private readonly Grid _root = new();
+    private readonly AccessStage _accessFx = new();
     private StyleHost _field = null!;
+    public static MainWindow? Instance { get; private set; }
+    internal StyleHost Field => _field;
     private readonly Image _backdrop = new() { Stretch = Stretch.UniformToFill, IsVisible = false, IsHitTestVisible = false };
     private readonly Border _backdropScrim = new() { IsVisible = false, IsHitTestVisible = false };
     private readonly ContentControl _host = new();
@@ -34,6 +37,9 @@ public sealed class MainWindow : Window
     private readonly Grid _noticesLayer = new() { IsVisible = false, Background = Pal.Scrim, ZIndex = 35 };
     private NoticesPanel? _noticesPanel;
     private bool _backgroundOnly;
+    private DebugOverlay _debug = null!;
+    private bool _goodbye;
+    private bool _minimizedForGame;
     private readonly Border _toast = new();
     private readonly TextBlock _toastText = Ui.Body("", 14);
     private readonly Grid _dialogLayer = new() { IsVisible = false, Background = Pal.Scrim };
@@ -44,6 +50,7 @@ public sealed class MainWindow : Window
 
     public MainWindow()
     {
+        Instance = this;
         Title = "Empi Launcher";
         Width = 1120; Height = 700; MinWidth = 940; MinHeight = 620;
         Background = Pal.Well;
@@ -100,12 +107,17 @@ public sealed class MainWindow : Window
 
         Grid.SetRow(_host, 1);
         _root.Children.Add(_host);
+        Grid.SetRowSpan(_accessFx, 2);
+        _root.Children.Add(_accessFx);
         BuildToast();
         BuildDialogLayer();
         _noticesPanel = new NoticesPanel(() => _noticesLayer.IsVisible = false);
         _noticesLayer.Children.Add(_noticesPanel);
         Grid.SetRowSpan(_noticesLayer, 2);
         _root.Children.Add(_noticesLayer);
+        _debug = new DebugOverlay(() => _backgroundOnly) { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 62, 22, 0), ZIndex = 30 };
+        Grid.SetRowSpan(_debug, 2);
+        _root.Children.Add(_debug);
         _noticesLayer.PointerPressed += (_, e) => { if (e.Source == _noticesLayer) _noticesLayer.IsVisible = false; };
         _l.NoticesChanged += SyncNoticesIcon;
         AddResizeGrips();
@@ -114,14 +126,33 @@ public sealed class MainWindow : Window
         _l.Changed += OnLauncherChanged;
         _l.ArtChanged += RefreshBackdrop;
         _l.Notice += ShowToast;
+        _l.GameChanged += OnGameForWindow;
         _l.Failure += failure => ShowDialog(failure.Title, failure.Message, ("Vale", null, true));
         _l.EngineLost += message => ShowDialog("El motor se cerró", message + " Cierra el launcher y ábrelo otra vez, porfa.", ("Cerrar el launcher", Close, true));
         _l.JavaNeeded += OnJavaNeeded;
         _l.AuthWindow += OnAuthWindow;
-        _l.GameCrashed += _ => ShowToast("Minecraft se cerró con un error. En Ajustes > Launcher puedes ver el informe.");
+        _l.GameCrashed += exit => ShowDialog("Minecraft se cerró con un error",
+            $"El juego se cerró de golpe (código {exit.Code}). Puedes ver un informe con lo necesario para entender qué pasó, guardarlo o mandármelo a soporte para que lo revise (solo si tú quieres). Si crees que le falta algún archivo al modpack, también puedes verificarlo y repararlo.",
+            ("Ahora no", null, false), ("Verificar y reparar", AskRepair, false), ("Ver informe", () => _ = ShowReportAsync(), true));
         _l.GameDone += done => { if (done.Mode == "verify") ShowToast(done.Repaired is > 0 ? $"Listo: arreglé {done.Repaired} archivo(s)." : "Todo en orden: no encontré nada que arreglar."); };
-        Opened += async (_, _) => await StartAsync();
-        Closing += (_, _) => { try { _l.DisposeAsync().AsTask().Wait(2500); } catch { } };
+        Opened += async (_, _) =>
+        {
+            if (SplashLayer.Wanted) _ = SplashLayer.OpenAsync(_root);
+            // development only: EMPI_SHOT_EARLY=<ms>,<path> paints the window that long after it opened (to see the opening)
+            if (Environment.GetEnvironmentVariable("EMPI_SHOT_EARLY") is { Length: > 0 } early && early.Split(',') is [var ms, var file])
+                _ = Task.Run(async () => { await Task.Delay(int.Parse(ms)); Dispatcher.UIThread.Post(() => Shot(file)); });
+            await StartAsync();
+        };
+        Closing += (_, e) =>
+        {
+            if (!_goodbye && SplashLayer.Wanted && !_l.Game.Busy)
+            {
+                e.Cancel = true; _goodbye = true;
+                _ = GoodbyeAsync();
+                return;
+            }
+            try { _l.DisposeAsync().AsTask().Wait(2500); } catch { }
+        };
         KeyDown += (_, e) => { if (e.Key == Key.Escape && _screen == "settings") ShowMain(); };
     }
 
@@ -174,6 +205,8 @@ public sealed class MainWindow : Window
         ShowMain();
         _ = DevPlayAsync();
         if (Environment.GetEnvironmentVariable("EMPI_SCREEN") == "notices") { await Task.Delay(3000); ShowNotices(); }
+        if (Environment.GetEnvironmentVariable("EMPI_SCREEN") == "report") { await Task.Delay(1500); await ShowReportAsync(); }
+        if (Environment.GetEnvironmentVariable("EMPI_SCREEN") == "skin") { await Task.Delay(1500); ShowSkinPrompt(); }
         if (Environment.GetEnvironmentVariable("EMPI_SCREEN") is { } screen && screen.StartsWith("settings"))
         {
             ShowSettings();
@@ -235,6 +268,24 @@ public sealed class MainWindow : Window
 
     // ---- screens -----------------------------------------------------------------------------------------------------
 
+    /// <summary>While Minecraft runs the launcher steps out of the way (minimised: costs what a hidden window costs) and comes back when it ends.</summary>
+    private async Task GoodbyeAsync()
+    {
+        try { await SplashLayer.CoverAsync(_root); } catch (Exception ex) { App.Log("goodbye", ex); }
+        Close();
+    }
+
+    private void OnGameForWindow()
+    {
+        var game = _l.Game;
+        if (game.Running && !_minimizedForGame && IsVisible && WindowState != WindowState.Minimized) { _minimizedForGame = true; WindowState = WindowState.Minimized; }
+        else if (game.Phase == "idle" && _minimizedForGame)
+        {
+            _minimizedForGame = false;
+            WindowState = WindowState.Normal; Activate();
+        }
+    }
+
     private void SyncNoticesIcon()
     {
         var mine = _l.GeneralNotices.Concat(_l.NoticesOf(_l.HostId)).DistinctBy(n => n.Id).ToList();
@@ -255,6 +306,7 @@ public sealed class MainWindow : Window
         _backgroundOnly = !_backgroundOnly;
         _host.IsVisible = !_backgroundOnly;
         _backdropScrim.IsVisible = _backdrop.IsVisible && !_backgroundOnly;
+        _debug.Update();
     }
 
     private void OnLauncherChanged()
@@ -414,14 +466,14 @@ public sealed class MainWindow : Window
     }
 
     /// <summary>Playing without an account: the name is checked by the engine as it is typed (it owns the rule).</summary>
-    public void ShowOfflinePrompt(string initial = "")
+    public void ShowOfflinePrompt(string initial = "", Func<Task>? done = null)
     {
-        if (_dialogOpen) { _dialogQueue.Enqueue(() => ShowOfflinePrompt(initial)); return; }
+        if (_dialogOpen) { _dialogQueue.Enqueue(() => ShowOfflinePrompt(initial, done)); return; }
         var name = initial;
         ShowDialog("Jugar sin conexión",
             "Escoge el nombre con el que quieres jugar. Sin cuenta ni skin: nomás este nombre. Sirve para un jugador y para servidores que no revisan la cuenta.",
             ("Cancelar", null, false),
-            ("Jugar sin conexión", () => _ = UseOfflineAsync(name), true));
+            ("Jugar sin conexión", () => _ = UseOfflineAsync(name, done), true));
         var confirm = (Button)_dialogButtons!.Children[^1];
         confirm.IsEnabled = false;
         AddDialogInput(initial, 16, "Tu nombre");
@@ -442,10 +494,80 @@ public sealed class MainWindow : Window
         _dialogInput.Focus();
     }
 
-    private async Task UseOfflineAsync(string name)
+    /// <summary>
+    /// The skin of the offline player. The player pastes the id (96cab59a8709ce31) or the link of a skin from NameMC: it is read as they type,
+    /// downloaded once, checked, and drawn here before it is used. Nothing is searched on NameMC (its site is behind a bot check): "Abrir NameMC"
+    /// only opens it in the browser to choose a skin.
+    /// </summary>
+    public void ShowSkinPrompt(Func<Task>? done = null)
+    {
+        if (_dialogOpen) { _dialogQueue.Enqueue(() => ShowSkinPrompt(done)); return; }
+        var hasSkin = _l.Account is { Type: "offline", Skin: not null };
+        string? skinId = null;
+        var buttons = new List<(string Label, Action? Action, bool Primary)> { ("Cancelar", null, false) };
+        if (hasSkin) buttons.Add(("Quitar skin", () => _ = ClearSkinAsync(done), false));
+        buttons.Add(("Usar esta skin", () => _ = ApplySkinAsync(skinId, done), true));
+        ShowDialog("Skin para jugar sin conexión", "Escoge una skin en NameMC y pega aquí su id (por ejemplo 96cab59a8709ce31) o su enlace. La bajo una sola vez y la ves al abrir Minecraft.", buttons.ToArray());
+        var confirm = (Button)_dialogButtons!.Children[^1];
+        confirm.IsEnabled = false;
+        AddDialogInput("", 200, "Id o enlace de la skin");
+        var preview = new Image { Width = 90, Height = 180, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(4, 14, 0, 0), IsVisible = false };
+        var link = Ui.Btn("Abrir NameMC para elegir una skin", Ui.Kind.Ghost, () => { try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("xdg-open") { ArgumentList = { "https://namemc.com/minecraft-skins" }, UseShellExecute = false }); } catch { } }, new Thickness(14, 6), 12);
+        link.HorizontalAlignment = HorizontalAlignment.Left; link.Margin = new Thickness(0, 12, 0, 0);
+        _dialogBody.Children.Insert(4, link); _dialogBody.Children.Insert(5, preview);
+        void Hint(string text, bool bad) { _dialogHint!.Text = text; _dialogHint.Foreground = bad ? Pal.Danger : Pal.Paper3; }
+        Hint("Pega el id o el enlace de la skin.", false);
+        var generation = 0;
+        async void Check()
+        {
+            var text = _dialogInput!.Text?.Trim() ?? "";
+            var mine = ++generation;
+            skinId = null; confirm.IsEnabled = false; preview.IsVisible = false;
+            if (text.Length == 0) { Hint("Pega el id o el enlace de la skin.", false); return; }
+            var parsed = await _l.ParseSkinAsync(text);
+            if (mine != generation || !_dialogOpen) return;
+            if (!parsed.Valid) { Hint(parsed.Reason ?? "Eso no es un id de NameMC.", false); return; }
+            Hint("Descargando la skin…", false);
+            await Task.Delay(250);   // a paste arrives as one change, typing as many: fetch once it settles
+            if (mine != generation || !_dialogOpen) return;
+            try
+            {
+                var shown = await _l.FetchSkinAsync(text);
+                if (mine != generation || !_dialogOpen) return;
+                preview.Source = Ui.Decode(shown.Front, 192); preview.IsVisible = preview.Source != null;
+                skinId = shown.Id; confirm.IsEnabled = true;
+                Hint($"Skin {shown.Id}, modelo {(shown.Model == "slim" ? "fino (Alex)" : "normal (Steve)")}. Pulsa “Usar esta skin”.", false);
+            }
+            catch (EngineException ex) { if (mine == generation) Hint(ex.Message, true); }
+        }
+        _dialogInput!.TextChanged += (_, _) => Check();
+        _dialogInput.KeyDown += (_, e) => { if (e.Key == Key.Enter && confirm.IsEnabled) confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); };
+        _dialogInput.Focus();
+    }
+
+    private async Task ApplySkinAsync(string? id, Func<Task>? done)
+    {
+        if (id == null) return;
+        ShowToast("Preparando la skin…");
+        var error = await _l.ApplySkinAsync(id);
+        if (error != null) { _toast.IsVisible = false; ShowDialog("No pude usar esa skin", error, ("Entendido", null, true)); return; }
+        ShowToast("Skin lista: la vas a ver al abrir Minecraft.");
+        if (done != null) await done();
+    }
+
+    private async Task ClearSkinAsync(Func<Task>? done)
+    {
+        await _l.ClearSkinAsync();
+        ShowToast("Skin quitada: regresas a la de siempre.");
+        if (done != null) await done();
+    }
+
+    /// <summary>Playing without an account: a name change keeps the same player.</summary>
+    private async Task UseOfflineAsync(string name, Func<Task>? done = null)
     {
         var problem = await _l.UseOfflineAsync(name);
         if (problem != null) ShowDialog("No se pudo", problem, ("Vale", null, true));
+        else if (done != null) await done();
     }
 
     private void OnJavaNeeded(NeedJava need)
@@ -489,6 +611,27 @@ public sealed class MainWindow : Window
         }
         catch (EngineException ex) { ShowDialog("No se pudo actualizar", ex.Message, ("Vale", null, true)); }
         finally { _l.UpdateProgress -= Progress; }
+    }
+
+    // ---- the failure report ----------------------------------------------------------------------------------------------
+
+    private readonly Grid _reportLayer = new() { IsVisible = false, Background = Pal.Scrim, ZIndex = 42 };
+    private ReportPanel? _reportPanel;
+
+    /// <summary>The report in front of the player, to copy, save as a .txt or send to support. Nothing is sent until they press that button.</summary>
+    public async Task ShowReportAsync()
+    {
+        if (_reportPanel == null)
+        {
+            _reportPanel = new ReportPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Stretch, Margin = new Thickness(28, 64, 28, 28) };
+            _reportPanel.CloseRequested += () => _reportLayer.IsVisible = false;
+            _reportLayer.Children.Add(_reportPanel);
+            Grid.SetRowSpan(_reportLayer, 2);
+            _root.Children.Add(_reportLayer);
+            KeyDown += (_, e) => { if (_reportLayer.IsVisible && e.Key == Key.Escape) { _reportLayer.IsVisible = false; e.Handled = true; } };
+        }
+        _reportLayer.IsVisible = true;
+        await _reportPanel.OpenAsync();
     }
 
     // ---- the screenshot viewer -----------------------------------------------------------------------------------------

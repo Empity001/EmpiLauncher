@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -131,11 +132,17 @@ public sealed class SettingsView : UserControl
             var selected = account.Uuid == _l.Config!.Accounts.Selected;
             var uuid = account.Uuid;
             var name = new StackPanel { Children = { Ui.Body(account.DisplayName, 15), Ui.Caption(Ui.AccountKind(account)) } };
-            Control action = selected
-                ? Ui.Pill("SELECCIONADA", Pal.AccentInk, Pal.Accent)
-                : Ui.Btn("Usar esta cuenta", Ui.Kind.Ghost, async () => { await _l.UseAccountAsync(uuid); await Open("account"); });
-            if (action is Border b) b.Margin = new Thickness(0);
-            list.Add(Row(name, action));
+            var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            if (account.Type == "offline")
+            {
+                // the offline player's own settings, not a session: they stay next to it
+                var dn = account.DisplayName;
+                actions.Children.Add(Ui.Btn(account.Skin != null ? "Cambiar skin" : "Skin…", Ui.Kind.Ghost, () => _window.ShowSkinPrompt(() => Open("account")), new Thickness(14, 8), 12));
+                actions.Children.Add(Ui.Btn("Cambiar nombre", Ui.Kind.Ghost, () => _window.ShowOfflinePrompt(dn, () => Open("account")), new Thickness(14, 8), 12));
+            }
+            if (selected) { var pill = Ui.Pill("SELECCIONADA", Pal.AccentInk, Pal.Accent); pill.Margin = new Thickness(0); actions.Children.Add(pill); }
+            else actions.Children.Add(Ui.Btn("Usar esta cuenta", Ui.Kind.Ghost, async () => { await _l.UseAccountAsync(uuid); await Open("account"); }));
+            list.Add(Row(name, actions));
         }
         if (!_l.SignedOut && accounts.Count > 0)
         {
@@ -243,6 +250,21 @@ public sealed class SettingsView : UserControl
             drop.Children.Add(Row(Labeled(mod.Name, mod.Ext), Switch(!mod.Disabled, on => _ = _l.Client.CallAsync("dropins.toggle", new { fullName = name, enabled = on, serverId = _l.Selected?.Id }), mod.Name)));
         }
         if (m.Dropins.Mods.Count == 0) drop.Children.Add(Ui.Caption("Ninguno todavía."));
+        var zone = new Border { BorderBrush = Pal.HairStrong, BorderThickness = new Thickness(1.5), CornerRadius = new CornerRadius(Pal.RadiusTile), Padding = new Thickness(16), Background = Pal.Tint, Child = Ui.Caption("Suelta aquí tus .jar (o escoge con el botón) y aparecen en la lista.") };
+        DragDrop.SetAllowDrop(zone, true);
+        zone.AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = DragDropEffects.Copy);
+        zone.AddHandler(DragDrop.DropEvent, async (_, e) =>
+        {
+            try
+            {
+                var files = e.DataTransfer?.TryGetFiles()?.Select(f => f.Path.LocalPath).Where(p => p.EndsWith(".jar", StringComparison.OrdinalIgnoreCase)).ToArray() ?? [];
+                if (files.Length == 0) { _window.ShowToast("Solo se vale soltar archivos .jar."); return; }
+                await _l.Client.CallAsync("dropins.add", new { paths = files, serverId = _l.Selected?.Id });
+                await Open("mods");
+            }
+            catch (Exception ex) { _window.ShowToast(ex.Message); }
+        });
+        drop.Children.Add(zone);
         drop.Children.Add(Ui.Btn("Abrir la carpeta de mods propios", Ui.Kind.Ghost, () => OpenFolder(m.Dropins.Dir), new Thickness(16, 8), 12));
         ((Button)drop.Children[^1]).HorizontalAlignment = HorizontalAlignment.Left;
         into.Children.Add(Section("Mods propios", "Suelta aquí tus .jar y aparecen en esta lista.", drop));
@@ -340,6 +362,8 @@ public sealed class SettingsView : UserControl
         into.Children.Add(Section("Novedades", "Lo que trae cada versión nueva.", notes));
         _ = FillNotesAsync(notes);
 
+        into.Children.Add(Section(null, null, Row(Labeled("Logo al abrir y cerrar", "Mi logo con su glitchecito cuando entras y cuando sales. Un clic o una tecla se lo salta."),
+            Switch(NativeSettings.Splash, on => NativeSettings.Splash = on, "Logo al abrir y cerrar"))));
         // the style: the background and the whole interface dressed to match
         var styles = new StackPanel { Spacing = 8 };
         foreach (var info in SC.Available)
@@ -422,6 +446,19 @@ public sealed class SettingsView : UserControl
             folders.Children.Add(Ui.Btn("Instancias", Ui.Kind.Ghost, () => OpenFolder(c.InstanceDirectory), new Thickness(16, 8), 12));
         }
         into.Children.Add(Section("Carpetas", null, folders));
+
+        var debug = new StackPanel { Spacing = 6 };
+        foreach (var (id, title, hint) in new[]
+        {
+            ("fps", "FPS del fondo", "Los cuadros que de verdad dibuja el fondo contra los que le pides, tipo 28 / 30."),
+            ("ms", "Tiempo por cuadro", "Cuántos milisegundos le toma a mi código armar cada cuadro del fondo."),
+            ("cpu", "Procesador", "Cuánto procesador usan la interfaz y el motor, cada quien por su lado."),
+            ("ram", "Memoria", "La RAM que usan la interfaz y el motor."),
+            ("gpu", "Tarjeta gráfica", "Qué tanto trabaja la GPU (si tu driver lo dice, como amdgpu)."),
+            ("field", "Estado del fondo", "Si el fondo se mueve o está quieto (y por qué), y en qué modo de rendimiento andas."),
+        })
+            debug.Children.Add(Row(Labeled(title, hint), Switch(NativeSettings.Debug.Contains(id), v => NativeSettings.SetDebug(id, v), title)));
+        into.Children.Add(Section("Depuración", "Un panelito en la esquina de arriba con números en vivo, por si quieres ver qué tanto trabaja el launcher. Se esconde cuando ves solo el fondo y mientras juegas.", debug));
 
         var memory = Ui.Caption("");
         try
