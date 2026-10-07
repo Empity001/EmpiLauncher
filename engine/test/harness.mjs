@@ -14,7 +14,8 @@ export async function startEngine({ label = 'test', env = {}, prepare } = {}) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), `empi-${label}-`))
     // A test may need files in place before the engine starts (a saved account, for instance).
     if (prepare) prepare({ root, userDir: path.join(root, 'user'), dataDir: path.join(root, 'data') })
-    const pipe = `empi-engine-${label}-${process.pid}`
+    // Windows: a named pipe; elsewhere a Unix socket inside the test's own folder (a bare name would leave a file in the working directory)
+    const pipe = process.platform === 'win32' ? `empi-engine-${label}-${process.pid}` : path.join(root, `engine-${label}.sock`)
     const token = crypto.randomBytes(16).toString('hex')
     const runtime = process.env.ENGINE_NODE || process.execPath
     const engine = spawn(runtime, [process.env.ENGINE_MAIN || path.join(here, '..', 'src', 'main.js'), '--pipe', pipe, '--token', token, '--user-data', path.join(root, 'user'), '--data-dir', path.join(root, 'data'), '--app-version', '0.0.0-test'],
@@ -28,7 +29,7 @@ export async function startEngine({ label = 'test', env = {}, prepare } = {}) {
         setTimeout(() => reject(new Error('engine did not become ready in 15 s')), 15000)
     })
 
-    const socket = net.connect(`\\\\.\\pipe\\${pipe}`)
+    const socket = net.connect(process.platform === 'win32' ? `\\\\.\\pipe\\${pipe}` : pipe)
     await new Promise((r) => socket.once('connect', r))
     const waiting = new Map()
     const events = []

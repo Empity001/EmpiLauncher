@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 
 const main = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'main.js')
 const runtime = process.env.ENGINE_NODE || process.execPath
-const pipe = `empi-engine-fp-${process.pid}`
+const pipe = process.platform === 'win32' ? `empi-engine-fp-${process.pid}` : path.join(os.tmpdir(), `empi-engine-fp-${process.pid}.sock`)   // Unix: a socket in the temp folder, not a file in the working directory
 const token = crypto.randomBytes(16).toString('hex')
 const engine = spawn(runtime, [main, '--pipe', pipe, '--token', token, '--user-data', fs.mkdtempSync(path.join(os.tmpdir(), 'empi-fp-'))], { stdio: ['ignore', 'pipe', 'pipe'] })
 await new Promise((resolve, reject) => { engine.stdout.on('data', (d) => String(d).includes('ENGINE_READY') && resolve()); engine.on('exit', reject); setTimeout(() => reject(new Error('not ready')), 15000) })
@@ -18,7 +18,7 @@ await new Promise((resolve, reject) => { engine.stdout.on('data', (d) => String(
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const readMem = () => JSON.parse(execFileSync('powershell', ['-NoProfile', '-Command', `$p = Get-Process -Id ${engine.pid}; @{ ws = [math]::Round($p.WorkingSet64/1MB,1); commit = [math]::Round($p.PrivateMemorySize64/1MB,1) } | ConvertTo-Json -Compress`], { encoding: 'utf8' }))
 
-const socket = net.connect(`\\\\.\\pipe\\${pipe}`)
+const socket = net.connect(process.platform === 'win32' ? `\\\\.\\pipe\\${pipe}` : pipe)
 await new Promise((r) => socket.once('connect', r))
 let buffer = ''; const waiting = new Map(); let id = 0
 socket.setEncoding('utf8')

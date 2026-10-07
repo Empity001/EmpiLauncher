@@ -365,14 +365,15 @@ async function refreshStatus() {
 async function refreshLauncher() {
     const first = !state.launcher
     state.launcher = await api('/api/launcher')
-    // a style build compiled earlier and not sent yet: the page comes back with that style picked, so Enviar is right there
+    // a build compiled earlier and not sent yet (with its style, if it had one): the page comes back with that version picked, so Enviar is right there
     const build = state.launcher.build
-    if (first && build && !build.sent && build.style && !state.launcherStyle) {
-        state.launcherStyle = build.style
-        state.notes = state.styleNotes = build.notes || ''
+    if (first && build && !build.sent) {
+        if (build.style && !state.launcherStyle) { state.launcherStyle = build.style; state.notes = state.styleNotes = build.notes || '' }
+        else if (build.notes && !state.notes) state.notes = build.notes
         const info = state.launcher
         const choice = ['patch', 'minor', 'major'].find((k) => info.next[k] === build.version) || (info.version === build.version ? 'same' : null)
         if (choice) state.launcherChoice = choice
+        if (build.kind && info.kinds && info.kinds[build.kind]) state.launcherKind = build.kind
     }
 }
 

@@ -10,3 +10,10 @@
 /native/**/obj/
 /native/**/publish/
 /native/**/out/
+
+# MemPalace per-project files (issue #185)
+mempalace.yaml
+entities.json
+
+# Graphify (knowledge graph of the code, rebuilt on demand)
+graphify-out/

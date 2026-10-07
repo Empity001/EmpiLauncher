@@ -15,7 +15,7 @@ const main = process.env.ENGINE_MAIN || path.join(here, '..', 'src', 'main.js')
 const argIndex = process.argv.indexOf('--user-data')
 const userData = argIndex >= 0 ? process.argv[argIndex + 1] : fs.mkdtempSync(path.join(os.tmpdir(), 'empi-engine-'))
 const dataDir = path.join(userData, 'data')   // isolated on purpose: the real game installation must never be touched by a test
-const pipe = `empi-engine-test-${process.pid}`
+const pipe = process.platform === 'win32' ? `empi-engine-test-${process.pid}` : path.join(os.tmpdir(), `empi-engine-test-${process.pid}.sock`)   // Unix: a socket in the temp folder, not a file in the working directory
 const token = crypto.randomBytes(16).toString('hex')
 
 const engine = spawn(process.env.ENGINE_NODE || process.execPath, [main, '--pipe', pipe, '--token', token, '--user-data', userData, '--data-dir', dataDir, '--app-version', '0.0.0-test'], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env } })
@@ -29,7 +29,7 @@ await new Promise((resolve, reject) => {
     setTimeout(() => reject(new Error('engine did not become ready in 15 s')), 15000)
 })
 
-const socket = net.connect(`\\\\.\\pipe\\${pipe}`)
+const socket = net.connect(process.platform === 'win32' ? `\\\\.\\pipe\\${pipe}` : pipe)
 await new Promise((r) => socket.once('connect', r))
 let buffer = ''
 const waiting = new Map(); const events = []
