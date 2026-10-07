@@ -24,6 +24,14 @@ public static class Pal
     public static readonly SolidColorBrush Track = B("#1AFFFFFF"), Tabs = B("#B3111215");
     public static readonly SolidColorBrush Clear = B("#00000000");
 
+    /// <summary>The ink of the modpack's name on the home screen (Celestial paints it in foil).</summary>
+    public static IBrush TitleInk { get; set; } = Title;
+    /// <summary>Celestial's holographic foil for the main action (a plain pastel until the foil is set).</summary>
+    public static IBrush HoloFill { get; set; } = B("#ffd6f2");
+    private static readonly Dictionary<string, IBrush> Extras = new();
+    /// <summary>A token that is not one of the shared brushes (a gradient edge, a heat fill), by its key.</summary>
+    public static IBrush? Extra(string key) => Extras.TryGetValue(key, out var brush) ? brush : null;
+
     /// <summary>The edge of the dock and of a few panels: a plain hairline, or a gradient in some styles (read when a view is built).</summary>
     public static IBrush DockEdge { get; private set; } = Hair;
     public static IBrush Backdrop { get; private set; } = DefaultBackdrop();
@@ -79,12 +87,31 @@ public static class Pal
         ["InputBrush"] = Input, ["ChromeInkBrush"] = ChromeInk, ["ChromeBoxBrush"] = ChromeBox, ["ChromeBoxEdgeBrush"] = ChromeBoxEdge, ["TrackBrush"] = Track, ["TabsBrush"] = Tabs
     };
 
+    /// <summary>The brushes by their resource key (the names the Windows interface uses), so styles written with DynamicResource find them.</summary>
+    public static void Register(Avalonia.Controls.IResourceDictionary resources)
+    {
+        foreach (var (key, brush) in Brushes) resources[key] = brush;
+        resources["AccentBrush"] = Accent; resources["AccentInkBrush"] = AccentInk; resources["AccentSoftBrush"] = AccentSoft; resources["PlayInkBrush"] = PlayInk; resources["ClearBrush"] = Clear;
+    }
+
+    public static IBrush? Find(string key) => key switch
+    {
+        "AccentBrush" => Accent, "AccentInkBrush" => AccentInk, "AccentSoftBrush" => AccentSoft, "PlayInkBrush" => PlayInk,
+        _ => Brushes.TryGetValue(key, out var brush) ? brush : null
+    };
+
     /// <summary>Puts a set of tokens on (the base style's, then a style's over them). A gradient or a font is rebuilt; a plain colour is changed in place.</summary>
     public static void ApplyTokens(Dictionary<string, string> tokens)
     {
         foreach (var (key, value) in tokens)
         {
             if (Brushes.TryGetValue(key, out var brush) && Color.TryParse(value, out var c)) { brush.Color = c; continue; }
+            if (key.EndsWith("Brush") && !Brushes.ContainsKey(key) && key != "DockEdgeBrush" && key != "BackdropScrim")
+            {
+                if (value.StartsWith("grad:")) Extras[key] = Gradient(value);
+                else if (Color.TryParse(value, out var plain)) Extras[key] = new SolidColorBrush(plain);
+                continue;
+            }
             switch (key)
             {
                 case "DockEdgeBrush": DockEdge = value.StartsWith("grad:") ? Gradient(value) : Color.TryParse(value, out var e) ? new SolidColorBrush(e) : Hair; break;

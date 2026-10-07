@@ -124,8 +124,10 @@ internal static class StyleTheme
         if (style.Id != StyleCatalog.Base && StyleTokens.Looks.TryGetValue(style.Id, out var tokens)) Pal.ApplyTokens(tokens);
         Current = style.Id;
         Services.Launcher.RefreshAccent();
+        Views.Look.Apply(style.Id);
+        Views.Foil.Set(style.Id == "celestial");
     }
 
     /// <summary>The sheen of Celestial's foil only passes while the background may move; there is no foil in this port yet, so nothing follows this.</summary>
-    public static void SetMoving(bool moving) { }
+    public static void SetMoving(bool moving) => Views.Foil.SetMoving(moving);
 }

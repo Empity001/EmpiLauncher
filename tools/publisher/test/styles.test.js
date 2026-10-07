@@ -63,6 +63,12 @@ test('a published style, one still being made, the base one or a classic build a
     assert.deepStrictEqual(statusOf(config, null), { actual: 'base', oleaje: 'ready', shell: 'published', punk: 'preparing' })
 })
 
+test('a style can come out in the Linux launcher too (it is the same styles.json)', () => {
+    const config = makeRepo(STYLES())
+    assert.strictEqual(styles.prepare(config, { style: 'oleaje', version: '3.8.0', unsentStyle: null, kind: 'linux' }), true)
+    assert.deepStrictEqual(statusOf(config, 'oleaje'), { actual: 'base', oleaje: 'compiled', shell: 'published', punk: 'preparing' })
+})
+
 test('a normal update touches nothing', () => {
     const config = makeRepo(STYLES())
     const before = fs.readFileSync(styles.manifestPath(config), 'utf8')

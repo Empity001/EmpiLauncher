@@ -1,76 +1,317 @@
-using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Shapes;
 using Avalonia.Controls.Primitives;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using EmpiLauncher.Ipc;
 using EmpiLauncher.Linux.Services;
+using EmpiLauncher.Linux.Styles;
+using Path = System.IO.Path;
+using Visual = Avalonia.Visual;
+using Brush = Avalonia.Media.IBrush;
+using Shape = Avalonia.Controls.Shapes.Shape;
+using System.Diagnostics;
+using EmpiLauncher.Ipc;
 
 namespace EmpiLauncher.Linux.Views;
 
+/// <summary>What a notice looks like wherever it appears: the icon of its scope and the colour of its gravity.</summary>
+internal static class NoticeLook
+{
+    public const string Megaphone = "megaphone";   // general notices
+    public const string Bubble = "bubble";
+    public static Geometry GlyphOf(string name) => name == Bubble ? Icons.Bubble : Icons.Megaphone;      // notices of one modpack
+
+    public static Brush BrushOf(string severity) => severity switch { "critical" => Fmt.Res("DangerBrush"), "important" => Fmt.Res("WarnBrush"), _ => Fmt.Res("PaperBrush") };
+    public static int Rank(string severity) => severity switch { "critical" => 2, "important" => 1, _ => 0 };
+    /// <summary>Counts as unread until it is read (opened) or closed; "remind me later" keeps it unread.</summary>
+    public static bool Unread(NoticeInfo notice) => notice.State is "unread" or "later";
+
+    /// <summary>The colour of the most serious unread notice, or null when nothing is unread.</summary>
+    public static Brush? BadgeBrush(IEnumerable<NoticeInfo> notices)
+    {
+        var worst = notices.Where(Unread).OrderByDescending(n => Rank(n.Severity)).FirstOrDefault();
+        return worst == null ? null : BrushOf(worst.Severity);
+    }
+
+    public static string When(string? iso)
+    {
+        if (!DateTimeOffset.TryParse(iso, out var at)) return "";
+        var local = at.ToLocalTime();
+        var days = (DateTime.Now.Date - local.Date).Days;
+        return days == 0 ? $"hoy {local:HH:mm}" : days == 1 ? "ayer" : Spanish.Format(local, "d MMM").ToLowerInvariant();
+    }
+}
+
 /// <summary>
-/// The notices the author published (avisos.json): the general ones and those of the selected modpack. Each is a page of newspaper (an image the
-/// engine already cached) with its words and, maybe, a button. Opening the panel marks what was unread as read; "Después" keeps a notice for later
-/// and "Cerrar" files it under "ya leídos".
+/// The notices, as a newspaper: the page of the notice that is open, big, and the others in a strip beside it. Every notice can be closed
+/// (it moves to "Ya leídos" and stays there for good: nothing removes it, it is the proof that it arrived) or put off ("recordar más tarde": it comes
+/// back the next time the launcher opens). Opening a page marks it read.
+/// The pages are pictures the author built in the Publisher and the launcher shows them as they are.
 /// </summary>
-public sealed class NoticesPanel : Border
+internal sealed class NoticesPanel : UserControl
 {
     private readonly Services.Launcher _l = Services.Launcher.Instance;
-    private readonly StackPanel _list = new() { Spacing = 14 };
-    private readonly Action _close;
+    /// <summary>Notices put off in this run: viewing one again in this same run must not count as reading it.</summary>
+    private static readonly HashSet<string> LaterThisRun = [];
 
-    public NoticesPanel(Action close)
+    private string _scope = "general";   // "general", "archive" (ya leídos) or a modpack id
+    private string? _selected;
+    private readonly TextBlock _count;
+    private readonly StackPanel _tabs = new() { Orientation = Orientation.Horizontal, Margin = new Thickness(22, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+    private readonly Image _page = new() { Stretch = Stretch.Uniform };
+    private readonly Border _pageFrame;
+    private readonly StackPanel _strip = new();
+    private readonly TextBlock _empty;
+    private readonly Grid _body = new();
+    private readonly Button _link, _later, _close;
+    private readonly StackPanel _footer = new();
+
+    public event Action? CloseRequested;
+
+    public NoticesPanel()
     {
-        _close = close;
-        var head = new DockPanel { Margin = new Thickness(0, 0, 0, 14) };
-        var x = Ui.IconBtn(Icons.Close, "Cerrar", close);
-        DockPanel.SetDock(x, Dock.Right);
-        head.Children.Add(x);
-        head.Children.Add(Ui.Display("Avisos", 28));
-        Background = Pal.Dialog; BorderBrush = Pal.Hair; BorderThickness = new Thickness(1); CornerRadius = new CornerRadius(22); Padding = new Thickness(26, 22);
-        Width = 720; HorizontalAlignment = HorizontalAlignment.Center; VerticalAlignment = VerticalAlignment.Stretch; Margin = new Thickness(28, 64, 28, 28);
-        var layout = new DockPanel();
-        DockPanel.SetDock(head, Dock.Top);
-        layout.Children.Add(head);
-        layout.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = new Border { Padding = new Thickness(0, 0, 12, 0), Child = _list } });
-        Child = layout;
+        RenderOptions.SetBitmapInterpolationMode(_page, BitmapInterpolationMode.HighQuality);
+        var root = new Grid();
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        // header: the name, how many are unread, the two scopes, and the way out
+        var header = new DockPanel { Margin = new Thickness(0, 0, 0, 14) };
+        var exit = Ui.IconBtn(Icons.Close, "Cerrar (Esc)", () => CloseRequested?.Invoke(), 34);
+        Avalonia.Automation.AutomationProperties.SetName(exit, "Cerrar los avisos");
+        DockPanel.SetDock(exit, Dock.Right);
+        header.Children.Add(exit);
+        header.Children.Add(Ui.Text("AVISOS", "DisplayText", null, 26));
+        _count = Ui.Text("", "CaptionText");
+        _count.Margin = new Thickness(14, 0, 0, 0); _count.VerticalAlignment = VerticalAlignment.Center;
+        header.Children.Add(_count);
+        header.Children.Add(_tabs);
+        root.Children.Add(header);
+
+        // body: the page, and the strip of the others
+        _body.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        _body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
+        _body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 250 });
+        _pageFrame = new Border { BorderBrush = Fmt.Res("HairStrongBrush"), BorderThickness = new Thickness(1), Background = Fmt.Res("WellBrush"), Child = _page, RenderTransformOrigin = RelativePoint.Center };
+        var box = new Viewbox { Stretch = Stretch.Uniform, StretchDirection = StretchDirection.Both, Child = new Grid { Width = 450, Height = 600, Children = { _pageFrame } } };
+        Grid.SetColumn(box, 0);
+        _body.Children.Add(box);
+        var scroller = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Focusable = false, Content = _strip };
+        Grid.SetColumn(scroller, 2);
+        _body.Children.Add(scroller);
+        _empty = Ui.Text("No hay avisos por ahora. Todo tranqui.", "BodyText", Fmt.Res("Paper2Brush"));
+        _empty.HorizontalAlignment = HorizontalAlignment.Left; _empty.Margin = new Thickness(2, 6, 0, 0);
+        Grid.SetRow(_body, 1);
+        root.Children.Add(_body);
+
+        // footer: the button the author gave the notice (if any), and what the player does with it
+        _link = Ui.Act("", OpenLink, "GhostButton", 18);
+        _later = Ui.Act("Recordar más tarde", Later);
+        _close = Ui.Act("Cerrar aviso", Dismiss, "PaperButton", 20);
+        _later.Margin = new Thickness(0, 0, 8, 0);
+        var right = new StackPanel { Orientation = Orientation.Horizontal, Children = { _later, _close } };
+        var dock = new DockPanel { Margin = new Thickness(0, 14, 0, 0) };
+        DockPanel.SetDock(right, Dock.Right);
+        dock.Children.Add(right);
+        dock.Children.Add(_link);
+        _link.HorizontalAlignment = HorizontalAlignment.Left;
+        _footer.Children.Add(dock);
+        Grid.SetRow(_footer, 2);
+        root.Children.Add(_footer);
+
+        Content = new Border { Background = Pal.Dialog, BorderBrush = Pal.Hair, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(Pal.RadiusModule), Padding = new Thickness(24, 20, 24, 20), Child = root };
+        MinWidth = 650; MaxWidth = 940; MaxHeight = 700;   // the panel keeps its width whichever tab is open (units are DIPs, not pixels)
+        Loaded += (_, _) => _l.NoticesChanged += Refresh;
+        Unloaded += (_, _) => _l.NoticesChanged -= Refresh;
     }
 
-    public void Fill(string? modpackId)
+    // ---- what is shown --------------------------------------------------------------------------------------------------
+
+    private bool InArchive => _scope == "archive";
+
+    private List<NoticeInfo> Visible() => InArchive ? Archived() : (_scope == "general" ? _l.GeneralNotices : _l.NoticesOf(_scope)).ToList();
+
+    /// <summary>The closed ones, dressed as notices so they are listed and shown like any other (the date is the day it was closed).</summary>
+    private List<NoticeInfo> Archived() => _l.Archived.Select(a => new NoticeInfo(a.Id, a.Title, a.Severity, a.General, a.Targets, a.Summary, a.Button, a.ClosedAt, null, a.Image, "closed")).ToList();
+
+    /// <summary>Where a closed notice was seen: general, or the modpack it named.</summary>
+    private string ScopeName(NoticeInfo notice) =>
+        notice.General ? "General" : notice.Targets.Select(t => _l.Distro?.Servers.FirstOrDefault(s => s.Id == t)?.Name).FirstOrDefault(name => name != null) ?? "Modpack";
+    private string LocalName() => _l.Distro?.Servers.FirstOrDefault(s => s.Id == _l.SelectedId)?.Name ?? "Modpack";
+
+    /// <summary>Opens on the general notices (the megaphone) or on those of the modpack that is selected (the bubble).</summary>
+    public void Open(bool general)
     {
-        _list.Children.Clear();
-        var notices = _l.GeneralNotices.Concat(_l.NoticesOf(modpackId)).DistinctBy(n => n.Id).OrderByDescending(n => n.PublishedAt).ToList();
-        if (notices.Count == 0) _list.Children.Add(Ui.Body("No hay avisos por ahora. Todo tranqui ;3", 14.5, Pal.Paper2));
-        foreach (var notice in notices)
-        {
-            _list.Children.Add(Card(notice));
-            if (notice.State == "unread") _ = _l.MarkNoticeAsync(notice.Id, "read");
-        }
-        var archived = _l.Archived.ToList();
-        if (archived.Count > 0)
-        {
-            _list.Children.Add(Ui.Label($"YA LEÍDOS  ·  {archived.Count}"));
-            foreach (var a in archived.Take(20))
-                _list.Children.Add(new Border { Background = Pal.Tint, CornerRadius = new CornerRadius(14), Padding = new Thickness(14, 10), Child = new StackPanel { Children = { Ui.Body(a.Title, 14, Pal.Paper2), Ui.Caption(a.Summary ?? "") } } });
-        }
+        _scope = general || _l.SelectedId == null ? "general" : _l.SelectedId;
+        if (!_l.NoticesOf(_scope).Any() && _scope != "general") _scope = "general";
+        _selected = null;
+        Refresh();
+        var first = Visible().FirstOrDefault(NoticeLook.Unread) ?? Visible().FirstOrDefault();
+        if (first != null) Choose(first.Id);
     }
 
-    private Control Card(NoticeInfo notice)
+    private void Refresh()
     {
-        var stack = new StackPanel { Spacing = 8 };
-        var tag = notice.Severity switch { "danger" or "critical" => Pal.Danger, "warning" or "warn" => Pal.Warn, _ => Pal.Paper2 };
-        stack.Children.Add(Ui.Pill((notice.General ? "GENERAL" : "ESTE MODPACK") + "  ·  " + notice.Severity.ToUpperInvariant(), tag));
-        stack.Children.Add(Ui.Display(notice.Title, 22));
-        if (!string.IsNullOrWhiteSpace(notice.Summary)) stack.Children.Add(Ui.Body(notice.Summary, 14.5, Pal.Paper2));
-        if (Ui.Decode(notice.Image, 660) is { } picture)
-            stack.Children.Add(new Border { CornerRadius = new CornerRadius(14), ClipToBounds = true, Child = new Image { Source = picture, Stretch = Stretch.Uniform } });
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 4, 0, 0) };
-        if (notice.Button is { } b && Uri.TryCreate(b.Url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps)
-            buttons.Children.Add(Ui.Btn(b.Label, Ui.Kind.Primary, () => { try { Process.Start(new ProcessStartInfo("xdg-open") { ArgumentList = { uri.ToString() }, UseShellExecute = false }); } catch { } }, new Thickness(18, 9)));
-        buttons.Children.Add(Ui.Btn("Después", Ui.Kind.Ghost, async () => { await _l.MarkNoticeAsync(notice.Id, "later"); Fill(_l.HostId); }, new Thickness(16, 9), 12));
-        buttons.Children.Add(Ui.Btn("Cerrar aviso", Ui.Kind.Ghost, async () => { await _l.MarkNoticeAsync(notice.Id, "closed"); Fill(_l.HostId); }, new Thickness(16, 9), 12));
-        stack.Children.Add(buttons);
-        return new Border { Background = Pal.Module, BorderBrush = Pal.Hair, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(18), Padding = new Thickness(20, 16), Child = stack };
+        var general = _l.GeneralNotices.ToList();
+        var local = _l.NoticesOf(_l.SelectedId).ToList();
+        var archived = _l.Archived.Count();
+        if (InArchive && archived == 0) _scope = "general";   // nothing left in "ya leídos": back to the notices
+        if (_scope != "general" && !InArchive && _scope != _l.SelectedId) _scope = "general";
+
+        var unread = general.Count(NoticeLook.Unread) + local.Count(NoticeLook.Unread);
+        _count.Text = unread == 0 ? "todo leído" : unread == 1 ? "1 sin leer" : $"{unread} sin leer";
+
+        _tabs.Children.Clear();
+        void Tab(string scope, string label, int total, int fresh)
+        {
+            var pill = new RadioButton { Content = fresh > 0 ? $"{label}  ({fresh})" : label, Classes = { "tab" }, FontFamily = Pal.Mono, GroupName = "notice-scope", IsChecked = _scope == scope, Tag = scope };
+            Avalonia.Automation.AutomationProperties.SetName(pill, Ui.AccessName(label));
+            pill.IsCheckedChanged += (_, _) => { if (pill.IsChecked != true || _scope == scope) return; _scope = scope; _selected = null; Refresh(); var f = Visible().FirstOrDefault(NoticeLook.Unread) ?? Visible().FirstOrDefault(); if (f != null) Choose(f.Id); };
+            _tabs.Children.Add(pill);
+        }
+        Tab("general", "General", general.Count, general.Count(NoticeLook.Unread));
+        if (_l.SelectedId != null && local.Count > 0) Tab(_l.SelectedId, LocalName(), local.Count, local.Count(NoticeLook.Unread));
+        if (archived > 0) Tab("archive", "Ya leídos", archived, 0);
+
+        var list = Visible();
+        if (_selected == null || !list.Any(n => n.Id == _selected)) _selected = list.FirstOrDefault(NoticeLook.Unread)?.Id ?? list.FirstOrDefault()?.Id;
+
+        _strip.Children.Clear();
+        if (list.Count == 0)
+        {
+            _strip.Children.Add(_empty);
+            _page.Source = null;
+            _pageFrame.IsVisible = false;
+            _footer.IsVisible = false;
+            return;
+        }
+        _pageFrame.IsVisible = true;
+        _footer.IsVisible = true;
+        // a closed notice cannot be put off, closed again or removed: it stays as the proof that it arrived, and it can be read again
+        _later.IsVisible = _close.IsVisible = !InArchive;
+        foreach (var notice in list) _strip.Children.Add(Item(notice, notice.Id == _selected));
+        Show(list.First(n => n.Id == _selected));
+    }
+
+    private Button Item(NoticeInfo notice, bool selected)
+    {
+        var brush = NoticeLook.BrushOf(notice.Severity);
+        var ink = selected ? Fmt.Res("BgBrush") : Fmt.Res("PaperBrush");
+        var dot = new Ellipse { Width = 10, Height = 10, Stroke = selected && notice.Severity == "info" ? Fmt.Res("BgBrush") : brush, StrokeThickness = 1.5, Margin = new Thickness(0, 5, 11, 0), VerticalAlignment = VerticalAlignment.Top, Fill = NoticeLook.Unread(notice) ? brush : Brushes.Transparent };
+        var glyph = new Avalonia.Controls.Shapes.Path { Data = NoticeLook.GlyphOf(notice.General ? NoticeLook.Megaphone : NoticeLook.Bubble), Stroke = selected ? Fmt.Res("PaperInkBrush") : Fmt.Res("Paper3Brush"), StrokeThickness = 1.4, Width = 14, Height = 14, Stretch = Stretch.Uniform, Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center };
+        var title = new TextBlock { Text = notice.Title, FontFamily = Pal.BodyFont, FontWeight = FontWeight.SemiBold, FontSize = 14, Foreground = ink, TextWrapping = TextWrapping.Wrap, MaxHeight = 40, TextTrimming = TextTrimming.CharacterEllipsis };
+        var meta = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 0), Children = { glyph, new TextBlock { Text = InArchive ? $"{ScopeName(notice)}  cerrado {NoticeLook.When(notice.PublishedAt)}" : $"{(notice.General ? "General" : LocalName())}  {NoticeLook.When(notice.PublishedAt)}", FontFamily = Pal.Mono, FontSize = 11.5, Foreground = selected ? Fmt.Res("PaperInkBrush") : Fmt.Res("Paper3Brush"), TextWrapping = TextWrapping.NoWrap } } };
+        var row = new Grid { Children = { dot } };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var text = new StackPanel { Children = { title, meta } };
+        Grid.SetColumn(text, 1);
+        row.Children.Add(text);
+        var card = new Border { CornerRadius = new CornerRadius(Pal.RadiusTile), Padding = new Thickness(12, 10, 12, 10), Margin = new Thickness(0, 0, 8, 6), Background = selected ? Fmt.Res("PaperBrush") : Brushes.Transparent, Child = row };
+        var button = new Button { Classes = { "card" }, Background = Brushes.Transparent, Padding = new Thickness(0), Content = card, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        Avalonia.Automation.AutomationProperties.SetName(button, Ui.AccessName($"{notice.Title}, {(InArchive ? "cerrado" : NoticeLook.Unread(notice) ? "sin leer" : "leído")}"));
+        button.Click += (_, _) => Choose(notice.Id);
+        return button;
+    }
+
+    /// <summary>The player picked this one: it is shown, and counts as read.</summary>
+    private void Choose(string id)
+    {
+        _selected = id;
+        if (InArchive) { Refresh(); return; }   // reading a closed one changes nothing
+        var notice = _l.ActiveNotices.FirstOrDefault(n => n.Id == id);
+        if (notice == null) return;
+        if (notice.State == "unread" || (notice.State == "later" && !LaterThisRun.Contains(id))) _ = _l.MarkNoticeAsync(id, "read");
+        Refresh();
+    }
+
+    private string? _shown;
+    private void Show(NoticeInfo notice)
+    {
+        var changed = _shown != notice.Id;
+        _shown = notice.Id;
+        _page.Source = notice.Image != null ? Ui.Decode(notice.Image, 900) : null;
+        Avalonia.Automation.AutomationProperties.SetName(_page, Ui.AccessName(notice.Summary is { Length: > 0 } ? $"{notice.Title}. {notice.Summary}" : notice.Title));
+        _link.IsVisible = notice.Button != null;
+        _link.Content = notice.Button != null ? $"{notice.Button.Label}  ↗" : "";
+        _footer.Opacity = InArchive && notice.Button == null ? 0 : 1; _footer.IsHitTestVisible = !(InArchive && notice.Button == null);   // a closed notice with no link has nothing down here; its space stays, so the page keeps its size
+        if (changed) Motion.Rise(_pageFrame, 0, 180, 6);   // the next page arrives; nothing moves when only the marks changed
+    }
+
+    // ---- what the player does -------------------------------------------------------------------------------------------
+
+    private void OpenLink()
+    {
+        var notice = Visible().FirstOrDefault(n => n.Id == _selected);
+        if (notice?.Button == null || !Uri.TryCreate(notice.Button.Url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps) return;
+        try { Process.Start(new ProcessStartInfo(uri.ToString()) { UseShellExecute = true }); } catch (Exception) { _l.RaiseNotice("No pude abrir el enlace."); }
+    }
+
+    private void Later()
+    {
+        if (_selected == null) return;
+        LaterThisRun.Add(_selected);
+        _ = _l.MarkNoticeAsync(_selected, "later");
+        _l.RaiseNotice("Te lo vuelvo a enseñar la próxima vez que abras el launcher.");
+        Advance();
+    }
+
+    private void Dismiss()
+    {
+        if (_selected == null) return;
+        _ = _l.MarkNoticeAsync(_selected, "closed");
+        Advance();
+    }
+
+    /// <summary>After putting one off or closing it: the next one of this scope, or out when there is none.</summary>
+    private void Advance()
+    {
+        var list = Visible();
+        var at = list.FindIndex(n => n.Id == _selected);
+        var next = list.Where((n, i) => i != at).OrderByDescending(NoticeLook.Unread).ThenBy(n => list.IndexOf(n)).FirstOrDefault();
+        if (next == null) { CloseRequested?.Invoke(); return; }
+        Choose(next.Id);
+    }
+}
+
+/// <summary>The megaphone (general) and the speech bubble (one modpack): a round icon with a badge. Dim when there is nothing, lit with a number when there is.</summary>
+internal sealed class NoticeIconButton : Grid
+{
+    private readonly Button _button;
+    private readonly Border _badge;
+    private readonly TextBlock _count;
+    private int _unread = -1;
+
+    public event Action? Clicked;
+
+    public NoticeIconButton(string glyph, string name, double size = 38)
+    {
+        _button = Ui.IconBtn(NoticeLook.GlyphOf(glyph), name, () => Clicked?.Invoke(), size);
+        Avalonia.Automation.AutomationProperties.SetName(_button, name);
+        _count = new TextBlock { FontFamily = Pal.Mono, FontSize = 10.5, FontWeight = FontWeight.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(0x0b, 0x0b, 0x0c)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 0) };
+        _badge = new Border { MinWidth = 16, Height = 16, CornerRadius = new CornerRadius(8), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 0, -3, 0), IsHitTestVisible = false, IsVisible = false, Child = _count, RenderTransformOrigin = RelativePoint.Center, RenderTransform = new ScaleTransform(1, 1) };
+        Children.Add(_button);
+        Children.Add(_badge);
+    }
+
+    /// <param name="unread">how many are unread</param>
+    /// <param name="color">the colour of the most serious unread one (null when none is)</param>
+    /// <param name="any">whether there is anything at all: without notices the icon is dim</param>
+    public void Set(int unread, Brush? color, bool any)
+    {
+        _button.Opacity = any ? 1 : 0.4;
+        var arrived = _unread >= 0 && unread > _unread;
+        _unread = unread;
+        _badge.IsVisible = unread > 0;
+        if (unread <= 0) return;
+        _count.Text = unread > 9 ? "9+" : unread.ToString();
+        _badge.Background = color ?? Fmt.Res("PaperBrush");
+        if (arrived) Motion.Pop(_badge, RelativePoint.Center, 240, 0.6);   // something new: the badge arrives, it does not just change
     }
 }

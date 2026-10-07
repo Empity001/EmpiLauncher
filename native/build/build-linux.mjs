@@ -73,8 +73,12 @@ async function checkSignInWindow(stageDir) {
     const started = output.includes('"started"')
     if (started) await sleep(1500)
     const alive = exited === null
+    // the helper's whole group goes: first politely, then for good (a helper that stays holds this build open, and whoever runs it, for ever)
     try { process.kill(-child.pid, 'SIGTERM') } catch { /* already gone */ }
-    await sleep(400)
+    await sleep(500)
+    try { process.kill(-child.pid, 'SIGKILL') } catch { /* already gone */ }
+    child.stdout.destroy(); child.stderr.destroy()
+    await sleep(200)
     fs.rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
     if (!started || !alive) fail(`El Electron empaquetado no llega a abrir la ventana de inicio de sesion (${started ? 'se cerro solo' : exited === null ? 'no arranco en 20 s' : `salio con ${exited} sin abrirla`}).`)
     console.log('    la ventana se abre y se mantiene')

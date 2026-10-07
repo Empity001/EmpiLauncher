@@ -51,15 +51,26 @@ Wayland no se puede capturar el escritorio), `EMPI_UPDATE_URL` (un canal de actu
 
 Los 11 estilos del launcher están portados: Default, Celestial, Oleaje, Térmico, Core, Shell, Minimal, Remember, Punk, Words y Explorer.
 Se ofrecen los mismos que en Windows: el Default y los que el Publisher ("Pendientes") marcó con `releasedIn` en
-`native/src/EmpiLauncher.App/Styles/styles.json` (el de Linux lleva una copia en `native/src/EmpiLauncher.Linux/Styles/`; **cópialo al
-publicar un estilo nuevo**). Los dos con shader (Oleaje, Térmico) están portados de HLSL a SkSL (`Views/Fields/Shaders.g.cs`).
+`native/src/EmpiLauncher.App/Styles/styles.json` (el de Linux incluye ese mismo archivo). Los dos con shader (Oleaje, Térmico) están portados de HLSL a SkSL (`Views/Fields/Shaders.g.cs`).
 Los colores, radios y fuentes de cada estilo salen de sus `*.tokens.xaml` (`Styles/StyleTokens.g.cs`, generado).
 
 También están: los efectos de Jugar (sello de mantenimiento/próximamente, cristal que se rompe al retirarse y los efectos propios de cada estilo),
-el logo de apertura, la bandeja del sistema, el panel de depuración, el reporte de errores, el aviso de skin sin conexión y arrastrar mods.
-Para probar un estado sin tocar los avisos publicados: `EMPI_ACCESS=maintenance|upcoming|retired`.
+el logo de apertura, la bandeja del sistema, el panel de depuración, el reporte de errores, el aviso de skin sin conexión, arrastrar mods,
+el selector de color (del estilo y de los puntos), el banner y fondo animados, la pantalla de "versión bloqueada", los avisos con su globito y su
+megáfono, el aviso emergente al abrir y la forma propia de los controles de cada estilo (botones XP de Explorer, pegatinas de Punk, lápiz de Remember,
+hojas de Words, marcos de Core, hoja de foil de Celestial…). Es el mismo orden y los mismos textos que el de Windows.
+Para probar un estado sin tocar los avisos publicados: `EMPI_ACCESS=maintenance|upcoming|retired`; `EMPI_FOLDS=open` abre todos los plegables de Ajustes
+y `EMPI_SCROLL=<y>` baja la página para sacar una captura.
 
-**Todavía no están en Linux:** la forma propia de los controles de cada estilo (controls.xaml), el selector de color y el banner animado.
+**Una sola lista de estilos:** `native/src/EmpiLauncher.App/Styles/styles.json` es la que usan los dos launchers (el de Linux la incluye tal cual), así que
+un estilo que se sube desde el Publisher sale en los dos.
+
+## Publicar desde el Publisher
+
+En "Publicar el launcher" el instalador **Nativo · Linux** compila el `.tar.gz` (en Windows, el **Nativo · Windows**). Los estilos de Pendientes se
+pueden subir con cualquiera de los dos. El Release se crea con los archivos de Linux sin marcarse como "el último" (los launchers de Windows leen
+`latest.yml` del último Release y no se tocan); cuando después se publica la versión de Windows con el mismo número, se agrega a ese mismo Release y
+ahí sí queda como el último. El actualizador de Linux busca entre los Releases recientes el de versión más alta que traiga `latest-linux.yml`.
 
 ## Nebula en Linux
 

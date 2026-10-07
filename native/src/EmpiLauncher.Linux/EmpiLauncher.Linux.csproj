@@ -23,7 +23,7 @@
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.3" />
     <ProjectReference Include="..\EmpiLauncher.Ipc\EmpiLauncher.Ipc.csproj" />
     <AvaloniaResource Include="Assets\**" />
-    <AvaloniaResource Include="Styles\styles.json" />
+    <AvaloniaResource Include="..\EmpiLauncher.App\Styles\styles.json" Link="Styles\styles.json" />
   </ItemGroup>
 
 </Project>

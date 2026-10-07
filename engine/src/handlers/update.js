@@ -62,13 +62,22 @@ function register(handlers, state) {
         const { ConfigManager } = ensureCore(state)
         const current = state.shim && require('electron').app.getVersion()
         try {
-            let url = await channelUrl(ConfigManager.getAllowPrerelease())
-            let body = url ? await text(url) : null
-            if (!body && !WINDOWS && !process.env.EMPI_UPDATE_URL) {
-                // The newest release may be a Windows-only one: Linux then looks through the recent ones for the newest that carries its channel file.
-                const list = JSON.parse(await text(`https://api.github.com/repos/${OWNER}/${REPO}/releases?per_page=15`) || '[]')
-                const release = list.find((r) => !r.draft && (!r.prerelease || ConfigManager.getAllowPrerelease()) && (r.assets || []).some((asset) => asset.name === CHANNEL_FILE))
-                if (release) { url = `https://github.com/${OWNER}/${REPO}/releases/download/${release.tag_name}/${CHANNEL_FILE}`; body = await text(url) }
+            let url = null
+            let body = null
+            if (!WINDOWS && !process.env.EMPI_UPDATE_URL) {
+                // Linux versions can come out in a Release of their own, which is not "the latest" (that one stays the Windows one, Windows launchers read it):
+                // look through the recent Releases and take the highest version that carries the Linux channel file.
+                try {
+                    const list = JSON.parse(await text(`https://api.github.com/repos/${OWNER}/${REPO}/releases?per_page=30`) || '[]')
+                    const usable = list
+                        .filter((r) => !r.draft && (!r.prerelease || ConfigManager.getAllowPrerelease()) && semver.valid(String(r.tag_name).replace(/^v/, '')) && (r.assets || []).some((asset) => asset.name === CHANNEL_FILE))
+                        .sort((a, b) => semver.rcompare(String(a.tag_name).replace(/^v/, ''), String(b.tag_name).replace(/^v/, '')))
+                    if (usable[0]) { url = `https://github.com/${OWNER}/${REPO}/releases/download/${usable[0].tag_name}/${CHANNEL_FILE}`; body = await text(url) }
+                } catch (err) { /* no list (offline, rate limit): the plain channel below */ }
+            }
+            if (!body) {
+                url = await channelUrl(ConfigManager.getAllowPrerelease())
+                body = url ? await text(url) : null
             }
             if (!body) return { available: false, current, reason: 'no_channel' }
             const info = parseLatestYml(body)

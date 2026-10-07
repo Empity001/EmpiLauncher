@@ -2,7 +2,7 @@ const fs = require('fs')
 const path = require('path')
 
 /**
- * The launcher's background styles ("estilos"), kept in native/src/EmpiLauncher.App/Styles/styles.json. The native launcher embeds that
+ * The launcher's background styles ("estilos"), kept in native/src/EmpiLauncher.App/Styles/styles.json (the Linux launcher embeds the very same file). The native launcher embeds that
  * file and offers only the base style plus the ones with a releasedIn version, so each style reaches players as its own update:
  *
  *   ported      the style's code exists in the native launcher (only then can it be released)
@@ -74,7 +74,7 @@ function prepare(config, { style, version, unsentStyle, kind }, log = () => {}) 
         if (!chosen) throw new Error(`No existe el estilo "${style}".`)
         if (chosen.id === manifest.base) throw new Error(`${chosen.name} es el estilo de siempre: no hace falta publicarlo.`)
         if (!chosen.ported) throw new Error(`El estilo ${chosen.name} todavía se está preparando.`)
-        if (kind && kind !== 'native') throw new Error('Los estilos solo existen en el launcher nativo: elige el instalador Nativo.')
+        if (kind && kind !== 'native' && kind !== 'linux') throw new Error('Los estilos solo existen en el launcher nativo: elige el instalador Nativo (Windows o Linux).')
         if (chosen.releasedIn && chosen.id !== unsentStyle) throw new Error(`El estilo ${chosen.name} ya salió en la versión ${chosen.releasedIn}.`)
         if (chosen.releasedIn !== version) {
             chosen.releasedIn = version

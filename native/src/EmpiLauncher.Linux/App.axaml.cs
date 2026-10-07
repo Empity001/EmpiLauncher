@@ -8,6 +8,9 @@ namespace EmpiLauncher.Linux;
 
 public partial class App : Application
 {
+    /// <summary>Whether a notification-area icon was set up (the desktop may have no place for it).</summary>
+    public static bool HasTray { get; private set; }
+
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
     public override void OnFrameworkInitializationCompleted()
@@ -18,6 +21,9 @@ public partial class App : Application
             foreach (var key in new[] { "SliderThumbBackground", "SliderThumbBackgroundPointerOver", "SliderThumbBackgroundPressed", "SliderTrackValueFill", "SliderTrackValueFillPointerOver",
                                         "SliderTrackValueFillPressed", "ToggleSwitchFillOn", "ToggleSwitchFillOnPointerOver", "ToggleSwitchFillOnPressed", "TextControlBorderBrushFocused" })
                 Resources[key] = Views.Pal.Accent;
+            Views.Pal.Register(Resources);
+            // the style first: everything the window builds is dressed in it
+            EmpiLauncher.Linux.Styles.StyleTheme.Apply(Environment.GetEnvironmentVariable("EMPI_STYLE") is { Length: > 0 } forced ? forced : Services.NativeSettings.Style);
             var window = new MainWindow();
             desktop.MainWindow = window;
             // the notification-area icon (where the desktop has one: GNOME needs the AppIndicator extension, KDE and others have it)
@@ -31,6 +37,7 @@ public partial class App : Application
                 var tray = new Avalonia.Controls.TrayIcon { ToolTipText = "Empi Launcher", Menu = menu, Icon = new Avalonia.Controls.WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://EmpiLauncher/Assets/icon.png"))) };
                 tray.Clicked += (_, _) => Show();
                 Avalonia.Controls.TrayIcon.SetIcons(this, new Avalonia.Controls.TrayIcons { tray });
+                HasTray = true;
             }
             catch (Exception ex) { Log("tray", ex); }
             desktop.ShutdownRequested += (_, _) => { try { Launcher.Instance.DisposeAsync().AsTask().Wait(3000); } catch { } };

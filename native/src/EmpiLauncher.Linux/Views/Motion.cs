@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 
 namespace EmpiLauncher.Linux.Views;
@@ -19,6 +20,8 @@ internal static class Motion
     public static readonly IEasingFunction Linear = new PowerEase { Power = 1, EasingMode = EasingMode.EaseIn };
 
     private static Duration Ms(double ms) => new(TimeSpan.FromMilliseconds(ms));
+
+    public static IEnumerable<Visual> ChildrenOf(Panel panel) => panel.Children.Cast<Visual>().ToList();
 
     /// <summary>Runs one number from <paramref name="from"/> to <paramref name="to"/>; while a delay is pending the property already shows <paramref name="from"/>.</summary>
     public static void Animate(AvaloniaObject target, AvaloniaProperty property, double from, double to, double ms, double delayMs = 0, IEasingFunction? ease = null, Action? done = null)
@@ -70,6 +73,8 @@ internal static class Motion
         Animate(scale, ScaleTransform.ScaleXProperty, from, 1, ms, 0);
         Animate(scale, ScaleTransform.ScaleYProperty, from, 1, ms, 0);
     }
+
+    public static void Pop(Visual element, Point origin, double ms = 220, double from = 0.96, bool fade = true) => Pop(element, new RelativePoint(origin.X, origin.Y, RelativeUnit.Relative), ms, from, fade);
 
     /// <summary>Goes away: a quick fade, then <paramref name="done"/>.</summary>
     public static void Leave(Visual element, Action done, double ms = 140, double distance = 0)
@@ -125,3 +130,4 @@ internal static class Motion
         element.Loaded += handler;
     }
 }
+

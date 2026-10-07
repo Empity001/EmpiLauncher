@@ -230,7 +230,6 @@ internal sealed class AccessWords
 {
     public readonly DateTimeOffset? Until, From;
     public readonly string PackId, PackName;
-    private static readonly CultureInfo Es = CultureInfo.GetCultureInfo("es-ES");
 
     public AccessWords(AccessInfo access, string? packId, string? packName)
     {
@@ -251,16 +250,16 @@ internal sealed class AccessWords
         {
             0 => $"hoy a las {t:HH:mm}",
             1 => $"mañana a las {t:HH:mm}",
-            _ => $"el {t.Day} de {t.ToString("MMMM", Es)} a las {t:HH:mm}"
+            _ => $"el {t.Day} de {Spanish.Month(t.Month)} a las {t:HH:mm}"
         };
     }
 
     public string Clock(DateTimeOffset? at) => at is { } t ? t.ToString("HH:mm") : "";
     /// <summary>"12 OCT".</summary>
-    public string Short(DateTimeOffset? at) => at is { } t ? $"{t.Day} {t.ToString("MMM", Es).TrimEnd('.').ToUpperInvariant()}" : "";
+    public string Short(DateTimeOffset? at) => at is { } t ? $"{t.Day} {Spanish.ShortMonth(t.Month).ToUpperInvariant()}" : "";
     /// <summary>"12.OCT".</summary>
-    public string Poster(DateTimeOffset? at) => at is { } t ? $"{t.Day}.{t.ToString("MMM", Es).TrimEnd('.').ToUpperInvariant()}" : "PRONTO";
-    public string Month(DateTimeOffset? at) => at is { } t ? t.ToString("MMMM", Es) : "";
+    public string Poster(DateTimeOffset? at) => at is { } t ? $"{t.Day}.{Spanish.ShortMonth(t.Month).ToUpperInvariant()}" : "PRONTO";
+    public string Month(DateTimeOffset? at) => at is { } t ? Spanish.Month(t.Month) : "";
 
     /// <summary>Seconds from now to that moment (0 once it has passed).</summary>
     public static long SecondsTo(DateTimeOffset? at) => at is { } t ? Math.Max(0, (long)(t - DateTimeOffset.Now).TotalSeconds) : 0;
@@ -279,7 +278,7 @@ internal sealed class AccessWords
     {
         if (at is not { } t) return "pronto";
         var days = (t.Date - DateTime.Now.Date).Days;
-        return days == 0 ? "hoy" : days == 1 ? "mañana" : $"el {Number(t.Day)} de {t.ToString("MMMM", Es)}";
+        return days == 0 ? "hoy" : days == 1 ? "mañana" : $"el {Number(t.Day)} de {Spanish.Month(t.Month)}";
     }
 
     /// <summary>"a las seis y veinte", "a la una y media".</summary>

@@ -204,10 +204,12 @@ async function send(config, options, log, step) {
         if (await gh.releaseExists(config.launcherGithubRepo, tag)) {
             log(`El release ${tag} ya existia, lo actualizo.`)
             await gh.uploadAssets(config.launcherGithubRepo, tag, files, log)
-            await gh.editRelease(config.launcherGithubRepo, tag, { title: tag, notes, draft: false }, log)
+            // the Windows build of a version that Linux published first is the one that makes it "the latest": that is what Windows launchers read
+            await gh.editRelease(config.launcherGithubRepo, tag, { title: tag, notes, draft: false, ...(build.kind === 'linux' ? {} : { latest: true }) }, log)
         } else if (build.kind === 'linux') {
-            // a release made only of Linux files would become the "latest" one and the Windows launchers' latest.yml would vanish from it
-            throw new Error(`El Release ${tag} todavía no existe. El de Linux se agrega al de Windows: primero publica esa versión desde Windows (o crea el Release a mano con su latest.yml).`)
+            // a Release made only of Linux files must NOT become the "latest" one: Windows launchers read latest.yml from there. Linux launchers look through the recent Releases.
+            log(`El Release ${tag} no existe: lo creo solo con los archivos de Linux, sin marcarlo como el ultimo (los launchers de Windows siguen con el suyo).`)
+            await gh.createRelease(config.launcherGithubRepo, tag, tag, notes, log, files, branch, { latest: false })
         } else {
             await gh.createRelease(config.launcherGithubRepo, tag, tag, notes, log, files, branch)
         }

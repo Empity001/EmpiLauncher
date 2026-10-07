@@ -2,6 +2,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="EmpiLauncher.Linux.App"
              RequestedThemeVariant="Dark">
+  <Application.Resources>
+    <LinearGradientBrush x:Key="XpFacePressed" StartPoint="0%,0%" EndPoint="0%,100%">
+      <GradientStop Color="#d6d0c5" Offset="0"/><GradientStop Color="#e3e2da" Offset="0.4"/><GradientStop Color="#f4f3ee" Offset="1"/>
+    </LinearGradientBrush>
+  </Application.Resources>
   <Application.Styles>
     <FluentTheme />
 
@@ -45,5 +50,235 @@
       <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
     </Style>
     <Style Selector="Button.card:pointerover /template/ Border#Face"><Setter Property="Opacity" Value="0.9"/></Style>
+
+    <!-- the switch: a track that fills with the accent and a thumb that travels its 16 px on the ease-in-out curve -->
+    <Style Selector="ToggleButton.switch">
+      <Setter Property="Width" Value="40"/>
+      <Setter Property="Height" Value="24"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Panel>
+            <Border Name="Track" Background="{DynamicResource TrackBrush}" CornerRadius="12"/>
+            <Border Name="TrackOn" Background="{DynamicResource AccentBrush}" CornerRadius="12" Opacity="0">
+              <Border.Transitions><Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="0.77,0,0.175,1"/></Transitions></Border.Transitions>
+            </Border>
+            <Panel Name="Holder" Width="18" Height="18" Margin="3" HorizontalAlignment="Left">
+              <Panel.Transitions><Transitions><TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="0.77,0,0.175,1"/></Transitions></Panel.Transitions>
+              <Ellipse Fill="{DynamicResource PaperBrush}"/>
+              <Ellipse Name="ThumbOn" Fill="{DynamicResource AccentInkBrush}" Opacity="0">
+                <Ellipse.Transitions><Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.2"/></Transitions></Ellipse.Transitions>
+              </Ellipse>
+            </Panel>
+          </Panel>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="ToggleButton.switch:checked /template/ Border#TrackOn"><Setter Property="Opacity" Value="1"/></Style>
+    <Style Selector="ToggleButton.switch:checked /template/ Panel#Holder"><Setter Property="RenderTransform" Value="translateX(16px)"/></Style>
+    <Style Selector="ToggleButton.switch:checked /template/ Ellipse#ThumbOn"><Setter Property="Opacity" Value="1"/></Style>
+    <Style Selector="ToggleButton.switch:disabled"><Setter Property="Opacity" Value="0.45"/></Style>
+
+    <!-- text box: a quiet outline that the accent takes over when it has the keyboard -->
+    <Style Selector="TextBox.input">
+      <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource PaperBrush}"/>
+      <Setter Property="CaretBrush" Value="{DynamicResource PaperBrush}"/>
+      <Setter Property="SelectionBrush" Value="{DynamicResource AccentBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource HairBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Padding" Value="14,10"/>
+      <Setter Property="MinHeight" Value="42"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="TextBox.input:focus /template/ Border#PART_BorderElement"><Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/></Style>
+    <Style Selector="TextBox.input:pointerover /template/ Border#PART_BorderElement"><Setter Property="Background" Value="{DynamicResource InputBrush}"/></Style>
+    <Style Selector="TextBox.input:focus /template/ Border#PART_BorderElement"><Setter Property="Background" Value="{DynamicResource InputBrush}"/></Style>
+
+    <!-- tabs: radio buttons that look like the Publisher's pill tabs; the chosen one fills with paper -->
+    <Style Selector="RadioButton.tab">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Foreground" Value="{DynamicResource Paper2Brush}"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Panel MinHeight="34">
+            <Border Name="HoverFill" Background="#14FFFFFF" Opacity="0" CornerRadius="999">
+              <Border.Transitions><Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.14"/></Transitions></Border.Transitions>
+            </Border>
+            <Border Name="OnFill" Background="{DynamicResource PaperBrush}" Opacity="0" CornerRadius="999">
+              <Border.Transitions><Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.18"/></Transitions></Border.Transitions>
+            </Border>
+            <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" Margin="16,0" HorizontalAlignment="Center" VerticalAlignment="Center"
+                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+          </Panel>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="RadioButton.tab:pointerover /template/ Border#HoverFill"><Setter Property="Opacity" Value="1"/></Style>
+    <Style Selector="RadioButton.tab:checked /template/ Border#OnFill"><Setter Property="Opacity" Value="1"/></Style>
+    <Style Selector="RadioButton.tab:checked /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="TextElement.Foreground" Value="{DynamicResource BgBrush}"/></Style>
+
+    <!-- a progress bar: a pill track with an accent fill -->
+    <Style Selector="ProgressBar.pill">
+      <Setter Property="Height" Value="6"/>
+      <Setter Property="MinHeight" Value="6"/>
+      <Setter Property="Background" Value="{DynamicResource TrackBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+      <Setter Property="CornerRadius" Value="3"/>
+    </Style>
+
+    <!-- the range slider (RAM): an accent track, a paper thumb with a dark ring -->
+    <Style Selector="Slider.range">
+      <Setter Property="MinHeight" Value="28"/>
+    </Style>
+    <Style Selector="Slider.range /template/ Thumb"><Setter Property="Width" Value="20"/><Setter Property="Height" Value="20"/><Setter Property="Background" Value="{DynamicResource PaperBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource BgBrush}"/><Setter Property="BorderThickness" Value="3"/></Style>
+
+    <!-- a card of the rail leans in toward the pointer -->
+    <Style Selector="Button.card">
+      <Setter Property="RenderTransform" Value="translateX(0px)"/>
+      <Setter Property="Transitions"><Transitions><TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.16" Easing="0.23,1,0.32,1"/></Transitions></Setter>
+    </Style>
+    <Style Selector="Button.card:pointerover"><Setter Property="RenderTransform" Value="translateX(4px)"/></Style>
+
+    <!-- scroll bars: thin, paper on hover -->
+    <Style Selector="ScrollBar /template/ Thumb"><Setter Property="Background" Value="#4DF1EFE8"/></Style>
+    <Style Selector="ScrollBar /template/ Thumb:pointerover"><Setter Property="Background" Value="{DynamicResource PaperBrush}"/></Style>
+
+    <!-- ================= the shapes of buttons that only some styles cut (Themes/Looks/*.controls.xaml in the Windows launcher) ================= -->
+
+    <!-- square corners (Shell) and framed (Core): a face with a light veil that thickens under the pointer and when pressed -->
+    <Style Selector="Button.shape-square, Button.shape-frame">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Panel Name="Root">
+            <Border Name="Face" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}">
+              <ContentPresenter Content="{TemplateBinding Content}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"/>
+            </Border>
+            <Border Name="Over" Background="#d9d4c7" Opacity="0" CornerRadius="{TemplateBinding CornerRadius}" IsHitTestVisible="False"/>
+          </Panel>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.shape-square:pointerover /template/ Border#Over"><Setter Property="Opacity" Value="0.1"/></Style>
+    <Style Selector="Button.shape-square:pressed /template/ Border#Over"><Setter Property="Opacity" Value="0.2"/></Style>
+    <Style Selector="Button.shape-frame /template/ Border#Over"><Setter Property="Background" Value="#f1ede0"/></Style>
+    <Style Selector="Button.shape-frame:pointerover /template/ Border#Over"><Setter Property="Opacity" Value="0.07"/></Style>
+    <Style Selector="Button.shape-frame:pressed /template/ Border#Over"><Setter Property="Opacity" Value="0.14"/></Style>
+    <Style Selector="Button.shape-square:disabled, Button.shape-frame:disabled"><Setter Property="Opacity" Value="0.4"/></Style>
+
+    <!-- Windows XP's push button (Explorer): the same round corners all round; the pointer lights an amber edge inside it, a press sinks the face -->
+    <Style Selector="Button.shape-xp">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Panel Name="Root">
+            <Border Name="Face" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}">
+              <ContentPresenter Content="{TemplateBinding Content}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"/>
+            </Border>
+            <Border Name="Hot" Margin="1" BorderBrush="#f8b330" BorderThickness="2" CornerRadius="{TemplateBinding CornerRadius}" Opacity="0" IsHitTestVisible="False"/>
+          </Panel>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.shape-xp:pointerover /template/ Border#Hot"><Setter Property="Opacity" Value="0.9"/></Style>
+    <Style Selector="Button.shape-xp:pressed /template/ Border#Face"><Setter Property="Background" Value="{DynamicResource XpFacePressed}"/></Style>
+    <Style Selector="Button.shape-xp:pressed /template/ Border#Hot"><Setter Property="Opacity" Value="0"/></Style>
+    <Style Selector="Button.shape-xp:disabled"><Setter Property="Opacity" Value="0.45"/></Style>
+
+    <!-- a sticker (Punk): a hard black shadow under the face; pressing pushes the face down onto it -->
+    <Style Selector="Button.shape-sticker">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Panel Name="Root">
+            <Border Background="#141214" Margin="3,3,0,0"/>
+            <Panel Name="Face" Margin="0,0,3,3">
+              <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                <ContentPresenter Content="{TemplateBinding Content}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"/>
+              </Border>
+              <Border Name="Over" Background="{DynamicResource AccentBrush}" Opacity="0" IsHitTestVisible="False"/>
+            </Panel>
+          </Panel>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.shape-sticker:pointerover /template/ Border#Over"><Setter Property="Opacity" Value="0.18"/></Style>
+    <Style Selector="Button.shape-sticker:pressed /template/ Panel#Face"><Setter Property="RenderTransform" Value="translate(2px,2px)"/></Style>
+    <Style Selector="Button.shape-sticker:disabled"><Setter Property="Opacity" Value="0.45"/></Style>
+
+    <!-- ripped out of black paper (Punk's main action) -->
+    <Style Selector="Button.shape-torn">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Panel Name="Root" RenderTransformOrigin="50%,50%">
+            <Path Fill="{TemplateBinding Background}" Stretch="Fill" Data="M0,8 L8,0 30,6 55,0 80,5 100,0 97,50 100,100 70,94 45,100 20,93 0,100 3,50Z"/>
+            <Path Name="Over" Fill="#ffffff" Opacity="0" IsHitTestVisible="False" Stretch="Fill" Data="M0,8 L8,0 30,6 55,0 80,5 100,0 97,50 100,100 70,94 45,100 20,93 0,100 3,50Z"/>
+            <ContentPresenter Content="{TemplateBinding Content}" Margin="{TemplateBinding Padding}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"/>
+          </Panel>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.shape-torn:pointerover /template/ Path#Over"><Setter Property="Opacity" Value="0.1"/></Style>
+    <Style Selector="Button.shape-torn:pressed /template/ Path#Over"><Setter Property="Opacity" Value="0.16"/></Style>
+    <Style Selector="Button.shape-torn:pressed /template/ Panel#Root"><Setter Property="RenderTransform" Value="scale(0.98,0.96)"/></Style>
+    <Style Selector="Button.shape-torn:disabled"><Setter Property="Opacity" Value="0.45"/></Style>
+
+    <!-- drawn in pencil (Remember) and cut out of a page (Words): uneven corners / square, a soft press -->
+    <Style Selector="Button.shape-pencil, Button.shape-page">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Panel Name="Root" RenderTransformOrigin="50%,50%">
+            <Border Name="Face" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}">
+              <ContentPresenter Content="{TemplateBinding Content}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"/>
+            </Border>
+            <Border Name="Over" Background="#2b2620" Opacity="0" CornerRadius="{TemplateBinding CornerRadius}" IsHitTestVisible="False"/>
+          </Panel>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.shape-page /template/ Border#Over"><Setter Property="Background" Value="{DynamicResource AccentBrush}"/></Style>
+    <Style Selector="Button.shape-pencil:pointerover /template/ Border#Over"><Setter Property="Opacity" Value="0.08"/></Style>
+    <Style Selector="Button.shape-pencil:pressed /template/ Border#Over"><Setter Property="Opacity" Value="0.14"/></Style>
+    <Style Selector="Button.shape-page:pointerover /template/ Border#Over"><Setter Property="Opacity" Value="0.14"/></Style>
+    <Style Selector="Button.shape-page:pressed /template/ Border#Over"><Setter Property="Opacity" Value="0.22"/></Style>
+    <Style Selector="Button.shape-pencil:pressed /template/ Panel#Root, Button.shape-page:pressed /template/ Panel#Root"><Setter Property="RenderTransform" Value="scale(0.98)"/></Style>
+    <Style Selector="Button.shape-pencil:disabled, Button.shape-page:disabled"><Setter Property="Opacity" Value="0.4"/></Style>
+
+    <!-- the window's own buttons dressed as Windows XP's: small rounded squares with a white rim (Explorer) -->
+    <Style Selector="Button.xp-caption">
+      <Setter Property="Width" Value="27"/>
+      <Setter Property="Height" Value="27"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Panel Name="Root" Background="Transparent">
+            <Border Name="Face" Width="23" Height="23" Background="{TemplateBinding Background}" BorderBrush="#ffffff" BorderThickness="1" CornerRadius="3">
+              <ContentPresenter Content="{TemplateBinding Content}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" TextElement.Foreground="#ffffff"/>
+            </Border>
+            <Border Name="Over" Width="23" Height="23" Background="#ffffff" CornerRadius="3" Opacity="0" IsHitTestVisible="False"/>
+          </Panel>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.xp-caption:pointerover /template/ Border#Over"><Setter Property="Opacity" Value="0.22"/></Style>
+    <Style Selector="Button.xp-caption:pressed /template/ Border#Over"><Setter Property="Opacity" Value="0.4"/></Style>
   </Application.Styles>
 </Application>

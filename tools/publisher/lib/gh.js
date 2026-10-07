@@ -68,6 +68,7 @@ async function listAssets(repo, tag) {
 async function createRelease(repo, tag, title, notes, log, files = [], target, options = {}) {
     const args = ['release', 'create', tag, '-R', repo, '--title', title, '--notes', notes || `${title}`]
     if (target) args.push('--target', target)
+    if (options.latest === false) args.push('--latest=false')
     if (files.length === 0) {
         withLog(log, 'gh', args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg)))
         await ghRun(args, log)
@@ -92,7 +93,7 @@ async function createRelease(repo, tag, title, notes, log, files = [], target, o
             await sleep(pause * attempt)
         }
     }
-    await editRelease(repo, tag, { title, notes: notes || `${title}`, draft: false }, log)
+    await editRelease(repo, tag, { title, notes: notes || `${title}`, draft: false, latest: options.latest }, log)
 }
 
 /** Uploads (or overwrites, if it already exists) assets on an existing release. */
@@ -102,11 +103,13 @@ async function uploadAssets(repo, tag, files, log) {
     await ghRun(args, log)
 }
 
-async function editRelease(repo, tag, { title, notes, draft } = {}, log) {
+async function editRelease(repo, tag, { title, notes, draft, latest } = {}, log) {
     const args = ['release', 'edit', tag, '-R', repo]
     if (title) args.push('--title', title)
     if (notes != null) args.push('--notes', notes)
     if (draft === false) args.push('--draft=false')
+    if (latest === true) args.push('--latest')
+    if (latest === false) args.push('--latest=false')
     withLog(log, 'gh', ['release', 'edit', tag])
     await ghRun(args, log)
 }

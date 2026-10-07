@@ -9,53 +9,70 @@ using EmpiLauncher.Ipc;
 namespace EmpiLauncher.Linux.Views;
 
 /// <summary>Small factories for the pieces every screen is made of: text in the three voices, pills, modules and buttons.</summary>
-public static class Ui
+public static partial class Ui
 {
-    public static TextBlock Display(string text, double size = 24, IBrush? ink = null) => new()
+    public static TextBlock Display(string text, double size = 24, IBrush? ink = null)
     {
-        Text = text, FontFamily = Pal.Display, FontWeight = FontWeight.Bold, FontSize = size, Foreground = ink ?? Pal.Paper,
-        TextTrimming = TextTrimming.CharacterEllipsis
-    };
+        var t = Voice("DisplayText"); t.Text = text; t.FontSize = size; if (ink != null) t.Foreground = ink;
+        return t;
+    }
 
-    public static TextBlock Label(string text, double size = 12, IBrush? ink = null) => new() { Text = text, FontFamily = Pal.Mono, FontSize = size, Foreground = ink ?? Pal.Paper2 };
-
-    public static TextBlock Caption(string text, double size = 11.5) => new() { Text = text, FontFamily = Pal.Mono, FontSize = size, Foreground = Pal.Paper3, TextWrapping = TextWrapping.Wrap };
-
-    public static TextBlock Body(string text, double size = 14, IBrush? ink = null) => new() { Text = text, FontSize = size, Foreground = ink ?? Pal.Paper, TextWrapping = TextWrapping.Wrap };
-
-    public static Border Pill(string text, IBrush? ink = null, IBrush? fill = null, double size = 11) => new()
+    public static TextBlock Label(string text, double size = 12, IBrush? ink = null)
     {
-        Margin = new Thickness(0, 0, 8, 6), Padding = new Thickness(11, 3), CornerRadius = Pal.PillRadius, BorderThickness = new Thickness(1),
-        BorderBrush = Pal.HairStrong, Background = fill ?? Pal.Tint, Child = Label(text, size, ink ?? Pal.Paper2)
-    };
+        var t = Voice("LabelText"); t.Text = text; t.FontSize = size; if (ink != null) t.Foreground = ink;
+        return t;
+    }
 
-    public static Border Module(Control child, Thickness? padding = null, IBrush? fill = null) => new()
+    public static TextBlock Caption(string text, double size = 11.5)
     {
-        Background = fill ?? Pal.Module, BorderBrush = Pal.Hair, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(Pal.RadiusModule),
-        Padding = padding ?? new Thickness(20, 16), Child = child, Classes = { "module" }
-    };
+        var t = Voice("CaptionText"); t.Text = text; if (size != 11.5) t.FontSize = size;
+        return t;
+    }
+
+    public static TextBlock Body(string text, double size = 14, IBrush? ink = null)
+    {
+        var t = Voice("BodyText"); t.Text = text; t.FontSize = size; if (ink != null) t.Foreground = ink;
+        return t;
+    }
+
+    public static Border Pill(string text, IBrush? ink = null, IBrush? fill = null, double size = 11)
+    {
+        var pill = new Border { Margin = new Thickness(0, 0, 8, 6), Child = Label(text, size, ink ?? Pal.Paper2), Classes = { "tag" } };
+        Look.DressPill(pill);
+        if (fill != null) pill.Background = fill;
+        return pill;
+    }
+
+    public static Border Module(Control child, Thickness? padding = null, IBrush? fill = null)
+    {
+        var module = new Border { Child = child, Classes = { "module" } };
+        Look.Dress(module);
+        module.Padding = padding ?? Look.ModulePadding;
+        if (fill != null) module.Background = fill;
+        return module;
+    }
 
     public enum Kind { Ghost, Paper, Primary, Danger, Icon }
 
     public static Button Btn(string text, Kind kind = Kind.Ghost, Action? click = null, Thickness? padding = null, double size = 13)
     {
-        var button = new Button { Classes = { "pill" }, Padding = padding ?? new Thickness(18, 10), CornerRadius = Pal.PillRadius };
+        var button = new Button { Classes = { "pill" } };
         Style(button, kind);
-        button.Content = new TextBlock { Text = text, FontFamily = Pal.Mono, FontSize = size };
+        if (padding != null) button.Padding = padding.Value;
+        button.Content = new TextBlock { Text = text, FontFamily = button.FontFamily, FontSize = size == 13 ? button.FontSize : size, FontWeight = button.FontWeight, FontStyle = button.FontStyle };
         if (click != null) button.Click += (_, _) => click();
         return button;
     }
 
+    /// <summary>Dresses a button as the style in use draws that kind of button (colour, outline, font and, in some styles, its whole shape).</summary>
     public static void Style(Button button, Kind kind)
     {
-        switch (kind)
+        if (kind == Kind.Icon)
         {
-            case Kind.Paper: button.Background = Pal.Paper; button.Foreground = Pal.Bg; button.BorderThickness = new Thickness(0); break;
-            case Kind.Primary: button.Background = Pal.Accent; button.Foreground = Pal.AccentInk; button.BorderThickness = new Thickness(0); break;
-            case Kind.Danger: button.Background = Pal.Clear; button.Foreground = Pal.Danger; button.BorderBrush = Pal.HairStrong; button.BorderThickness = new Thickness(1); break;
-            case Kind.Icon: button.Background = Pal.Clear; button.Foreground = Pal.Paper2; button.BorderThickness = new Thickness(0); break;
-            default: button.Background = Pal.TintHover; button.Foreground = Pal.Paper; button.BorderThickness = new Thickness(0); break;
+            button.Background = Pal.Clear; button.Foreground = Pal.Paper2; button.BorderThickness = new Thickness(0); button.CornerRadius = Pal.PillRadius;
+            return;
         }
+        Look.Dress(button, Look.Of(kind));
     }
 
     /// <summary>An icon button: a drawn glyph (see Icons) in a round hit area.</summary>
@@ -114,5 +131,8 @@ public static class Icons
     public static readonly Geometry Check = Geometry.Parse("M3 8.5l3.2 3.2L13 4.8");
     public static readonly Geometry Chevron = Geometry.Parse("M4 6l4 4 4-4");
     public static readonly Geometry Megaphone = Geometry.Parse("M2.5 6.2v3.6h2.2L10 13V3L4.7 6.2H2.5Z M12.2 5.4a3.4 3.4 0 0 1 0 5.2");
+    public static readonly Geometry Bubble = Geometry.Parse("M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2Z");
+    public static readonly Geometry Restore = Geometry.Parse("M5.5 3.5h7v7 M3.5 5.5h7v7h-7Z");
+    public static readonly Geometry Warning = Geometry.Parse("M8 2L14.5 13.5H1.5Z M8 6.5v3.5 M8 11.8v.2");
     public static readonly Geometry Eye = Geometry.Parse("M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z M8 6.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6Z");
 }

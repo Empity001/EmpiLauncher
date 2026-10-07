@@ -1568,9 +1568,9 @@ function renderLauncher() {
             h('div', { class: 'module-head' }, h('h2', {}, 'Instalador')),
             h('p', { class: 'muted' }, 'El nativo es el launcher nuevo (ligero, en WPF) y solo se compila en Windows. El clásico es el de Electron, por si hay que volver atrás. Linux es el launcher nativo de Linux (Avalonia), un paquete .tar.gz.'),
             h('div', { class: 'version-choices', role: 'radiogroup', 'aria-label': 'Tipo de instalador', style: 'margin-top:14px' },
-                kindChoice('native', 'Nativo', 'WPF + motor · recomendado'),
-                kindChoice('classic', 'Clásico', 'Electron · el de antes'),
-                kindChoice('linux', 'Linux', 'Avalonia + motor · .tar.gz')),
+                kindChoice('native', 'Nativo · Windows', 'WPF + motor · solo se compila en Windows'),
+                kindChoice('linux', 'Nativo · Linux', 'Avalonia + motor · .tar.gz · recomendado aquí'),
+                kindChoice('classic', 'Clásico', 'Electron · el de antes')),
             launcherKind() === 'native' && info.migrates ? h('p', { class: 'note' }, icon('alert'), 'Los jugadores que todavía tienen el launcher viejo (Electron) recibirán este instalador como actualización: se les instala el nuevo y se les quita el viejo, y conservan sus cuentas, mods e instancias.') : null,
             notOffered ? h('p', { class: 'note' }, icon('alert'), `Los launchers solo se actualizan a una versión MAYOR que la publicada (${info.latestTag}). Con ${launcherVersion()} nadie recibirá esta actualización: elige Parche, Menor o Mayor.`) : null),
         chosen ? h('section', { class: 'module span2' },
@@ -1605,7 +1605,7 @@ function pendingStyles(info) {
         pending.length
             ? h('div', { class: 'style-choices', role: 'radiogroup', 'aria-label': 'Estilo que sale en esta versión', style: 'margin-top:14px' }, ...pending.map(card))
             : h('p', { class: 'note' }, icon('checkCircle'), 'Todos los estilos ya están publicados.'),
-        chosen && launcherKind() !== 'native' ? h('p', { class: 'note' }, icon('alert'), 'Los estilos solo existen en el launcher nativo: elige el instalador Nativo abajo.') : null,
+        chosen && launcherKind() === 'classic' ? h('p', { class: 'note' }, icon('alert'), 'Los estilos solo existen en el launcher nativo: elige el instalador Nativo (Windows o Linux) abajo.') : null,
         out.length ? h('p', { class: 'muted', style: 'margin-top:12px;font-size:12px' }, `Ya publicados: ${out.map((s) => `${s.name} (v${s.releasedIn})`).join(', ')}.`) : null)
 }
 
