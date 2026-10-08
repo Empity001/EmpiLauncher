@@ -241,6 +241,8 @@ public sealed class MainWindow : Window
     /// <summary>The name, the channel and the window's buttons, as the style in use dresses them (Explorer's are Windows XP's).</summary>
     private void BuildChrome()
     {
+        // the buttons the window keeps (maximise, the eye) are put into a new row each time: let go of the old row first
+        if (WindowButtons.Child is Panel oldRow) oldRow.Children.Clear();
         TitleLeft.Children.Clear();
         var name = Ui.Text("EMPI", "DisplayText", Pal.ChromeInk, 19); name.FontWeight = FontWeight.ExtraBold;
         TitleLeft.Children.Add(name);
@@ -374,6 +376,7 @@ public sealed class MainWindow : Window
         if (Environment.GetEnvironmentVariable("EMPI_AUTO_OFFLINE") is { Length: > 0 } auto && _l.Account == null) await _l.UseOfflineAsync(auto);
         ShowHome();
         _ = DevPlayAsync();
+        if (Environment.GetEnvironmentVariable("EMPI_SCREEN") == "maximize") { await Task.Delay(1500); ToggleMaximize(); await Task.Delay(800); ToggleMaximize(); }
         if (Environment.GetEnvironmentVariable("EMPI_SCREEN") == "notices") { await Task.Delay(3000); ShowNotices(general: true); }
         if (Environment.GetEnvironmentVariable("EMPI_SCREEN") == "report") { await Task.Delay(1500); ShowReport(); }
         if (Environment.GetEnvironmentVariable("EMPI_SCREEN") == "skin") { await Task.Delay(1500); ShowSkinPrompt(); }
