@@ -29,7 +29,7 @@
       "accent": "#39c6e0",
       "weight": 45,
       "ported": true,
-      "releasedIn": null,
+      "releasedIn": "3.10.0",
       "notes": "# Empi Launcher {version}: nuevo estilo Oleaje\n\n## Estilos (nuevo)\n- Nuevo estilo **Oleaje**: como ver la luz desde el fondo de una alberca de noche, con reflejos que se mueven como el mar y bordes de color donde la luz se quiebra. Cada clic abre ondas en el agua, pícale.\n- El nombre del modpack se ve hundido en el fondo, como letras pintadas en el piso de la alberca.\n- Mientras descargas, la marea sube con la descarga.\n- Llega como una marea que sube desde abajo.\n- Cambia toda la interfaz, no nomás el fondo: letras, formas y colores se visten del estilo, y los textos se siguen leyendo igual de bien.\n- Lo escoges en Ajustes > Launcher > Estilo. Cambia al instante y puedes regresar al de siempre cuando quieras.\n- Con \"Usar el color del modpack\" decides si manda el color de cada modpack o el del estilo, y en \"Color del estilo\" le pones el tuyo.\n- Como el fondo de siempre, se queda quieto mientras juegas o si lo apagas, y sus FPS los manejas tú en Ajustes > Launcher > Fondo. El circulito de su tarjeta te dice qué tanto pesa."
     },
     {
