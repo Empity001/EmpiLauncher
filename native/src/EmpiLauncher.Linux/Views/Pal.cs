@@ -71,7 +71,8 @@ public static class Pal
         Accent.Color = color;
         AccentInk.Color = ink;
         AccentSoft.Color = Color.FromArgb(0x29, color.R, color.G, color.B);
-        PlayInk.Color = Styles.StyleTheme.PlayInk ?? ink;
+        // Punk paints Jugar black and writes it in the accent itself: kept readable on that black (a dark accent gives way to paper)
+        PlayInk.Color = Styles.StyleTheme.PlayInkIsAccent ? (Lum(color) > 0.12 ? color : paper) : Styles.StyleTheme.PlayInk ?? ink;
     }
 
     public static Color ColorOf(SolidColorBrush brush) => brush.Color;

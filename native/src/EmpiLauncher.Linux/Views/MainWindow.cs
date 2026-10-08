@@ -382,6 +382,9 @@ public sealed class MainWindow : Window
         if (Environment.GetEnvironmentVariable("EMPI_SCREEN") == "skin") { await Task.Delay(1500); ShowSkinPrompt(); }
         if (Environment.GetEnvironmentVariable("EMPI_SCREEN") is { } screen && screen.StartsWith("settings"))
             ShowSettings(screen.Contains(':') ? screen[(screen.IndexOf(':') + 1)..] : "account");
+        // development only: EMPI_RESTYLE=<id>[,<id>...] changes the style, one after another, while the launcher is open (what the style cards do)
+        if (Environment.GetEnvironmentVariable("EMPI_RESTYLE") is { Length: > 0 } restyle)
+            _ = Task.Run(async () => { foreach (var id in restyle.Split(',')) { await Task.Delay(2500); Dispatcher.UIThread.Post(() => ChangeStyle(id)); } });
         _ = ValidateSessionAsync();
         _ = CheckForShotAsync();
         _ = CheckUpdatesLoopAsync();

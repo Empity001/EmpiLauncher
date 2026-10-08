@@ -254,6 +254,8 @@ internal abstract class StyleField : Control, StyleHost.ILayer
         }
     }
 
+    private bool _paintFailed;
+
     public override void Render(DrawingContext context)
     {
         if (W < 50 || H < 50) return;
@@ -281,6 +283,8 @@ internal abstract class StyleField : Control, StyleHost.ILayer
             }
             RenderLive(dc, _dt);
         }
+        // a background is decoration: whatever goes wrong while it paints, the launcher stays up (logged once, the frame is simply left as it is)
+        catch (Exception ex) when (ex is not OutOfMemoryException) { if (!_paintFailed) { _paintFailed = true; App.Log($"background {GetType().Name}", ex); } }
         finally { dc.PopAll(); }
     }
 
@@ -373,6 +377,7 @@ internal abstract class StyleField : Control, StyleHost.ILayer
     /// <summary>A line of text, shaped once and kept (styles show the same few words frame after frame). Colour and size are part of it.</summary>
     protected FormattedText Text(string text, string family, double size, Color color, FontWeight? weight = null, FontStyle? style = null)
     {
+        size = Math.Max(1, double.IsFinite(size) ? size : 1);   // a size of zero or less (no room left on a screen) is a word too small to see, never a crash
         var w = weight ?? FontWeight.Normal; var st = style ?? FontStyle.Normal;
         var key = $"{text}\u0001{family}\u0001{size:0.#}\u0001{color}\u0001{w}\u0001{st}";
         if (_texts.TryGetValue(key, out var shaped)) return shaped;

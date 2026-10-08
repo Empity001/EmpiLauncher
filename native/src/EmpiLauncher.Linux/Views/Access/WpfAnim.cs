@@ -208,6 +208,13 @@ internal static class Tweens
 
     public static void Begin(AvaloniaObject target, AvaloniaProperty property, Animation? animation)
     {
+        // A flicker (an animation that gives the value back when it ends) starting over one that was bringing something in (fade in, rise) must
+        // give back the value that one was heading to, not the one it started from: WPF keeps that value as the property's own; here it is put in first.
+        if (animation is { FillBehavior: FillBehavior.Stop })
+            foreach (var old in Active.Where(r => ReferenceEquals(r.Target, target) && r.Property == property && r.Animation.FillBehavior == FillBehavior.HoldEnd).ToList())
+            {
+                try { target.SetValue(property, old.Animation.Value(old.Animation.TotalMs, old.Captured ? old.Start! : target.GetValue(property))); } catch (Exception) { /* a value of another kind: leave it */ }
+            }
         Active.RemoveAll(r => ReferenceEquals(r.Target, target) && r.Property == property);
         if (animation == null) return;
         var run = new Running { Target = target, Property = property, Animation = animation, BeganAt = Clock.Elapsed.TotalMilliseconds + (animation.BeginTime?.TotalMilliseconds ?? 0) };

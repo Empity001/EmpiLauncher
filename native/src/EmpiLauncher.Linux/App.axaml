@@ -1,5 +1,6 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:EmpiLauncher.Linux.Views"
              x:Class="EmpiLauncher.Linux.App"
              RequestedThemeVariant="Dark">
   <Application.Resources>
@@ -225,15 +226,15 @@
       <Setter Property="Template">
         <ControlTemplate>
           <Panel Name="Root" RenderTransformOrigin="50%,50%">
-            <Path Fill="{TemplateBinding Background}" Stretch="Fill" Data="M0,8 L8,0 30,6 55,0 80,5 100,0 97,50 100,100 70,94 45,100 20,93 0,100 3,50Z"/>
-            <Path Name="Over" Fill="#ffffff" Opacity="0" IsHitTestVisible="False" Stretch="Fill" Data="M0,8 L8,0 30,6 55,0 80,5 100,0 97,50 100,100 70,94 45,100 20,93 0,100 3,50Z"/>
+            <v:TornShape Fill="{TemplateBinding Background}" Stretch="Fill" Data="M0,8 L8,0 30,6 55,0 80,5 100,0 97,50 100,100 70,94 45,100 20,93 0,100 3,50Z"/>
+            <v:TornShape Name="Over" Fill="#ffffff" Opacity="0" IsHitTestVisible="False" Stretch="Fill" Data="M0,8 L8,0 30,6 55,0 80,5 100,0 97,50 100,100 70,94 45,100 20,93 0,100 3,50Z"/>
             <ContentPresenter Content="{TemplateBinding Content}" Margin="{TemplateBinding Padding}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"/>
           </Panel>
         </ControlTemplate>
       </Setter>
     </Style>
-    <Style Selector="Button.shape-torn:pointerover /template/ Path#Over"><Setter Property="Opacity" Value="0.1"/></Style>
-    <Style Selector="Button.shape-torn:pressed /template/ Path#Over"><Setter Property="Opacity" Value="0.16"/></Style>
+    <Style Selector="Button.shape-torn:pointerover /template/ v|TornShape#Over"><Setter Property="Opacity" Value="0.1"/></Style>
+    <Style Selector="Button.shape-torn:pressed /template/ v|TornShape#Over"><Setter Property="Opacity" Value="0.16"/></Style>
     <Style Selector="Button.shape-torn:pressed /template/ Panel#Root"><Setter Property="RenderTransform" Value="scale(0.98,0.96)"/></Style>
     <Style Selector="Button.shape-torn:disabled"><Setter Property="Opacity" Value="0.45"/></Style>
 

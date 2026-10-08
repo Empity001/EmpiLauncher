@@ -117,7 +117,7 @@ public sealed class HomeView : UserControl
         Avalonia.Automation.AutomationProperties.SetName(TrashButton, "Quitar este modpack de mi compu");
         var tools = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0), Children = { SettingsButton, TrashButton } };
 
-        PlayButton = new Button { Classes = { "pill" }, Padding = new Thickness(0), Height = 52, HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Stretch, ClipToBounds = true };
+        PlayButton = new Button { Classes = { "pill" }, Padding = new Thickness(0), Height = 52, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Center, HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Stretch, ClipToBounds = true };
         Ui.Style(PlayButton, Ui.Kind.Primary);
         PlayButton.Foreground = Look.Primary.Foreground;
         PlayFill.RenderTransform = PlayFillScale;

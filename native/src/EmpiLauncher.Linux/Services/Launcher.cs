@@ -321,6 +321,7 @@ public sealed class Launcher : IAsyncDisposable
         var own = NativeSettings.StyleColors.TryGetValue(Styles.StyleTheme.Current, out var chosen) ? chosen : Styles.StyleCatalog.Get(Styles.StyleTheme.Current).AccentHex;
         var hex = NativeSettings.PackAccent && !string.IsNullOrWhiteSpace(PackAccentHex) ? PackAccentHex : own;
         Views.Pal.SetAccent(string.IsNullOrWhiteSpace(hex) ? Views.Pal.DefaultAccent : hex);
+        if (Environment.GetEnvironmentVariable("EMPI_DEBUG_ACCENT") == "1") Console.Error.WriteLine($"[accent] style={Styles.StyleTheme.Current} own={own} pack={PackAccentHex} packOn={NativeSettings.PackAccent} -> {hex}");
         AccentChanged?.Invoke();
     }
 
