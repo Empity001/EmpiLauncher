@@ -8,6 +8,7 @@ internal static class Shaders
 uniform float4 Res;
 uniform float4 Clock;
 uniform float4 Acc;
+uniform float4 Turn;
 uniform float4 Aura;
 uniform float4 Reveal;
 uniform float4 Waves[12];
@@ -96,6 +97,11 @@ half4 main(float2 fc)
     col *= mix(0.4, 1.0, v);
     col = pow(max(col, float3(0.0)), float3(1.14));
 
+    // the player's colour for the style: the whole palette turns round the grey axis by that angle
+    {
+        float ca = cos(Turn.x); float sa = sin(Turn.x); float3 k = float3(0.57735);
+        col = col * ca + cross(k, col) * sa + k * dot(k, col) * (1.0 - ca);
+    }
     return half4(half3(col * rv.x), half(rv.x));
 }
 """;
@@ -106,6 +112,7 @@ uniform shader Noise;
 uniform float4 Res;
 uniform float4 Clock;
 uniform float4 Acc;
+uniform float4 Turn;
 uniform float4 Aura;
 uniform float4 Reveal;
 uniform float4 Waves[12];
@@ -189,6 +196,11 @@ half4 main(float2 fc)
     float vig = smoothstep(1.35, 0.35, length((uv - float2(0.62, 0.55)) * float2(1.0, 1.2)));
     col *= mix(0.35, 1.0, vig);
 
+    // the player's colour for the style: the whole palette turns round the grey axis by that angle
+    {
+        float ca = cos(Turn.x); float sa = sin(Turn.x); float3 k = float3(0.57735);
+        col = col * ca + cross(k, col) * sa + k * dot(k, col) * (1.0 - ca);
+    }
     return half4(half3(col * rv.x), half(rv.x));
 }
 """;

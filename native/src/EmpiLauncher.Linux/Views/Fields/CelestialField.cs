@@ -64,6 +64,13 @@ internal sealed class CelestialField : StyleField
     {
         for (var i = 0; i < 280; i++) _glitter.Add(new Glitter { X = Rnd(), Y = Rnd(), R = 0.5 + Rnd() * 1.1, Hue = Rnd() * 360, Speed = 0.6 + Rnd() * 1.8, Phase = Rnd() * Math.Tau });
         _stars = Enumerable.Range(0, 30).Select(_ => new Star { X = Rnd(), Y = Rnd(), S = 4 + Rnd() * 8, Rot = Rnd() * Math.Tau, Vr = (Rnd() - 0.5) * 0.6, Vx = (Rnd() - 0.5) * 6, Vy = -3 - Rnd() * 7, Hue = Rnd() * 360 }).ToArray();
+        BuildPalette();
+        for (var a = 0; a < 16; a++) { var p = new Pen(Frozen(Color.FromArgb((byte)(a * 17), 255, 255, 255)), 1); p.Freeze(); _glint[a] = p; }
+    }
+
+    /// <summary>The rainbow's brushes, one per hue; made again when the colour chosen for the style turns it.</summary>
+    private void BuildPalette()
+    {
         for (var h = 0; h < 36; h++)
         {
             for (var a = 0; a < 16; a++)
@@ -78,7 +85,6 @@ internal sealed class CelestialField : StyleField
             foil.GradientStops.Add(new GradientStop(Hsl(h * 10 + 140, 0.95, 0.82), 1));
             foil.Freeze(); _foil[h] = foil;
         }
-        for (var a = 0; a < 16; a++) { var p = new Pen(Frozen(Color.FromArgb((byte)(a * 17), 255, 255, 255)), 1); p.Freeze(); _glint[a] = p; }
     }
 
     private static Geometry MakeStar()
@@ -276,7 +282,7 @@ internal sealed class CelestialField : StyleField
     // ---- the light beams ------------------------------------------------------------------------------------------------------
 
     protected override void Resized() { _leaks = null; }
-    protected override void AccentChanged() { _leaksAt = -1; }
+    protected override void AccentChanged() { _leaksAt = -1; BuildPalette(); }
 
     /// <summary>The base: the light beams, and every glitter point at its resting glow (in its own colour, still).</summary>
     protected override void RenderBase(Dc dc)

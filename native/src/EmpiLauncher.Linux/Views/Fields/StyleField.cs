@@ -181,10 +181,26 @@ internal abstract class StyleField : Control, StyleHost.ILayer
         Step();
     }
 
+    private static double HueOf(Color c)
+    {
+        double r = c.R / 255.0, g = c.G / 255.0, b = c.B / 255.0, max = Math.Max(r, Math.Max(g, b)), d = max - Math.Min(r, Math.Min(g, b));
+        if (d < 1e-6) return 0;
+        var h = max == r ? ((g - b) / d) % 6 : max == g ? (b - r) / d + 2 : (r - g) / d + 4;
+        return h * 60;
+    }
+
+    private bool _accentSynced;
+    /// <summary>Degrees the style's palette is turned to follow the colour the player chose (0 while it is the style's own).</summary>
+    protected double HueShift { get; private set; }
+
     private bool SyncAccent()
     {
-        if (Pal.Accent.Color != Accent) { Accent = Pal.Accent.Color; AccentChanged(); return true; }
-        return false;
+        if (_accentSynced && Pal.Accent.Color == Accent) return false;
+        _accentSynced = true; Accent = Pal.Accent.Color;
+        // how far the chosen colour sits from the style's own: the styles whose palette is fixed (Térmico, Oleaje, Celestial's rainbow) turn by that much
+        var own = global::EmpiLauncher.Linux.Styles.StyleCatalog.Get(global::EmpiLauncher.Linux.Styles.StyleTheme.Current).Accent;
+        HueShift = Math.Abs(Accent.R - own.R) + Math.Abs(Accent.G - own.G) + Math.Abs(Accent.B - own.B) < 6 ? 0 : HueOf(Accent) - HueOf(own);
+        AccentChanged(); return true;
     }
 
     protected virtual void AccentChanged() { }
@@ -335,8 +351,9 @@ internal abstract class StyleField : Control, StyleHost.ILayer
     // ---- colours --------------------------------------------------------------------------------------------------------------
 
     /// <summary>HSL (h in degrees, s and l 0..1) to a colour.</summary>
-    protected static Color Hsl(double h, double s, double l, byte a = 255)
+    protected Color Hsl(double h, double s, double l, byte a = 255)
     {
+        h += HueShift;
         h = ((h % 360) + 360) % 360 / 360;
         double Hue(double p, double q, double t)
         {

@@ -206,6 +206,8 @@ internal sealed class AboutTab : SettingsTab
     /// <summary>The style cards' consumption rings: each redraws itself when the frame rates change (they scale the cost).</summary>
     private readonly List<Action> _weights = [];
 
+    private ToggleButton? _packSwitch;
+
     private Control StyleSection()
     {
         var main = MainWindow.Instance!;
@@ -219,7 +221,7 @@ internal sealed class AboutTab : SettingsTab
         }
         body.Children.Add(cards);
         body.Children.Add(Ui.Row("Usar el color del modpack", "Prendido, cada modpack pinta el launcher con su propio color. Apagado, manda el color del estilo: el suyo, o el que tú le pongas aquí abajo.",
-            Ui.Switch(NativeSettings.PackAccent, main.SetPackAccent, "Usar el color del modpack")));
+            (_packSwitch = Ui.Switch(NativeSettings.PackAccent, main.SetPackAccent, "Usar el color del modpack"))));
         body.Children.Add(Ui.Row("Color del estilo", $"El color de {StyleCatalog.Get(StyleTheme.Current).Name} cuando no manda el del modpack. Escoge uno o hazte el tuyo; cada estilo se acuerda del suyo.", StyleColorChoice()));
         body.Children.Add(Ui.Row("Ver solo el fondo", "El ojo de arriba a la derecha esconde toda la interfaz para que veas el fondo completito. Si dejas el ratón quieto unos segundos se van también los botones, y al moverlo regresan. El ojo, o Esc, trae todo de vuelta.",
             Ui.Act("Probar ahora", () => main.SetBackgroundOnly(true), "GhostButton", 18)));
@@ -619,7 +621,12 @@ internal sealed class AboutTab : SettingsTab
         ];
         presets = presets.DistinctBy(p => p.Hex).ToArray();
         var current = NativeSettings.StyleColors.TryGetValue(style.Id, out var mine) ? mine : own;
-        void Apply(string hex, bool save) { NativeSettings.SetStyleColor(style.Id, hex == own ? null : hex, save); Launcher.RefreshAccent(); if (save) foreach (var update in _weights) update(); }
+        void Apply(string hex, bool save)
+        {
+            // choosing a colour for the style means wanting to see it: the modpack's colour would hide it, so that switch goes off
+            if (NativeSettings.PackAccent) { MainWindow.Instance?.SetPackAccent(false); if (_packSwitch != null) _packSwitch.IsChecked = false; }
+            NativeSettings.SetStyleColor(style.Id, hex == own ? null : hex, save); Launcher.RefreshAccent(); if (save) foreach (var update in _weights) update();
+        }
         return ColorChoice(current, own, presets, "Color del estilo", hex => Apply(hex, false), hex => Apply(hex, true));
     }
 

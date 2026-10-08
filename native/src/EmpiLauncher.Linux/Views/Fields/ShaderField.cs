@@ -24,7 +24,7 @@ internal sealed class StyleShader
     {
         _effect = SKRuntimeEffect.CreateShader(sksl, out var errors);
         if (_effect == null) { App.Log("shader", new InvalidOperationException(errors)); return; }
-        foreach (var name in new[] { "Res", "Clock", "Acc", "Aura", "Reveal" }) Uniforms[name] = new float[4];
+        foreach (var name in new[] { "Res", "Clock", "Acc", "Turn", "Aura", "Reveal" }) Uniforms[name] = new float[4];
         Uniforms["Waves"] = new float[48];
         if (noise != null)
         {
@@ -101,6 +101,7 @@ internal abstract class ShaderField : StyleField
         Fx.Set("Res", (float)W, (float)H, 1, 0);
         Fx.Set("Clock", (float)time, (float)T, 0.7f, (float)motion);
         Fx.Set("Acc", Accent.R / 255f, Accent.G / 255f, Accent.B / 255f, 1);
+        Fx.Set("Turn", (float)(HueShift * Math.PI / 180), 0, 0, 0);
         Fx.Set("Aura", (float)light.X, (float)light.Y, 0, 0);
         Fx.Set("Reveal", (float)Reveal, Reveal < 1 ? 1 : 0, (float)light.X, (float)light.Y);
         var recent = Clicks.Skip(Math.Max(0, Clicks.Count - 12)).ToList();
