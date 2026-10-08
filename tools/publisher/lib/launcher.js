@@ -62,12 +62,25 @@ function readBuild(config, expectedVersion, kind) {
 const hasBuilder = (config) => fs.existsSync(path.join(config.launcherRepoPath, 'node_modules', 'electron-builder', 'cli.js'))
 const hasDotnet = () => spawnSync('dotnet', ['--version'], { encoding: 'utf8' }).status === 0
 const hasWine = () => (process.env.PATH || '').split(path.delimiter).some((dir) => dir && fs.existsSync(path.join(dir, 'wine')))
+const hasTool = (name, arg) => spawnSync(name, [arg], { encoding: 'utf8' }).status === 0
+const hasBuildScript = (config, name) => fs.existsSync(path.join(config.launcherRepoPath, 'native', 'build', name))
+
+/**
+ * "Nativo" is the native launcher for every system this PC can build it for, each one a target:
+ *   native  the WPF launcher for Windows (native/build/build.mjs): built on Windows, or from here with the .NET SDK, makensis and unzip (cross-build)
+ *   linux   the Avalonia launcher for Linux (native/build/build-linux.mjs): built on Linux with the .NET SDK
+ * One Compilar builds all the targets there are, one Enviar uploads them all to the same Release.
+ */
+const TARGETS = {
+    native: (config) => hasBuildScript(config, 'build.mjs') && (process.platform === 'win32' || (hasDotnet() && hasTool('makensis', '-VERSION') && hasTool('unzip', '-v'))),
+    linux: (config) => process.platform === 'linux' && hasBuildScript(config, 'build-linux.mjs') && hasDotnet()
+}
+
+const nativeTargets = (config) => Object.keys(TARGETS).filter((target) => TARGETS[target](config))
+
 const KINDS = {
-    // WPF + NSIS only build on Windows; the classic Windows installer needs Wine anywhere else; the Linux launcher only builds on Linux.
-    native: (config) => process.platform === 'win32' && fs.existsSync(path.join(config.launcherRepoPath, 'native', 'build', 'build.mjs')),
-    classic: (config) => hasBuilder(config) && (process.platform === 'win32' || hasWine()),
-    // the native Linux launcher: Avalonia + the engine, as one tar.gz (native/build/build-linux.mjs); needs the .NET SDK
-    linux: (config) => process.platform === 'linux' && fs.existsSync(path.join(config.launcherRepoPath, 'native', 'build', 'build-linux.mjs')) && hasDotnet()
+    native: (config) => nativeTargets(config).length > 0,
+    classic: (config) => hasBuilder(config) && (process.platform === 'win32' || hasWine())
 }
 
 function availableKinds(config) {
@@ -75,23 +88,34 @@ function availableKinds(config) {
 }
 
 function defaultKind(config) {
-    return KINDS.native(config) ? 'native' : KINDS.linux(config) ? 'linux' : 'classic'
+    return KINDS.native(config) ? 'native' : 'classic'
+}
+
+/** What a compiled build is made of: native builds carry their targets (a build made before targets existed has just the one its kind names). */
+const targetsOf = (state) => (state && state.targets) || (state && state.kind ? [state.kind] : [])
+
+/** Every file of every target of the compiled build, or null while any of them is missing (compile again). */
+function readBuilds(config, state) {
+    if (!state) return null
+    const builds = targetsOf(state).map((target) => readBuild(config, state.version, target))
+    return builds.length > 0 && builds.every(Boolean) ? builds : null
 }
 
 async function info(config) {
     const pkg = readPackage(config)
     const state = loadState().launcherBuild || null
-    const build = state ? readBuild(config, state.version, state.kind) : null
+    const builds = readBuilds(config, state)
     let dirty = 0
     try { dirty = (await git.changes(config.launcherRepoPath)).length } catch { /* not a repo */ }
     const latestTag = await gh.latestTag(config.launcherGithubRepo)
-    const kind = (state && state.kind) || defaultKind(config)
+    const kind = state && state.kind === 'linux' ? 'native' : (state && state.kind) || defaultKind(config)
     // Every release before the native one was a classic one; after the first native release it is remembered here.
     const lastSentKind = loadState().lastSentKind || (latestTag ? 'classic' : null)
     let styleList = []
     try { styleList = styles.list(config, unsentStyle(state)) } catch { /* a broken styles.json only hides Pendientes */ }
     return {
         kinds: availableKinds(config),
+        targets: nativeTargets(config),
         kind,
         migrates: kind === 'native' && lastSentKind === 'classic',
         version: pkg.version,
@@ -99,7 +123,7 @@ async function info(config) {
         latestTag,
         dirty,
         styles: styleList,
-        build: build ? { version: build.version, name: path.basename(build.exe), size: build.size, at: state.at, notes: state.notes, sent: !!state.sentAt, kind: state.kind || 'classic', style: state.style || null } : null
+        build: builds ? { version: builds[0].version, name: builds.map((b) => path.basename(b.exe)).join(' + '), size: builds.reduce((total, b) => total + b.size, 0), at: state.at, notes: state.notes, sent: !!state.sentAt, kind: state.kind === 'linux' ? 'native' : state.kind || 'classic', targets: targetsOf(state), style: state.style || null } : null
     }
 }
 
@@ -121,9 +145,10 @@ async function compile(config, options, log, step) {
         log(`Se mantiene la version ${version}.`)
     }
 
-    const kind = options.kind || defaultKind(config)
+    const kind = options.kind === 'linux' ? 'native' : options.kind || defaultKind(config)   // "linux" alone was the first way to ask for the Linux build: Nativo includes it now
     if (!KINDS[kind]) throw new Error(`Tipo de instalador desconocido: ${kind}.`)
-    if (!KINDS[kind](config)) throw new Error(kind === 'native' ? 'El instalador nativo solo se compila en Windows (necesita WPF y NSIS).' : kind === 'linux' ? 'El launcher de Linux se compila en Linux, con el SDK de .NET (brew install dotnet) y las dependencias del launcher ("npm ci" en su carpeta).' : 'El instalador clásico de Windows se compila en Windows (en otros sistemas necesita Wine). Faltan las dependencias del launcher: corre "npm ci" en su carpeta una vez.')
+    if (!KINDS[kind](config)) throw new Error(kind === 'native' ? 'Aqui no se puede compilar el launcher nativo: hace falta el SDK de .NET (en Linux tambien makensis y unzip para el de Windows).' : 'El instalador clasico necesita Windows (o Wine).')
+    const targets = kind === 'native' ? nativeTargets(config) : [kind]
 
     // A style from Pendientes is switched on in styles.json BEFORE the build, so the installer carries it; one left in an unsent build goes back.
     const style = options.style ? String(options.style) : null
@@ -131,19 +156,23 @@ async function compile(config, options, log, step) {
     const manifestBefore = fs.existsSync(manifestFile) ? fs.readFileSync(manifestFile, 'utf8') : null
     styles.prepare(config, { style, version, unsentStyle: unsentStyle(loadState().launcherBuild), kind }, log)
     try {
-        await build(config, kind, version, log, step)
-        step('Comprobando el instalador')
-        const built = readBuild(config, version, kind)
-        if (!built) throw new Error('La compilacion termino pero no encuentro el instalador de esa version.')
-        log(`Instalador listo: ${path.basename(built.exe)} (${(built.size / MB).toFixed(0)} MB)`)
+        for (const target of targets) {
+            await build(config, target, version, log, step)
+            step('Comprobando el instalador')
+            const built = readBuild(config, version, target)
+            if (!built) throw new Error(`La compilacion de ${target === 'linux' ? 'Linux' : 'Windows'} termino pero no encuentro su instalador de esa version.`)
+            log(`Instalador listo: ${path.basename(built.exe)} (${(built.size / MB).toFixed(0)} MB)`)
+        }
+        if (kind === 'native' && !targets.includes('native')) log('Ojo: este equipo no puede compilar el de Windows, asi que esta version sale solo para Linux; el de Windows se agrega compilando de nuevo en Windows.')
+        if (kind === 'native' && !targets.includes('linux')) log('Ojo: este equipo no puede compilar el de Linux, asi que esta version sale solo para Windows; el de Linux se agrega compilando de nuevo en Linux.')
     } catch (err) {
         // no installer came out: styles.json goes back to how it was, so a failed build never leaves a style switched on
         if (manifestBefore != null) fs.writeFileSync(manifestFile, manifestBefore, 'utf8')
         throw err
     }
 
-    saveState({ launcherBuild: { version, kind, at: new Date().toISOString(), notes: options.notes || '', style } })
-    return { version, kind, style }
+    saveState({ launcherBuild: { version, kind, targets, at: new Date().toISOString(), notes: options.notes || '', style } })
+    return { version, kind, targets, style }
 }
 
 async function build(config, kind, version, log, step) {
@@ -174,9 +203,10 @@ async function send(config, options, log, step) {
     const repo = config.launcherRepoPath
     const state = loadState().launcherBuild
     if (!state) throw new Error('Primero pulsa "Compilar".')
-    const build = readBuild(config, state.version, state.kind)
-    if (!build) throw new Error('No encuentro el instalador compilado. Vuelve a pulsar "Compilar".')
+    const builds = readBuilds(config, state)
+    if (!builds) throw new Error('No encuentro el instalador compilado. Vuelve a pulsar "Compilar".')
     if (readPackage(config).version !== state.version) throw new Error('La versión cambió después de compilar. Vuelve a pulsar "Compilar".')
+    const windowsBuild = builds.some((b) => b.kind !== 'linux')
 
     const tag = `v${state.version}`
     const notes = (options.notes != null ? options.notes : state.notes) || ''
@@ -191,11 +221,11 @@ async function send(config, options, log, step) {
     // The installer is renamed to what latest.yml promises, otherwise auto-update can't find it.
     const staging = fs.mkdtempSync(path.join(os.tmpdir(), 'empi-launcher-'))
     try {
-        const files = [
+        const files = builds.flatMap((build) => [
             [build.exe, build.assetName],
             ...(build.kind === 'linux' ? [] : [[`${build.exe}.blockmap`, `${build.assetName}.blockmap`]]),
             [build.yml, build.ymlName]
-        ].map(([source, name]) => {
+        ]).map(([source, name]) => {
             const staged = path.join(staging, name)
             try { fs.linkSync(source, staged) } catch { fs.copyFileSync(source, staged) }
             return staged
@@ -205,8 +235,8 @@ async function send(config, options, log, step) {
             log(`El release ${tag} ya existia, lo actualizo.`)
             await gh.uploadAssets(config.launcherGithubRepo, tag, files, log)
             // the Windows build of a version that Linux published first is the one that makes it "the latest": that is what Windows launchers read
-            await gh.editRelease(config.launcherGithubRepo, tag, { title: tag, notes, draft: false, ...(build.kind === 'linux' ? {} : { latest: true }) }, log)
-        } else if (build.kind === 'linux') {
+            await gh.editRelease(config.launcherGithubRepo, tag, { title: tag, notes, draft: false, ...(windowsBuild ? { latest: true } : {}) }, log)
+        } else if (!windowsBuild) {
             // a Release made only of Linux files must NOT become the "latest" one: Windows launchers read latest.yml from there. Linux launchers look through the recent Releases.
             log(`El Release ${tag} no existe: lo creo solo con los archivos de Linux, sin marcarlo como el ultimo (los launchers de Windows siguen con el suyo).`)
             await gh.createRelease(config.launcherGithubRepo, tag, tag, notes, log, files, branch, { latest: false })
@@ -219,13 +249,15 @@ async function send(config, options, log, step) {
 
     step('Comprobando que quedo publicado')
     const assets = (await gh.listAssets(config.launcherGithubRepo, tag)).map((asset) => asset.name)
-    for (const name of [build.assetName, ...(build.kind === 'linux' ? [] : [`${build.assetName}.blockmap`]), build.ymlName]) {
-        if (!assets.includes(name)) throw new Error(`En GitHub falta ${name}. Vuelve a pulsar "Enviar".`)
+    for (const build of builds) {
+        for (const name of [build.assetName, ...(build.kind === 'linux' ? [] : [`${build.assetName}.blockmap`]), build.ymlName]) {
+            if (!assets.includes(name)) throw new Error(`En GitHub falta ${name}. Vuelve a pulsar "Enviar".`)
+        }
     }
 
     // What players' launchers read is the "latest release" copy of latest.yml. It is normally live right away; if GitHub still serves
     // the old one this says so instead of leaving a silent "published" that nobody is offered yet.
-    if (build.kind !== 'linux') try {
+    if (windowsBuild) try {
         const response = await fetch(`https://github.com/${config.launcherGithubRepo}/releases/latest/download/latest.yml`, { headers: { 'User-Agent': 'EmpiPublisher' }, cache: 'no-store', signal: AbortSignal.timeout(15000) })
         const served = response.ok ? (/^version:\s*(.+)$/m.exec(await response.text()) || [])[1] : null
         if (served && served.trim() === state.version) log(`Los launchers ya ven la version ${state.version} como la ultima.`)
@@ -235,14 +267,14 @@ async function send(config, options, log, step) {
     }
 
     // Old installers pile up ~100 MB each; only the one just released is worth keeping.
-    const dist = path.dirname(build.exe)
+    const dist = path.dirname(builds[0].exe)
     for (const name of fs.readdirSync(dist)) {
-        if (/^Empi[ -]Launcher-(setup-.*\.exe(\.blockmap)?|[\d.]+-linux-x64\.tar\.gz)$/.test(name) && !name.startsWith(path.basename(build.exe))) {
+        if (/^Empi[ -]Launcher-(setup-.*\.exe(\.blockmap)?|[\d.]+-linux-x64\.tar\.gz)$/.test(name) && !builds.some((b) => name.startsWith(path.basename(b.exe)))) {
             fs.rmSync(path.join(dist, name), { force: true })
         }
     }
 
-    saveState({ launcherBuild: { ...state, sentAt: new Date().toISOString() }, lastSentKind: state.kind === 'linux' ? (loadState().lastSentKind || null) : (state.kind || 'classic') })
+    saveState({ launcherBuild: { ...state, sentAt: new Date().toISOString() }, lastSentKind: windowsBuild ? (state.kind === 'linux' ? 'native' : state.kind || 'classic') : (loadState().lastSentKind || null) })
     log(`Publicado: https://github.com/${config.launcherGithubRepo}/releases/tag/${tag}`)
     return { version: state.version, url: `https://github.com/${config.launcherGithubRepo}/releases/tag/${tag}` }
 }

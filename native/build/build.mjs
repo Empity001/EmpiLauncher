@@ -29,6 +29,12 @@ const args = process.argv.slice(2)
 const flag = (name) => args.includes(`--${name}`)
 const value = (name, fallback) => { const i = args.indexOf(`--${name}`); return i >= 0 && args[i + 1] ? args[i + 1] : fallback }
 
+// Built on Windows it is the usual build. Built anywhere else (the Linux PC) it is CROSS: the WPF interface is compiled for win-x64 by the
+// .NET SDK (EnableWindowsTargeting), Electron and sharp are the Windows downloads, NSIS is the system's makensis. The one thing it cannot do
+// is run the Windows Electron to prove the sign-in window opens, so it checks the pieces are there instead (see checkCrossRuntime).
+const CROSS = process.platform !== 'win32'
+const CACHE = path.join(process.env.XDG_CACHE_HOME || path.join(os.homedir(), '.cache'), 'empi-build')
+
 const pkg = JSON.parse(fs.readFileSync(path.join(repo, 'package.json'), 'utf8'))
 const version = value('version', pkg.version)
 if (!/^\d+\.\d+\.\d+$/.test(version)) fail(`The version must look like 3.0.0 (got "${version}").`)
@@ -83,6 +89,10 @@ async function checkSignInWindow(stageDir) {
 
 function findDotnet() {
     if (process.env.DOTNET) return process.env.DOTNET
+    if (CROSS) {
+        const probe = spawnSync('dotnet', ['--list-sdks'], { encoding: 'utf8' })
+        return probe.status === 0 && probe.stdout.trim() ? 'dotnet' : fail('The .NET SDK was not found (install it, for example "brew install dotnet", or set DOTNET).')
+    }
     const user = path.join(os.homedir(), '.dotnet', 'dotnet.exe')
     if (fs.existsSync(user)) return user
     const system = 'C:\\Program Files\\dotnet\\dotnet.exe'
@@ -93,6 +103,10 @@ function findDotnet() {
 
 function findMakensis() {
     if (process.env.MAKENSIS && fs.existsSync(process.env.MAKENSIS)) return process.env.MAKENSIS
+    if (CROSS) {
+        const probe = spawnSync('makensis', ['-VERSION'], { encoding: 'utf8' })
+        return probe.status === 0 ? 'makensis' : fail('makensis was not found (brew install makensis), or set MAKENSIS.')
+    }
     // electron-builder downloads NSIS the first time it builds an installer; the Publisher's classic build already did.
     const cache = path.join(process.env.LOCALAPPDATA || '', 'electron-builder', 'Cache', 'nsis')
     if (fs.existsSync(cache)) {
@@ -102,6 +116,62 @@ function findMakensis() {
         }
     }
     return fail('makensis.exe was not found. Build the classic installer once (npm run dist:win) so electron-builder downloads NSIS, or set MAKENSIS.')
+}
+
+
+/** Downloads a file once into the build cache and checks its sha256 (from a SHASUMS file next to it, or given). */
+async function download(url, name, sha256, integrity) {
+    fs.mkdirSync(CACHE, { recursive: true })
+    const file = path.join(CACHE, name)
+    // sha256 as hex (Electron's SHASUMS) or npm's "sha512-<base64>" integrity
+    const good = () => fs.existsSync(file) && (integrity
+        ? `sha512-${crypto.createHash('sha512').update(fs.readFileSync(file)).digest('base64')}` === integrity
+        : crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex') === sha256)
+    if (!good()) {
+        console.log(`    bajando ${name}`)
+        const response = await fetch(url)
+        if (!response.ok) fail(`No pude bajar ${url} (${response.status}).`)
+        fs.writeFileSync(file, Buffer.from(await response.arrayBuffer()))
+        if (!good()) fail(`${name} no coincide con su huella sha256.`)
+    }
+    return file
+}
+
+/** The Windows Electron of exactly the version the project pins, unzipped in the cache. */
+async function windowsElectron() {
+    const version = JSON.parse(fs.readFileSync(path.join(repo, 'node_modules', 'electron', 'package.json'), 'utf8')).version
+    const base = `https://github.com/electron/electron/releases/download/v${version}/`
+    const name = `electron-v${version}-win32-x64.zip`
+    const sums = await (await fetch(`${base}SHASUMS256.txt`)).text()
+    const line = sums.split('\n').find((l) => l.trim().endsWith(`*${name}`) || l.trim().endsWith(` ${name}`))
+    if (!line) fail(`No encontre ${name} en las huellas de Electron ${version}.`)
+    const zip = await download(base + name, name, line.trim().split(/\s+/)[0])
+    const dir = path.join(CACHE, `electron-${version}-win32-x64`)
+    if (!fs.existsSync(path.join(dir, 'electron.exe'))) {
+        fs.rmSync(dir, { recursive: true, force: true })
+        await run('unzip', ['-q', '-o', zip, '-d', dir])
+    }
+    return dir
+}
+
+/** sharp's Windows binary (the installed one is the build PC's): the same version npm resolved here, taken from the npm registry. */
+async function windowsSharp(stageModules) {
+    const sharp = JSON.parse(fs.readFileSync(path.join(repo, 'node_modules', 'sharp', 'package.json'), 'utf8'))
+    const wanted = sharp.optionalDependencies?.['@img/sharp-win32-x64']
+    if (!wanted) fail('sharp does not list @img/sharp-win32-x64.')
+    const meta = await (await fetch(`https://registry.npmjs.org/@img/sharp-win32-x64/${wanted}`)).json()
+    const tgz = await download(meta.dist.tarball, `sharp-win32-x64-${wanted}.tgz`, null, meta.dist.integrity)
+    const target = path.join(stageModules, '@img', 'sharp-win32-x64')
+    fs.mkdirSync(target, { recursive: true })
+    await run('tar', ['-xzf', tgz, '-C', target, '--strip-components=1'])
+    fs.rmSync(path.join(target, 'README.md'), { force: true })   // the rest of the packages go without their docs
+}
+
+/** What running the Windows Electron would have shown: its files are there and it is the version the sign-in helper was written for. */
+function checkCrossRuntime(stageDir) {
+    for (const file of ['runtime/electron.exe', 'runtime/resources/default_app.asar', 'runtime/icudtl.dat', 'node_modules/@img/sharp-win32-x64/lib', 'Empi Launcher.exe', 'engine/auth-helper'])
+        if (!fs.existsSync(path.join(stageDir, file))) fail(`Falta ${file} en la carpeta del instalador.`)
+    console.log('    (compilacion cruzada: el Electron de Windows no se puede abrir aqui; se comprobo que estan todas sus piezas)')
 }
 
 const SKIP_FILE = /\.(map|md|markdown|tsbuildinfo)$|\.d\.[cm]?ts$/i
@@ -180,7 +250,7 @@ async function main() {
         `-p:Version=${version}`, `-p:InformationalVersion=${version}`, '-p:DebugType=none', '-p:DebugSymbols=false',
         // an installer for players: the test-only switches (EMPI_ALL_STYLES...) are not even compiled in (EmpiLauncher.App.csproj: EMPI_RELEASE)
         '-p:EmpiRelease=true',
-        '-p:SatelliteResourceLanguages=en', '-nologo', '-v:minimal'], { env: { DOTNET_CLI_TELEMETRY_OPTOUT: '1', DOTNET_NOLOGO: '1' } })
+        '-p:SatelliteResourceLanguages=en', ...(CROSS ? ['-p:EnableWindowsTargeting=true'] : []), '-nologo', '-v:minimal'], { env: { DOTNET_CLI_TELEMETRY_OPTOUT: '1', DOTNET_NOLOGO: '1' } })
     // Same file name the classic launcher had, so shortcuts and taskbar pins made for it keep pointing at the launcher.
     fs.renameSync(path.join(stage, 'EmpiLauncher.App.exe'), path.join(stage, 'Empi Launcher.exe'))
 
@@ -202,12 +272,14 @@ async function main() {
     for (const dir of closure.keys()) {
         const relative = path.relative(modulesRoot, dir)
         if (relative.startsWith('..')) fail(`A dependency lives outside node_modules: ${dir}`)
+        if (CROSS && /^@img[\\/]sharp(-libvips)?-(linux|linuxmusl|darwin)/.test(relative)) continue   // the build PC's binaries: Windows gets its own below
         copyTree(dir, path.join(stage, 'node_modules', relative), { skip: (source, entry) => (entry.isDirectory() ? entry.name === 'node_modules' : SKIP_FILE.test(entry.name)) })
     }
+    if (CROSS) await windowsSharp(path.join(stage, 'node_modules'))
     console.log(`    ${closure.size} packages`)
 
     step('Copiando Electron (motor y ventana de inicio de sesion)')
-    const electronDist = path.join(repo, 'node_modules', 'electron', 'dist')
+    const electronDist = CROSS ? await windowsElectron() : path.join(repo, 'node_modules', 'electron', 'dist')
     if (!fs.existsSync(path.join(electronDist, 'electron.exe'))) fail('node_modules/electron is missing. Run npm install.')
     // Only the languages the launcher speaks. resources/default_app.asar STAYS: without it this Electron starts and dies at once when
     // it is asked to run the sign-in helper, so adding an account or signing out "did nothing" in the installed launcher (found in
@@ -218,7 +290,7 @@ async function main() {
     })
 
     step('Comprobando que la ventana de inicio de sesion abre con el Electron empaquetado')
-    await checkSignInWindow(stage)
+    if (CROSS) checkCrossRuntime(stage); else await checkSignInWindow(stage)
 
     const size = (dir) => { let total = 0; for (const e of fs.readdirSync(dir, { withFileTypes: true })) { const p = path.join(dir, e.name); total += e.isDirectory() ? size(p) : fs.statSync(p).size } return total }
     const stageBytes = size(stage)
@@ -230,13 +302,13 @@ async function main() {
     const installer = path.join(out, installerName)
     fs.mkdirSync(out, { recursive: true })
     fs.rmSync(installer, { force: true })
-    await run(findMakensis(), ['/V2', `/DVERSION=${version}`, `/DSTAGE=${stage}`, `/DOUTFILE=${installer}`, `/DAPP_GUID=${guid}`, ...(guid === APP_GUID ? [] : [`/DSHORTCUT_NAME=Empi Launcher (prueba ${guid.slice(-6)})`]),
-        `/DICON=${path.join(repo, 'build', 'icon.ico')}`, `/DESTIMATED_KB=${Math.round(stageBytes / 1024)}`, path.join(here, 'installer.nsi')])
+    await run(findMakensis(), ['-V2', `-DVERSION=${version}`, `-DSTAGE=${stage}`, `-DOUTFILE=${installer}`, `-DAPP_GUID=${guid}`, ...(guid === APP_GUID ? [] : [`-DSHORTCUT_NAME=Empi Launcher (prueba ${guid.slice(-6)})`]),
+        `-DICON=${path.join(repo, 'build', 'icon.ico')}`, `-DESTIMATED_KB=${Math.round(stageBytes / 1024)}`, path.join(here, 'installer.nsi')])
     const installerBytes = fs.statSync(installer).size
     console.log(`    ${installerName}: ${(installerBytes / MB).toFixed(0)} MB (${seconds()})`)
 
     step('Escribiendo el blockmap y latest.yml')
-    const appBuilder = path.join(repo, 'node_modules', 'app-builder-bin', 'win', 'x64', 'app-builder.exe')
+    const appBuilder = CROSS ? path.join(repo, 'node_modules', 'app-builder-bin', 'linux', 'x64', 'app-builder') : path.join(repo, 'node_modules', 'app-builder-bin', 'win', 'x64', 'app-builder.exe')
     if (!fs.existsSync(appBuilder)) fail('app-builder-bin is missing (npm install). It writes the .blockmap electron-updater looks for.')
     await run(appBuilder, ['blockmap', '--input', installer, '--output', `${installer}.blockmap`])
     const sha512 = crypto.createHash('sha512').update(fs.readFileSync(installer)).digest('base64')

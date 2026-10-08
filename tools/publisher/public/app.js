@@ -1508,8 +1508,17 @@ function refreshStyleNotes() {
 function launcherKind() {
     const info = state.launcher
     if (!info) return 'native'
-    const wanted = state.launcherKind || info.kind
+    const wanted = state.launcherKind === 'linux' ? 'native' : state.launcherKind || info.kind
     return info.kinds && info.kinds[wanted] ? wanted : Object.keys(info.kinds || {}).find((k) => info.kinds[k]) || 'classic'
+}
+
+/** What "Nativo" builds on this PC: both systems when it can, otherwise the one it can (the other is added by compiling on that system). */
+function nativeDetail(info) {
+    const t = info.targets || []
+    if (t.includes('native') && t.includes('linux')) return 'Windows + Linux · recomendado'
+    if (t.includes('linux')) return 'Solo Linux aquí · Windows se agrega compilando en Windows'
+    if (t.includes('native')) return 'Solo Windows aquí · Linux se agrega compilando en Linux'
+    return 'No se puede compilar aquí'
 }
 
 function renderLauncher() {
@@ -1567,10 +1576,9 @@ function renderLauncher() {
             h('textarea', { style: 'margin-top:14px', placeholder: '- Arreglado el login\n- Nuevo fondo', 'aria-label': 'Qué cambia en esta versión', oninput: (event) => { state.notes = event.target.value } }, state.notes)),
         h('section', { class: 'module span2' },
             h('div', { class: 'module-head' }, h('h2', {}, 'Instalador')),
-            h('p', { class: 'muted' }, 'El nativo es el launcher nuevo (ligero, en WPF) y solo se compila en Windows. El clásico es el de Electron, por si hay que volver atrás. Linux es el launcher nativo de Linux (Avalonia), un paquete .tar.gz.'),
+            h('p', { class: 'muted' }, 'El nativo es el launcher nuevo (ligero): un solo Compilar hace el de Windows (WPF) y el de Linux (Avalonia, .tar.gz) y un solo Enviar sube los dos al mismo Release. El clásico es el de Electron, por si hay que volver atrás.'),
             h('div', { class: 'version-choices', role: 'radiogroup', 'aria-label': 'Tipo de instalador', style: 'margin-top:14px' },
-                kindChoice('native', 'Nativo · Windows', 'WPF + motor · solo se compila en Windows'),
-                kindChoice('linux', 'Nativo · Linux', 'Avalonia + motor · .tar.gz · recomendado aquí'),
+                kindChoice('native', 'Nativo', nativeDetail(info)),
                 kindChoice('classic', 'Clásico', 'Electron · el de antes')),
             launcherKind() === 'native' && info.migrates ? h('p', { class: 'note' }, icon('alert'), 'Los jugadores que todavía tienen el launcher viejo (Electron) recibirán este instalador como actualización: se les instala el nuevo y se les quita el viejo, y conservan sus cuentas, mods e instancias.') : null,
             notOffered ? h('p', { class: 'note' }, icon('alert'), `Los launchers solo se actualizan a una versión MAYOR que la publicada (${info.latestTag}). Con ${launcherVersion()} nadie recibirá esta actualización: elige Parche, Menor o Mayor.`) : null),

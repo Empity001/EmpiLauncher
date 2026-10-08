@@ -67,10 +67,18 @@ un estilo que se sube desde el Publisher sale en los dos.
 
 ## Publicar desde el Publisher
 
-En "Publicar el launcher" el instalador **Nativo · Linux** compila el `.tar.gz` (en Windows, el **Nativo · Windows**). Los estilos de Pendientes se
-pueden subir con cualquiera de los dos. El Release se crea con los archivos de Linux sin marcarse como "el último" (los launchers de Windows leen
-`latest.yml` del último Release y no se tocan); cuando después se publica la versión de Windows con el mismo número, se agrega a ese mismo Release y
-ahí sí queda como el último. El actualizador de Linux busca entre los Releases recientes el de versión más alta que traiga `latest-linux.yml`.
+**Nativo** compila y envía los dos launchers de una vez: el de Windows (instalador `.exe`, `.blockmap` y `latest.yml`) y el de Linux (`.tar.gz` y
+`latest-linux.yml`), al mismo Release. Los estilos de Pendientes salen con los dos.
+
+- **En Windows:** compila el de Windows. El de Linux no se puede armar desde Windows, así que se agrega compilando de nuevo en Linux (misma versión).
+- **En Linux:** compila los dos. El de Windows se hace cruzado (`native/build/build.mjs` detecta que no es Windows): el SDK de .NET compila la interfaz
+  WPF para `win-x64` (`EnableWindowsTargeting`), Electron y `sharp` son los de Windows (se bajan una vez a `~/.cache/empi-build`, con su huella
+  verificada) y el instalador lo arma `makensis` (`brew install makensis`; también hace falta `unzip`). Se comprobó contra el instalador real 3.9.0 de
+  Windows: mismos 1360 archivos y mismos binarios. Lo único que no se puede hacer es abrir el Electron de Windows para probar la ventana de Microsoft
+  (en Windows el build lo hace); aquí solo se comprueba que estén todas sus piezas.
+- **Release:** si no existe, se crea con lo que haya. Un Release solo con archivos de Linux no se marca como "el último" (los launchers de Windows leen
+  `latest.yml` del último Release); al publicar después el de Windows se agrega y ahí sí queda como el último. El actualizador de Linux busca entre los
+  Releases recientes el de versión más alta que traiga `latest-linux.yml`.
 
 ## Nebula en Linux
 
